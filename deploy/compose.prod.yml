@@ -1,0 +1,41 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    # Sized for a small shared host; raise the buffer pool if the database outgrows it.
+    command: ['--performance-schema=OFF', '--innodb-buffer-pool-size=64M']
+    environment:
+      MYSQL_DATABASE: speculum
+      MYSQL_USER: speculum
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in deploy/speculum.env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in deploy/speculum.env}
+    volumes:
+      - mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    image: ghcr.io/nvanderploeg/speculum:${SPECULUM_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://speculum:${MYSQL_PASSWORD}@db:3306/speculum
+      ORIGIN: ${ORIGIN:?set ORIGIN in deploy/speculum.env}
+      # Keep in step with client_max_body_size in deploy/nginx.
+      BODY_SIZE_LIMIT: ${SPECULUM_BODY_LIMIT:-8M}
+      SPECULUM_IDLE_MS: ${SPECULUM_IDLE_MS:-}
+      SPECULUM_HEARTBEAT_MS: ${SPECULUM_HEARTBEAT_MS:-}
+      SPECULUM_WRITES_PER_WINDOW: ${SPECULUM_WRITES_PER_WINDOW:-}
+      SPECULUM_WRITE_WINDOW_MS: ${SPECULUM_WRITE_WINDOW_MS:-}
+      # Set by deploy/nginx; without it every client shares the proxy's write limit.
+      ADDRESS_HEADER: x-real-ip
+    ports:
+      - '127.0.0.1:3270:3000'
+
+volumes:
+  mysqldata:

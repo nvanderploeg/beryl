@@ -47,6 +47,7 @@ node scripts/simulate.mjs
 - [`docs/usage.md`](docs/usage.md): install flags, the grill loop, views, MCP tools, CLI, configuration, development.
 - [`CONTEXT.md`](CONTEXT.md): the vocabulary.
 - [`docs/api.md`](docs/api.md), [`docs/widgets.md`](docs/widgets.md), [`docs/client.md`](docs/client.md), [`docs/ui.md`](docs/ui.md): the HTTP, widget, client and board contracts.
+- [`deploy/`](deploy/README.md): example production configuration.
 
 ## License
 

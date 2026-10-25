@@ -5,7 +5,7 @@ Builds on `docs/api.md`. Nothing here may throw into an agent's work: every fail
 ## `@speculum/client` (`packages/client/src/index.ts`)
 
 ```ts
-export const DEFAULT_CANDIDATES = ['http://localhost:3270'];
+export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://speculum.nanzero.com'];
 export const UNREACHABLE_WARNING = 'speculum unreachable — continuing without the board';
 
 export interface ClientOptions {

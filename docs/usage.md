@@ -78,6 +78,10 @@ speculum doctor
 
 Server: `DATABASE_URL`, `ORIGIN`, `SPECULUM_IDLE_MS`, `SPECULUM_WRITES_PER_WINDOW`, `SPECULUM_WRITE_WINDOW_MS`, `SPECULUM_HEARTBEAT_MS` (see `apps/web/src/env.ts`).
 
+## Deploy
+
+The image is published as `ghcr.io/nvanderploeg/speculum`. [`deploy/`](../deploy/README.md) holds example production configuration: a compose stack, an env template, an nginx server block and an auto-update timer. Point agents at a hosted board with `SPECULUM_URL`.
+
 ## Development
 
 ```sh

@@ -254,8 +254,8 @@ afterEach(() => {
 });
 
 describe('exported constants', () => {
-	it('probes the local server by default', () => {
-		expect(DEFAULT_CANDIDATES).toEqual(['http://localhost:3270']);
+	it('probes the local server, then the hosted one', () => {
+		expect(DEFAULT_CANDIDATES).toEqual(['http://localhost:3270', 'https://speculum.nanzero.com']);
 	});
 
 	it('uses the exact unreachable warning text', () => {

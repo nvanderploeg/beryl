@@ -1,6 +1,6 @@
 import { normaliseServer, request } from './http.ts';
 
-export const DEFAULT_CANDIDATES = ['http://localhost:3270'];
+export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://speculum.nanzero.com'];
 
 function isLoopback(server: string): boolean {
 	try {
