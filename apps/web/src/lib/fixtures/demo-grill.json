@@ -1,0 +1,1003 @@
+{
+	"project": { "name": "Tracker" },
+	"topic": {
+		"title": "Team workspaces",
+		"destination": "A spec for shared team workspaces in the tracker: tenancy, data model, migration, invites and permissions, ready to slice into tickets.",
+		"summary": "Today every realm belongs to one user. Teams want a shared space with members and roles."
+	},
+	"turns": [
+		{
+			"say": "How should workspaces be isolated: a workspace_id on every owned row, a schema per tenant, or a database per tenant? I recommend row-level.",
+			"nodes": [
+				{
+					"path": "tenancy",
+					"kind": "area",
+					"title": "Tenancy",
+					"gist": "How one workspace's data is kept apart from another's."
+				},
+				{
+					"path": "tenancy/model",
+					"kind": "decision",
+					"title": "Isolation model",
+					"gist": "Row-level workspace_id, schema per tenant, or database per tenant?",
+					"body": "Every query today filters by `owner_id`. Whatever we pick has to replace that filter everywhere without a rewrite of the data layer.",
+					"recommendation": "Row-level: add `workspace_id` to owned tables and scope every query by it. One database keeps migrations and reporting simple at our size.",
+					"rank": 1,
+					"widgets": [
+						{
+							"key": "choices",
+							"type": "options",
+							"title": "Isolation options",
+							"data": {
+								"question": "How are workspaces isolated?",
+								"criteria": [
+									{ "key": "effort", "label": "Effort" },
+									{ "key": "isolation", "label": "Isolation" },
+									{ "key": "ops", "label": "Operations" }
+								],
+								"options": [
+									{
+										"key": "row",
+										"title": "Row-level workspace_id",
+										"summary": "One schema; every owned row carries its workspace.",
+										"pros": ["One migration path", "Cross-workspace reporting stays easy"],
+										"cons": ["A missed filter leaks data"],
+										"scores": { "effort": "+", "isolation": "-", "ops": "++" },
+										"recommended": true
+									},
+									{
+										"key": "schema",
+										"title": "Schema per tenant",
+										"summary": "Each workspace gets its own MySQL schema.",
+										"pros": ["Strong isolation"],
+										"cons": ["Migrations run N times", "Connection juggling"],
+										"scores": { "effort": "-", "isolation": "+", "ops": "-" }
+									},
+									{
+										"key": "database",
+										"title": "Database per tenant",
+										"summary": "A database, or server, per workspace.",
+										"pros": ["Strongest isolation", "Per-tenant backups"],
+										"cons": ["Heavy operations", "Overkill for small teams"],
+										"scores": { "effort": "--", "isolation": "++", "ops": "--" }
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "tenancy/scope",
+					"kind": "decision",
+					"title": "Many workspaces per user?",
+					"gist": "Can one user belong to several workspaces at once?",
+					"recommendation": "Yes, with a switcher in the header. Consultants and contractors work across teams.",
+					"rank": 2
+				},
+				{
+					"path": "tenancy/workspace",
+					"kind": "term",
+					"title": "Workspace",
+					"gist": "A shared space owned by a team: its members, roles and realms."
+				},
+				{
+					"path": "data",
+					"kind": "area",
+					"title": "Data model",
+					"gist": "Tables and columns that workspaces add or change."
+				},
+				{
+					"path": "data/current",
+					"kind": "fact",
+					"title": "Realms belong to one user",
+					"gist": "Today `realms.owner_id` is the only ownership; labours hang off realms.",
+					"sources": [
+						{ "file": "apps/web/src/lib/server/db/schema.ts", "line": 42, "label": "realms table" },
+						{ "file": "apps/web/src/lib/server/db/schema.ts", "line": 88, "label": "labours table" }
+					],
+					"widgets": [
+						{
+							"key": "current",
+							"type": "schema",
+							"title": "Current tables",
+							"data": {
+								"tables": [
+									{
+										"name": "users",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "username", "type": "varchar(64)", "unique": true },
+											{ "name": "email", "type": "varchar(255)", "nullable": true },
+											{ "name": "is_bot", "type": "boolean", "default": "false" }
+										]
+									},
+									{
+										"name": "realms",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "key", "type": "varchar(16)", "unique": true },
+											{ "name": "owner_id", "type": "bigint", "references": { "table": "users", "column": "id" } },
+											{ "name": "name", "type": "varchar(200)" }
+										]
+									},
+									{
+										"name": "labours",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "realm_id", "type": "bigint", "references": { "table": "realms", "column": "id" } },
+											{ "name": "parent_id", "type": "bigint", "nullable": true, "references": { "table": "labours", "column": "id" } },
+											{ "name": "title", "type": "text" }
+										],
+										"indexes": [{ "name": "labours_realm_idx", "columns": ["realm_id"] }]
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "invites",
+					"kind": "area",
+					"title": "Invites and membership",
+					"gist": "How people join a workspace."
+				},
+				{
+					"path": "invites/channel",
+					"kind": "assumption",
+					"title": "Invites go by email",
+					"gist": "An owner invites by email address, not by username.",
+					"body": "Email reaches people who have no account yet."
+				},
+				{
+					"path": "permissions",
+					"kind": "area",
+					"title": "Permissions",
+					"gist": "Who can do what inside a workspace."
+				},
+				{
+					"path": "permissions/granularity",
+					"kind": "fog",
+					"title": "Role granularity",
+					"gist": "Owner, editor and viewer may not be enough; unclear what teams need beyond them."
+				},
+				{
+					"path": "migration",
+					"kind": "area",
+					"title": "Migration",
+					"gist": "Moving today's personal realms into workspaces."
+				},
+				{
+					"path": "migration/existing",
+					"kind": "fog",
+					"title": "Existing personal realms",
+					"gist": "Every current realm needs a workspace; how, and what breaks, is not yet clear."
+				},
+				{
+					"path": "migration/lock",
+					"kind": "risk",
+					"title": "Backfill locks labours",
+					"gist": "Adding and filling workspace_id on labours could lock a large table.",
+					"edges": [{ "rel": "relates", "to": "migration/existing" }]
+				}
+			],
+			"topic": { "current": "tenancy/model" },
+			"notes": [
+				{ "anchor": { "path": "tenancy/model" }, "intent": "accept", "author": "Sam" },
+				{
+					"anchor": { "path": "tenancy/scope" },
+					"intent": "answer",
+					"text": "Yes, several. Half our users consult for more than one team.",
+					"author": "Sam"
+				},
+				{
+					"anchor": { "path": "invites/channel" },
+					"intent": "correct",
+					"text": "Both: username for people who already have an account, email for everyone else.",
+					"author": "Sam"
+				},
+				{
+					"anchor": { "path": "data/current", "widget": "current", "element": "labours.parent_id" },
+					"intent": "comment",
+					"text": "parent_id can point at a labour in another realm today.",
+					"author": "Sam"
+				}
+			],
+			"send": true
+		},
+		{
+			"pull": true,
+			"say": "Here is the proposed schema: a workspaces table, a memberships table with a role, and realms moving from owner_id to workspace_id. Does that fit?",
+			"resolve": [
+				{ "note": 0, "reply": "Settled: row-level workspace_id.", "changed": ["tenancy/model"] },
+				{ "note": 1, "reply": "Settled: users can join many workspaces; added a switcher question under UI.", "changed": ["tenancy/scope"] },
+				{ "note": 2, "reply": "Corrected: invite by username or email.", "changed": ["invites/channel"] },
+				{ "note": 3, "reply": "Good catch: added a question about cross-realm parents.", "changed": ["data/parents"] }
+			],
+			"nodes": [
+				{
+					"path": "tenancy/model",
+					"status": "settled",
+					"answer": "Row-level: workspace_id on every owned table, every query scoped by it.",
+					"widgets": [
+						{
+							"key": "choices",
+							"type": "options",
+							"title": "Isolation options",
+							"data": {
+								"question": "How are workspaces isolated?",
+								"criteria": [
+									{ "key": "effort", "label": "Effort" },
+									{ "key": "isolation", "label": "Isolation" },
+									{ "key": "ops", "label": "Operations" }
+								],
+								"options": [
+									{
+										"key": "row",
+										"title": "Row-level workspace_id",
+										"summary": "One schema; every owned row carries its workspace.",
+										"pros": ["One migration path", "Cross-workspace reporting stays easy"],
+										"cons": ["A missed filter leaks data"],
+										"scores": { "effort": "+", "isolation": "-", "ops": "++" },
+										"recommended": true,
+										"chosen": true
+									},
+									{
+										"key": "schema",
+										"title": "Schema per tenant",
+										"summary": "Each workspace gets its own MySQL schema.",
+										"pros": ["Strong isolation"],
+										"cons": ["Migrations run N times", "Connection juggling"],
+										"scores": { "effort": "-", "isolation": "+", "ops": "-" }
+									},
+									{
+										"key": "database",
+										"title": "Database per tenant",
+										"summary": "A database, or server, per workspace.",
+										"pros": ["Strongest isolation", "Per-tenant backups"],
+										"cons": ["Heavy operations", "Overkill for small teams"],
+										"scores": { "effort": "--", "isolation": "++", "ops": "--" }
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "tenancy/scope",
+					"status": "settled",
+					"answer": "Yes. A user belongs to any number of workspaces and switches between them."
+				},
+				{
+					"path": "invites/channel",
+					"status": "settled",
+					"title": "Invite by username or email",
+					"gist": "Username for people with an account, email for everyone else.",
+					"answer": "Both: username for existing users, email for new ones."
+				},
+				{
+					"path": "data/schema",
+					"kind": "decision",
+					"title": "New tables and columns",
+					"gist": "workspaces and memberships tables; realms move from owner_id to workspace_id.",
+					"recommendation": "Add workspaces and memberships; rename realms.owner_id to created_by and add realms.workspace_id.",
+					"rank": 1,
+					"edges": [{ "rel": "relies_on", "to": "tenancy/model" }],
+					"widgets": [
+						{
+							"key": "tables",
+							"type": "schema",
+							"title": "Proposed schema",
+							"data": {
+								"tables": [
+									{
+										"name": "workspaces",
+										"change": "added",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true, "change": "added" },
+											{ "name": "slug", "type": "varchar(64)", "unique": true, "change": "added" },
+											{ "name": "name", "type": "varchar(200)", "change": "added" },
+											{ "name": "personal", "type": "boolean", "default": "false", "change": "added", "note": "one per user, made by the migration" }
+										]
+									},
+									{
+										"name": "memberships",
+										"change": "added",
+										"columns": [
+											{ "name": "workspace_id", "type": "bigint", "pk": true, "references": { "table": "workspaces", "column": "id" }, "change": "added" },
+											{ "name": "user_id", "type": "bigint", "pk": true, "references": { "table": "users", "column": "id" }, "change": "added" },
+											{ "name": "role", "type": "varchar(16)", "change": "added" }
+										]
+									},
+									{
+										"name": "realms",
+										"change": "changed",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "key", "type": "varchar(16)", "unique": true },
+											{ "name": "workspace_id", "type": "bigint", "references": { "table": "workspaces", "column": "id" }, "change": "added" },
+											{ "name": "created_by", "type": "bigint", "references": { "table": "users", "column": "id" }, "change": "renamed", "from": "owner_id" },
+											{ "name": "name", "type": "varchar(200)" }
+										],
+										"indexes": [{ "name": "realms_workspace_idx", "columns": ["workspace_id"], "change": "added" }]
+									},
+									{
+										"name": "users",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "username", "type": "varchar(64)", "unique": true }
+										]
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "data/parents",
+					"kind": "decision",
+					"title": "Parents across workspaces?",
+					"gist": "May a labour's parent live in another workspace?",
+					"recommendation": "No. Parent and child share a workspace; the migration detaches parents that would cross.",
+					"rank": 2,
+					"edges": [{ "rel": "relies_on", "to": "tenancy/model" }]
+				},
+				{
+					"path": "permissions/roles",
+					"kind": "decision",
+					"title": "Workspace roles",
+					"gist": "Owner, admin, member and guest, with the grants below.",
+					"recommendation": "Four roles. Admin can manage members but not billing or deletion.",
+					"rank": 3,
+					"widgets": [
+						{
+							"key": "matrix",
+							"type": "table",
+							"title": "Grants by role",
+							"data": {
+								"columns": ["Action", "Owner", "Admin", "Member", "Guest"],
+								"rows": [
+									{ "key": "read", "cells": ["Read realms", true, true, true, true] },
+									{ "key": "write", "cells": ["Edit labours", true, true, true, false] },
+									{ "key": "members", "cells": ["Manage members", true, true, false, false], "change": "added" },
+									{ "key": "billing", "cells": ["Billing", true, false, false, false], "change": "added" },
+									{ "key": "delete", "cells": ["Delete workspace", true, false, false, false] }
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "permissions/realm-override",
+					"kind": "decision",
+					"title": "Realm-level overrides",
+					"gist": "Can a realm narrow what a workspace role allows?",
+					"recommendation": "Not in the first version; workspace roles apply to every realm.",
+					"rank": 4,
+					"edges": [{ "rel": "relies_on", "to": "permissions/roles" }]
+				},
+				{
+					"path": "ui",
+					"kind": "area",
+					"title": "Workspace UI",
+					"gist": "Switching workspaces and managing members."
+				},
+				{
+					"path": "ui/switcher",
+					"kind": "decision",
+					"title": "Where the switcher lives",
+					"gist": "A header menu listing the user's workspaces, with the workspace in the URL.",
+					"recommendation": "Header menu; routes move under /w/[workspace].",
+					"rank": 5,
+					"edges": [{ "rel": "relies_on", "to": "tenancy/scope" }]
+				}
+			],
+			"remove": ["permissions/granularity"],
+			"topic": { "current": "data/schema" },
+			"notes": [
+				{
+					"anchor": { "path": "data/schema", "widget": "tables", "element": "memberships.role" },
+					"intent": "comment",
+					"text": "Make role an enum, not free text.",
+					"author": "Sam"
+				},
+				{ "anchor": { "path": "data/parents" }, "intent": "answer", "text": "Agreed, same workspace only.", "author": "Sam" },
+				{
+					"anchor": { "path": "migration/existing" },
+					"intent": "explore",
+					"text": "Take this next; it is the part that worries me.",
+					"author": "Sam"
+				}
+			],
+			"send": true
+		},
+		{
+			"pull": true,
+			"say": "Here is the migration plan: one personal workspace per user, realms move into it, cross-workspace parents get detached. Does it match what you expect?",
+			"resolve": [
+				{ "note": 4, "reply": "role is now an enum of owner, admin, member, guest.", "changed": ["data/schema"] },
+				{ "note": 5, "reply": "Settled: same workspace only.", "changed": ["data/parents"] },
+				{ "note": 6, "reply": "Charted the migration plan and asked about it next.", "changed": ["migration/plan", "migration/deploys"] }
+			],
+			"nodes": [
+				{
+					"path": "data/schema",
+					"status": "settled",
+					"answer": "workspaces and memberships tables; role is an enum; realms gain workspace_id and owner_id becomes created_by.",
+					"widgets": [
+						{
+							"key": "tables",
+							"type": "schema",
+							"title": "Proposed schema",
+							"data": {
+								"tables": [
+									{
+										"name": "workspaces",
+										"change": "added",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true, "change": "added" },
+											{ "name": "slug", "type": "varchar(64)", "unique": true, "change": "added" },
+											{ "name": "name", "type": "varchar(200)", "change": "added" },
+											{ "name": "personal", "type": "boolean", "default": "false", "change": "added", "note": "one per user, made by the migration" }
+										]
+									},
+									{
+										"name": "memberships",
+										"change": "added",
+										"columns": [
+											{ "name": "workspace_id", "type": "bigint", "pk": true, "references": { "table": "workspaces", "column": "id" }, "change": "added" },
+											{ "name": "user_id", "type": "bigint", "pk": true, "references": { "table": "users", "column": "id" }, "change": "added" },
+											{ "name": "role", "type": "enum('owner','admin','member','guest')", "change": "added" }
+										]
+									},
+									{
+										"name": "realms",
+										"change": "changed",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "key", "type": "varchar(16)", "unique": true },
+											{ "name": "workspace_id", "type": "bigint", "references": { "table": "workspaces", "column": "id" }, "change": "added" },
+											{ "name": "created_by", "type": "bigint", "references": { "table": "users", "column": "id" }, "change": "renamed", "from": "owner_id" },
+											{ "name": "name", "type": "varchar(200)" }
+										],
+										"indexes": [{ "name": "realms_workspace_idx", "columns": ["workspace_id"], "change": "added" }]
+									},
+									{
+										"name": "users",
+										"columns": [
+											{ "name": "id", "type": "bigint", "pk": true },
+											{ "name": "username", "type": "varchar(64)", "unique": true }
+										]
+									}
+								]
+							}
+						}
+					]
+				},
+				{ "path": "data/parents", "status": "settled", "answer": "Same workspace only; the migration detaches parents that would cross." },
+				{
+					"path": "migration/plan",
+					"kind": "decision",
+					"title": "Migration plan",
+					"gist": "Personal workspace per user, realms move in, crossing parents detached.",
+					"recommendation": "Run the five steps below in one migration; the backfills are batched.",
+					"rank": 1,
+					"edges": [
+						{ "rel": "relies_on", "to": "data/schema" },
+						{ "rel": "relies_on", "to": "data/parents" }
+					],
+					"widgets": [
+						{
+							"key": "plan",
+							"type": "migration",
+							"title": "Steps",
+							"data": {
+								"dialect": "mysql",
+								"steps": [
+									{
+										"key": "create-workspaces",
+										"op": "create",
+										"table": "workspaces",
+										"risk": "low",
+										"reversible": true,
+										"columns": [
+											{ "name": "id", "change": "added", "after": "bigint primary key auto_increment" },
+											{ "name": "slug", "change": "added", "after": "varchar(64) not null unique" },
+											{ "name": "name", "change": "added", "after": "varchar(200) not null" },
+											{ "name": "personal", "change": "added", "after": "boolean not null default false" }
+										]
+									},
+									{
+										"key": "backfill-workspaces",
+										"op": "backfill",
+										"table": "workspaces",
+										"title": "One personal workspace per user",
+										"risk": "low",
+										"rows": {
+											"columns": ["id", "slug", "name", "personal"],
+											"items": [
+												{ "key": "u-1", "change": "added", "values": [1, "norman", "Norman's workspace", true] },
+												{ "key": "u-2", "change": "added", "values": [2, "sam", "Sam's workspace", true] },
+												{ "key": "u-17", "change": "added", "values": [17, "ci-bot", "ci-bot's workspace", true] }
+											]
+										}
+									},
+									{
+										"key": "alter-realms",
+										"op": "alter",
+										"table": "realms",
+										"risk": "medium",
+										"reversible": true,
+										"columns": [
+											{ "name": "workspace_id", "change": "added", "after": "bigint null references workspaces(id)" },
+											{ "name": "owner_id", "change": "renamed", "before": "owner_id bigint not null", "after": "created_by bigint not null" }
+										],
+										"sql": "ALTER TABLE realms\n  ADD COLUMN workspace_id BIGINT NULL,\n  RENAME COLUMN owner_id TO created_by;\nUPDATE realms SET workspace_id = created_by;\nALTER TABLE realms MODIFY workspace_id BIGINT NOT NULL;"
+									},
+									{
+										"key": "detach-parents",
+										"op": "data",
+										"table": "labours",
+										"title": "Detach parents across workspaces",
+										"risk": "medium",
+										"reversible": false,
+										"note": "Detached links are kept as relates links so nothing is lost.",
+										"rows": {
+											"columns": ["id", "realm", "parent_id"],
+											"items": [
+												{ "key": "l-204", "change": "changed", "values": [204, "AM", null], "before": [204, "AM", 98] },
+												{ "key": "l-311", "change": "changed", "values": [311, "OPS", null], "before": [311, "OPS", 12] },
+												{ "key": "l-512", "change": "kept", "values": [512, "AM", 204] }
+											]
+										}
+									},
+									{
+										"key": "seed-memberships",
+										"op": "data",
+										"table": "memberships",
+										"title": "Owners of their personal workspaces",
+										"risk": "low",
+										"rows": {
+											"columns": ["workspace_id", "user_id", "role"],
+											"items": [
+												{ "key": "m-1", "change": "added", "values": [1, 1, "owner"] },
+												{ "key": "m-2", "change": "added", "values": [2, 2, "owner"] },
+												{ "key": "m-17", "change": "added", "values": [17, 17, "owner"] }
+											]
+										}
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "migration/deploys",
+					"kind": "decision",
+					"title": "One deploy or two?",
+					"gist": "Ship the schema and the code that reads it together, or schema first?",
+					"recommendation": "Two deploys: schema and backfill first behind a flag, then the code that requires workspace_id.",
+					"rank": 2,
+					"edges": [{ "rel": "relies_on", "to": "migration/plan" }],
+					"widgets": [
+						{
+							"key": "choices",
+							"type": "options",
+							"data": {
+								"options": [
+									{ "key": "one", "title": "One deploy", "pros": ["Simple"], "cons": ["Rollback means a down migration"] },
+									{ "key": "two", "title": "Two deploys", "pros": ["Each step reversible", "Backfill can run warm"], "cons": ["A flag to remove later"], "recommended": true }
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "migration/lock",
+					"edges": [{ "rel": "relates", "to": "migration/plan" }]
+				},
+				{
+					"path": "invites/flow",
+					"kind": "decision",
+					"title": "Invite flow",
+					"gist": "An invite stays pending until accepted, declined or expired after 7 days.",
+					"recommendation": "Pending invites expire after 7 days; owners and admins can revoke them.",
+					"rank": 3,
+					"edges": [{ "rel": "relies_on", "to": "invites/channel" }],
+					"widgets": [
+						{
+							"key": "sequence",
+							"type": "sequence",
+							"title": "Inviting by email",
+							"data": {
+								"actors": [
+									{ "key": "owner", "label": "Owner", "kind": "person" },
+									{ "key": "app", "label": "Tracker", "kind": "service" },
+									{ "key": "mail", "label": "Mailer", "kind": "external" },
+									{ "key": "guest", "label": "Invitee", "kind": "person" }
+								],
+								"steps": [
+									{ "key": "s1", "from": "owner", "to": "app", "label": "invite(email, role)", "kind": "call" },
+									{ "key": "s2", "from": "app", "to": "mail", "label": "send invite link", "kind": "async" },
+									{ "key": "s3", "from": "mail", "to": "guest", "label": "email with token", "kind": "async" },
+									{ "key": "s4", "from": "guest", "to": "app", "label": "accept(token)", "kind": "call" },
+									{ "key": "s5", "from": "app", "to": "guest", "label": "membership created", "kind": "reply" }
+								]
+							}
+						},
+						{
+							"key": "lifecycle",
+							"type": "states",
+							"title": "Invite lifecycle",
+							"data": {
+								"states": [
+									{ "key": "pending", "label": "Pending", "kind": "initial" },
+									{ "key": "accepted", "label": "Accepted", "kind": "final" },
+									{ "key": "declined", "label": "Declined", "kind": "final" },
+									{ "key": "expired", "label": "Expired", "kind": "final" },
+									{ "key": "revoked", "label": "Revoked", "kind": "final" }
+								],
+								"transitions": [
+									{ "from": "pending", "to": "accepted", "label": "accept" },
+									{ "from": "pending", "to": "declined", "label": "decline" },
+									{ "from": "pending", "to": "expired", "label": "7 days" },
+									{ "from": "pending", "to": "revoked", "label": "revoke" }
+								]
+							}
+						}
+					]
+				}
+			],
+			"remove": ["migration/existing"],
+			"topic": { "current": "migration/plan" },
+			"notes": [
+				{
+					"anchor": { "path": "migration/plan", "widget": "plan", "element": "backfill-workspaces#u-17" },
+					"intent": "correct",
+					"text": "ci-bot is a bot account. Skip bots; they join workspaces explicitly.",
+					"author": "Sam"
+				},
+				{ "anchor": { "path": "migration/deploys" }, "intent": "accept", "author": "Sam" },
+				{ "anchor": { "path": "permissions/realm-override" }, "intent": "defer", "text": "Later, once teams ask for it.", "author": "Sam" }
+			]
+		},
+		{
+			"pull": true,
+			"say": "Invites: should owners be able to resend a pending invite, and does resending restart the 7 days?",
+			"resolve": [
+				{ "note": 7, "reply": "Bots are skipped by the backfill and the membership seed.", "changed": ["migration/plan"] },
+				{ "note": 8, "reply": "Settled: two deploys.", "changed": ["migration/deploys"] },
+				{ "note": 9, "reply": "Parked.", "changed": ["permissions/realm-override"] }
+			],
+			"nodes": [
+				{
+					"path": "migration/plan",
+					"status": "settled",
+					"answer": "Five steps in one migration, bots skipped, backfills batched.",
+					"widgets": [
+						{
+							"key": "plan",
+							"type": "migration",
+							"title": "Steps",
+							"data": {
+								"dialect": "mysql",
+								"steps": [
+									{
+										"key": "create-workspaces",
+										"op": "create",
+										"table": "workspaces",
+										"risk": "low",
+										"reversible": true,
+										"columns": [
+											{ "name": "id", "change": "added", "after": "bigint primary key auto_increment" },
+											{ "name": "slug", "change": "added", "after": "varchar(64) not null unique" },
+											{ "name": "name", "change": "added", "after": "varchar(200) not null" },
+											{ "name": "personal", "change": "added", "after": "boolean not null default false" }
+										]
+									},
+									{
+										"key": "backfill-workspaces",
+										"op": "backfill",
+										"table": "workspaces",
+										"title": "One personal workspace per human user",
+										"risk": "low",
+										"note": "Users with is_bot are skipped.",
+										"rows": {
+											"columns": ["id", "slug", "name", "personal"],
+											"items": [
+												{ "key": "u-1", "change": "added", "values": [1, "norman", "Norman's workspace", true] },
+												{ "key": "u-2", "change": "added", "values": [2, "sam", "Sam's workspace", true] },
+												{ "key": "u-17", "change": "removed", "values": [17, "ci-bot", "ci-bot's workspace", true] }
+											]
+										}
+									},
+									{
+										"key": "alter-realms",
+										"op": "alter",
+										"table": "realms",
+										"risk": "medium",
+										"reversible": true,
+										"columns": [
+											{ "name": "workspace_id", "change": "added", "after": "bigint null references workspaces(id)" },
+											{ "name": "owner_id", "change": "renamed", "before": "owner_id bigint not null", "after": "created_by bigint not null" }
+										],
+										"sql": "ALTER TABLE realms\n  ADD COLUMN workspace_id BIGINT NULL,\n  RENAME COLUMN owner_id TO created_by;\nUPDATE realms SET workspace_id = created_by;\nALTER TABLE realms MODIFY workspace_id BIGINT NOT NULL;"
+									},
+									{
+										"key": "detach-parents",
+										"op": "data",
+										"table": "labours",
+										"title": "Detach parents across workspaces",
+										"risk": "medium",
+										"reversible": false,
+										"note": "Detached links are kept as relates links so nothing is lost.",
+										"rows": {
+											"columns": ["id", "realm", "parent_id"],
+											"items": [
+												{ "key": "l-204", "change": "changed", "values": [204, "AM", null], "before": [204, "AM", 98] },
+												{ "key": "l-311", "change": "changed", "values": [311, "OPS", null], "before": [311, "OPS", 12] },
+												{ "key": "l-512", "change": "kept", "values": [512, "AM", 204] }
+											]
+										}
+									},
+									{
+										"key": "seed-memberships",
+										"op": "data",
+										"table": "memberships",
+										"title": "Owners of their personal workspaces",
+										"risk": "low",
+										"rows": {
+											"columns": ["workspace_id", "user_id", "role"],
+											"items": [
+												{ "key": "m-1", "change": "added", "values": [1, 1, "owner"] },
+												{ "key": "m-2", "change": "added", "values": [2, 2, "owner"] }
+											]
+										}
+									}
+								]
+							}
+						}
+					]
+				},
+				{ "path": "migration/deploys", "status": "settled", "answer": "Two deploys: schema and backfill behind a flag, then the code that requires workspace_id." },
+				{ "path": "permissions/realm-override", "status": "parked" },
+				{
+					"path": "data/services",
+					"kind": "fact",
+					"title": "Service boundaries",
+					"gist": "Three services own workspaces, memberships and invites; Role is a shared enum.",
+					"widgets": [
+						{
+							"key": "classes",
+							"type": "classes",
+							"title": "Services",
+							"data": {
+								"classes": [
+									{
+										"key": "WorkspaceService",
+										"name": "WorkspaceService",
+										"stereotype": "service",
+										"change": "added",
+										"methods": [
+											{ "name": "create", "params": "name: string, owner: UserId", "returns": "Workspace", "visibility": "+" },
+											{ "name": "forUser", "params": "user: UserId", "returns": "Workspace[]", "visibility": "+" }
+										]
+									},
+									{
+										"key": "MembershipService",
+										"name": "MembershipService",
+										"stereotype": "service",
+										"change": "added",
+										"methods": [
+											{ "name": "roleOf", "params": "user: UserId, ws: WorkspaceId", "returns": "Role | null", "visibility": "+" },
+											{ "name": "setRole", "params": "user: UserId, role: Role", "returns": "void", "visibility": "+" }
+										]
+									},
+									{
+										"key": "InviteService",
+										"name": "InviteService",
+										"stereotype": "service",
+										"change": "added",
+										"fields": [{ "name": "ttl", "type": "Duration", "visibility": "-" }],
+										"methods": [
+											{ "name": "invite", "params": "ws: WorkspaceId, to: string, role: Role", "returns": "Invite", "visibility": "+" },
+											{ "name": "accept", "params": "token: string", "returns": "Membership", "visibility": "+" }
+										]
+									},
+									{
+										"key": "Role",
+										"name": "Role",
+										"stereotype": "enum",
+										"change": "added",
+										"fields": [{ "name": "owner" }, { "name": "admin" }, { "name": "member" }, { "name": "guest" }]
+									},
+									{
+										"key": "RealmService",
+										"name": "RealmService",
+										"stereotype": "service",
+										"change": "changed",
+										"methods": [
+											{ "name": "forOwner", "params": "user: UserId", "returns": "Realm[]", "change": "removed", "visibility": "+" },
+											{ "name": "forWorkspace", "params": "ws: WorkspaceId", "returns": "Realm[]", "change": "added", "visibility": "+" }
+										]
+									}
+								],
+								"relations": [
+									{ "from": "InviteService", "to": "MembershipService", "kind": "uses", "label": "creates" },
+									{ "from": "MembershipService", "to": "Role", "kind": "uses" },
+									{ "from": "WorkspaceService", "to": "MembershipService", "kind": "uses" },
+									{ "from": "RealmService", "to": "WorkspaceService", "kind": "uses", "change": "added" }
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "invites/api",
+					"kind": "decision",
+					"title": "Invite endpoints",
+					"gist": "Four routes and two MCP tools for invites and members.",
+					"recommendation": "REST under /api/workspaces/:slug, mirrored as MCP tools.",
+					"rank": 4,
+					"edges": [{ "rel": "relies_on", "to": "invites/flow" }],
+					"widgets": [
+						{
+							"key": "routes",
+							"type": "api",
+							"title": "Routes",
+							"data": {
+								"endpoints": [
+									{ "key": "list-members", "method": "GET", "path": "/api/workspaces/:slug/members", "summary": "Members and their roles", "auth": "member", "change": "added" },
+									{ "key": "invite", "method": "POST", "path": "/api/workspaces/:slug/invites", "summary": "Invite by username or email", "auth": "admin", "request": "{ to: string; role: Role }", "response": "{ invite: Invite }", "change": "added" },
+									{ "key": "accept", "method": "POST", "path": "/api/invites/:token/accept", "summary": "Accept an invite", "auth": "invitee", "response": "{ membership: Membership }", "change": "added" },
+									{ "key": "revoke", "method": "DELETE", "path": "/api/workspaces/:slug/invites/:id", "summary": "Revoke a pending invite", "auth": "admin", "change": "added" },
+									{ "key": "tool-invite", "method": "TOOL", "path": "invite_member", "summary": "MCP: invite someone", "change": "added" }
+								]
+							}
+						}
+					]
+				},
+				{
+					"path": "permissions/check",
+					"kind": "decision",
+					"title": "One permission check",
+					"gist": "Every route calls can(user, action, workspace) before it touches data.",
+					"recommendation": "A single can() helper backed by the grants table, called from a route guard.",
+					"rank": 6,
+					"edges": [{ "rel": "relies_on", "to": "permissions/roles" }],
+					"widgets": [
+						{
+							"key": "guard",
+							"type": "code",
+							"title": "Route guard",
+							"data": {
+								"language": "ts",
+								"filename": "src/lib/server/can.ts",
+								"highlight": [4, 5],
+								"code": "export async function can(user: UserId, action: Action, ws: WorkspaceId) {\n\tconst role = await memberships.roleOf(user, ws);\n\tif (!role) return false;\n\t// Grants are data, not code: a new role needs no deploy.\n\treturn GRANTS[role].has(action);\n}"
+							}
+						}
+					]
+				},
+				{
+					"path": "ui/switcher",
+					"widgets": [
+						{
+							"key": "files",
+							"type": "files",
+							"title": "Files touched",
+							"data": {
+								"root": "apps/web",
+								"files": [
+									{ "path": "src/routes/w/[slug]/+layout.svelte", "change": "added", "summary": "Workspace shell with the switcher", "added": 80 },
+									{ "path": "src/routes/w/[slug]/+layout.server.ts", "change": "added", "summary": "Loads the workspace and checks membership", "added": 40 },
+									{ "path": "src/routes/r/[key]/+page.svelte", "change": "renamed", "from": "src/routes/realm/[key]/+page.svelte", "added": 4, "removed": 4 },
+									{ "path": "src/lib/components/Header.svelte", "change": "changed", "summary": "Adds the switcher menu", "added": 35, "removed": 6 },
+									{ "path": "src/lib/components/OwnerBadge.svelte", "change": "removed", "removed": 22 },
+									{ "path": "src/lib/server/db/schema.ts", "summary": "Read for the new tables" }
+								]
+							}
+						}
+					]
+				}
+			],
+			"topic": { "current": "invites/flow" },
+			"notes": [
+				{ "anchor": { "path": "invites/flow" }, "intent": "answer", "text": "Yes, resend, and it restarts the 7 days.", "author": "Sam" },
+				{
+					"anchor": { "path": "ui/switcher", "widget": "files", "element": "src/routes/w/[slug]/+layout.svelte" },
+					"intent": "comment",
+					"text": "Slug in the URL, not the numeric id.",
+					"author": "Sam"
+				}
+			],
+			"send": true
+		},
+		{
+			"pull": true,
+			"say": "Roles: are owner, admin, member and guest enough, and should admins manage billing?",
+			"resolve": [
+				{ "note": 10, "reply": "Added a resend transition that restarts the expiry.", "changed": ["invites/flow"] },
+				{ "note": 11, "reply": "Kept the slug route; noted it on the switcher.", "changed": ["ui/switcher"] }
+			],
+			"nodes": [
+				{
+					"path": "invites/flow",
+					"status": "settled",
+					"answer": "Pending invites expire after 7 days; resending restarts the clock; owners and admins can revoke.",
+					"widgets": [
+						{
+							"key": "sequence",
+							"type": "sequence",
+							"title": "Inviting by email",
+							"data": {
+								"actors": [
+									{ "key": "owner", "label": "Owner", "kind": "person" },
+									{ "key": "app", "label": "Tracker", "kind": "service" },
+									{ "key": "mail", "label": "Mailer", "kind": "external" },
+									{ "key": "guest", "label": "Invitee", "kind": "person" }
+								],
+								"steps": [
+									{ "key": "s1", "from": "owner", "to": "app", "label": "invite(email, role)", "kind": "call" },
+									{ "key": "s2", "from": "app", "to": "mail", "label": "send invite link", "kind": "async" },
+									{ "key": "s3", "from": "mail", "to": "guest", "label": "email with token", "kind": "async" },
+									{ "key": "s4", "from": "guest", "to": "app", "label": "accept(token)", "kind": "call" },
+									{ "key": "s5", "from": "app", "to": "guest", "label": "membership created", "kind": "reply" },
+									{ "key": "n1", "from": "owner", "to": "app", "label": "resend restarts the 7 days", "kind": "note", "change": "added" }
+								]
+							}
+						},
+						{
+							"key": "lifecycle",
+							"type": "states",
+							"title": "Invite lifecycle",
+							"data": {
+								"states": [
+									{ "key": "pending", "label": "Pending", "kind": "initial" },
+									{ "key": "accepted", "label": "Accepted", "kind": "final" },
+									{ "key": "declined", "label": "Declined", "kind": "final" },
+									{ "key": "expired", "label": "Expired", "kind": "final" },
+									{ "key": "revoked", "label": "Revoked", "kind": "final" }
+								],
+								"transitions": [
+									{ "from": "pending", "to": "accepted", "label": "accept" },
+									{ "from": "pending", "to": "declined", "label": "decline" },
+									{ "from": "pending", "to": "expired", "label": "7 days" },
+									{ "from": "pending", "to": "revoked", "label": "revoke" },
+									{ "key": "resend", "from": "pending", "to": "pending", "label": "resend", "change": "added" }
+								]
+							}
+						}
+					]
+				},
+				{ "path": "ui/switcher", "body": "Routes live under `/w/[slug]`; the slug comes from `workspaces.slug`." },
+				{
+					"path": "migration/lock",
+					"status": "settled",
+					"answer": "Backfills run in batches of 5 000 rows off-peak; no table lock longer than a second."
+				},
+				{
+					"path": "spec",
+					"kind": "area",
+					"title": "Spec",
+					"gist": "The spec as it stands, rebuilt from settled decisions."
+				},
+				{
+					"path": "spec/draft",
+					"kind": "fact",
+					"title": "Draft so far",
+					"gist": "Everything settled, in one page.",
+					"widgets": [
+						{
+							"key": "draft",
+							"type": "markdown",
+							"data": {
+								"text": "## Team workspaces\n\n- **Tenancy:** row-level `workspace_id`; users join many workspaces.\n- **Data:** `workspaces`, `memberships` (role enum); realms gain `workspace_id`, `owner_id` becomes `created_by`.\n- **Migration:** personal workspace per human user, two deploys, batched backfills.\n- **Invites:** username or email; 7-day expiry, resend restarts it.\n\nOpen: roles and the permission check."
+							}
+						}
+					]
+				}
+			],
+			"topic": { "current": "permissions/roles" }
+		}
+	]
+}

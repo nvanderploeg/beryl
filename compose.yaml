@@ -1,0 +1,42 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    ports:
+      - '${MYSQL_PORT:-3326}:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: palantir
+      MYSQL_USER: palantir
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-palantir}
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-uroot',
+          '-p${MYSQL_ROOT_PASSWORD:-rootpassword}'
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  app:
+    image: ghcr.io/nvanderploeg/palantir:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '${PALANTIR_PORT:-3270}:3000'
+    environment:
+      DATABASE_URL: mysql://palantir:${MYSQL_PASSWORD:-palantir}@db:3306/palantir
+      ORIGIN: ${PALANTIR_ORIGIN:-http://localhost:3270}
+volumes:
+  mysqldata:

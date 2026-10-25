@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+/* Theme tokens of docs/ui.md. Tune values freely; keep the names. */
+:root {
+	color-scheme: light;
+	--bg: #f6f4ef;
+	--surface: #ffffff;
+	--surface-2: #efebe3;
+	--ink: #1b2129;
+	--muted: #5d6874;
+	--line: #d9d3c7;
+	--accent: #e8590c;
+	--open: #e8590c;
+	--settled: #2b8a6e;
+	--parked: #74818e;
+	--dropped: #a8a29e;
+	--fog: #8a7fb8;
+	--added: #2f9e44;
+	--removed: #d6336c;
+	--changed: #d9822b;
+	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--bg: #0e1319;
+		--surface: #151c24;
+		--surface-2: #1c252f;
+		--ink: #e7e5e0;
+		--muted: #93a0ad;
+		--line: #2a3540;
+		--accent: #ff7a1a;
+		--open: #ff8c33;
+		--settled: #3cc497;
+		--parked: #8796a5;
+		--dropped: #6b7280;
+		--fog: #a99bdb;
+		--added: #51cf66;
+		--removed: #f06595;
+		--changed: #ffa94d;
+	}
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: #0e1319;
+	--surface: #151c24;
+	--surface-2: #1c252f;
+	--ink: #e7e5e0;
+	--muted: #93a0ad;
+	--line: #2a3540;
+	--accent: #ff7a1a;
+	--open: #ff8c33;
+	--settled: #3cc497;
+	--parked: #8796a5;
+	--dropped: #6b7280;
+	--fog: #a99bdb;
+	--added: #51cf66;
+	--removed: #f06595;
+	--changed: #ffa94d;
+}
+
+html,
+body {
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font-sans);
+}

@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS palantir_dev;
+CREATE DATABASE IF NOT EXISTS palantir_test;
+GRANT ALL PRIVILEGES ON `palantir%`.* TO 'palantir'@'%';
+FLUSH PRIVILEGES;
