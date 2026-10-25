@@ -1,4 +1,4 @@
-export const UNREACHABLE_WARNING = 'speculum unreachable — continuing without the board';
+export const UNREACHABLE_WARNING = 'beryl unreachable — continuing without the board';
 
 export type Failure = { ok: false; warning: string; status?: number; retryAfterMs?: number };
 export type Reply<T> = { ok: true; status: number; body: T } | Failure;
@@ -62,7 +62,7 @@ export async function request<T>(
 
 	const fields = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
 	const error = typeof fields.error === 'string' ? fields.error : `HTTP ${status}`;
-	const failure: Failure = { ok: false, warning: `speculum rejected the write: ${error}`, status };
+	const failure: Failure = { ok: false, warning: `beryl rejected the write: ${error}`, status };
 	const seconds = Number(retryAfter);
 	if (retryAfter !== null && retryAfter.trim() !== '' && Number.isFinite(seconds) && seconds >= 0) {
 		failure.retryAfterMs = seconds * 1000;

@@ -43,7 +43,7 @@
 </script>
 
 <svelte:head>
-	<title>speculum: see the grill</title>
+	<title>beryl: see the grill</title>
 	<meta
 		name="description"
 		content="A live, zoomable board of what a grilling agent understands about your design, with every unknown lit."
@@ -52,7 +52,7 @@
 
 <div class="page">
 	<header class="top">
-		<span class="brand"><Orb size={28} heat={6} /> speculum</span>
+		<span class="brand"><Orb size={28} heat={6} /> beryl</span>
 		<nav>
 			<a href={resolve('/demo')}>Demo</a>
 			<a href="#install">Install</a>
@@ -64,7 +64,7 @@
 			<div class="copy">
 				<h1>See what your agent understands, and what it doesn’t yet.</h1>
 				<p class="lede">
-					While an agent grills you about a plan, speculum draws its model of the design as a live,
+					While an agent grills you about a plan, beryl draws its model of the design as a live,
 					zoomable board: decisions, assumptions, fog and risks, with every open question lit. Zoom
 					out for the landscape and in for the schema. Answer ahead in your own order, pin a note to
 					a column or a file, and press Send to wake the agent.
@@ -229,12 +229,12 @@
 		<section id="install" class="install">
 			<h2>Install</h2>
 			<pre><code
-					>git clone https://github.com/nvanderploeg/speculum
-cd speculum && pnpm install && pnpm build
+					>git clone https://github.com/nvanderploeg/beryl
+cd beryl && pnpm install && pnpm build
 scripts/install.sh --with-server</code
 				></pre>
 			<p>
-				This adds the speculum skill and MCP server to your agent and starts a local board on port
+				This adds the beryl skill and MCP server to your agent and starts a local board on port
 				3270. Then ask your agent to grill you about a plan; it opens the board for you.
 			</p>
 		</section>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Node, Note, SpeculumEvent, Project, Topic } from '../types.ts';
+import type { Node, Note, BerylEvent, Project, Topic } from '../types.ts';
 import {
 	LOD_MID,
 	LOD_NEAR,
@@ -92,8 +92,8 @@ const topic: Topic = {
 	closedAt: null
 };
 
-function event(seq: number, type: SpeculumEvent['type'], payload: SpeculumEvent['payload']) {
-	return { seq, type, topicId: 't', path: null, payload, at: T0 } satisfies SpeculumEvent;
+function event(seq: number, type: BerylEvent['type'], payload: BerylEvent['payload']) {
+	return { seq, type, topicId: 't', path: null, payload, at: T0 } satisfies BerylEvent;
 }
 
 describe('applyEvent', () => {

@@ -64,7 +64,7 @@ export interface ResolveInput {
 	changed?: string[];
 }
 
-export interface SpeculumClient {
+export interface BerylClient {
 	discover(): Promise<string | null>;
 	openTopic(input: OpenTopicInput): Promise<Result<OpenedTopic>>;
 	getTopic(input: {

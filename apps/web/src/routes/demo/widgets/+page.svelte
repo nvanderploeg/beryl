@@ -43,7 +43,7 @@
 	}
 </script>
 
-<svelte:head><title>Widgets · speculum</title></svelte:head>
+<svelte:head><title>Widgets · beryl</title></svelte:head>
 
 <div class="page">
 	<header class="bar">

@@ -5,10 +5,10 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 HELPER="$REPO/scripts/helper.mjs"
 MCP_BIN="$REPO/packages/mcp/dist/index.js"
 CLI_BIN="$REPO/packages/cli/dist/index.js"
-ALLOW_ENTRY='mcp__speculum__*'
+ALLOW_ENTRY='mcp__beryl__*'
 HOME_DIR=${HOME:?HOME must be set}
 CODEX_CONFIG="${CODEX_HOME:-$HOME_DIR/.codex}/config.toml"
-PORT=${SPECULUM_PORT:-3270}
+PORT=${BERYL_PORT:-3270}
 
 HOOK_COMMAND="node \"$CLI_BIN\" hook"
 replace=0 dry=0 with_server=0 allow_tools=0 skip_mcp=0 hooks=0
@@ -18,13 +18,13 @@ usage() {
 	cat <<'USAGE'
 Usage: scripts/install.sh [options]
 
-Installs the speculum skills, MCP server registration and CLI from this checkout.
+Installs the beryl skills, MCP server registration and CLI from this checkout.
 Safe to re-run; existing paths that are not ours are skipped.
 
   --replace       move conflicting paths aside to <name>.bak-<timestamp> and
                   re-register the MCP server instead of skipping
   --with-server   start the local board server (docker compose up -d) and wait for it
-  --allow-tools   add "mcp__speculum__*" to permissions.allow in ~/.claude/settings.json
+  --allow-tools   add "mcp__beryl__*" to permissions.allow in ~/.claude/settings.json
   --hooks         add Claude Code hooks to ~/.claude/settings.json that bring
                   board notes into each turn of a session grilling a topic
   --skip-mcp      do not register the MCP server with Claude Code or Codex
@@ -133,16 +133,16 @@ register_claude() {
 		say skip "claude not on PATH; MCP not registered with Claude Code"
 		return
 	fi
-	if claude mcp get speculum >/dev/null 2>&1; then
+	if claude mcp get beryl >/dev/null 2>&1; then
 		if [ "$replace" = 0 ]; then
-			say ok "claude MCP 'speculum' already registered"
+			say ok "claude MCP 'beryl' already registered"
 			return
 		fi
-		act claude mcp remove -s user speculum
+		act claude mcp remove -s user beryl
 	fi
-	act claude mcp add -s user speculum -- node "$MCP_BIN"
+	act claude mcp add -s user beryl -- node "$MCP_BIN"
 	record claude-mcp "$REPO"
-	say mcp "registered 'speculum' with Claude Code"
+	say mcp "registered 'beryl' with Claude Code"
 }
 
 register_codex() {
@@ -150,9 +150,9 @@ register_codex() {
 		say skip "codex not on PATH; MCP not registered with Codex"
 		return
 	fi
-	if [ -f "$CODEX_CONFIG" ] && grep -q '^\[mcp_servers\.speculum\]' "$CODEX_CONFIG"; then
+	if [ -f "$CODEX_CONFIG" ] && grep -q '^\[mcp_servers\.beryl\]' "$CODEX_CONFIG"; then
 		if [ "$replace" = 0 ]; then
-			say ok "codex MCP 'speculum' already in $CODEX_CONFIG"
+			say ok "codex MCP 'beryl' already in $CODEX_CONFIG"
 			return
 		fi
 		act node "$HELPER" codex-remove "$CODEX_CONFIG" -
@@ -160,7 +160,7 @@ register_codex() {
 	local arg=${MCP_BIN//\\/\\\\}
 	arg=${arg//\"/\\\"}
 	if [ "$dry" = 1 ]; then
-		say dry "append [mcp_servers.speculum] (node $MCP_BIN) to $CODEX_CONFIG"
+		say dry "append [mcp_servers.beryl] (node $MCP_BIN) to $CODEX_CONFIG"
 		return
 	fi
 	mkdir -p "$(dirname "$CODEX_CONFIG")"
@@ -169,15 +169,15 @@ register_codex() {
 			[ -z "$(tail -c1 "$CODEX_CONFIG")" ] || printf '\n'
 			printf '\n'
 		fi
-		printf '[mcp_servers.speculum]\ncommand = "node"\nargs = ["%s"]\n' "$arg"
+		printf '[mcp_servers.beryl]\ncommand = "node"\nargs = ["%s"]\n' "$arg"
 	} >>"$CODEX_CONFIG"
 	record codex-mcp "$REPO" "$CODEX_CONFIG"
-	say mcp "registered 'speculum' in $CODEX_CONFIG"
+	say mcp "registered 'beryl' in $CODEX_CONFIG"
 }
 
 link_cli() {
 	local bin_dir="$HOME_DIR/.local/bin"
-	link_to "$bin_dir/speculum" "$CLI_BIN" "cli"
+	link_to "$bin_dir/beryl" "$CLI_BIN" "cli"
 	case ":$PATH:" in
 		*":$bin_dir:"*) ;;
 		*) say warn "$bin_dir is not on PATH; add it to your shell profile" ;;
@@ -209,7 +209,7 @@ start_server() {
 	fi
 	local url="http://localhost:$PORT/api/health" i
 	for i in $(seq 1 60); do
-		if node -e 'fetch(process.argv[1],{signal:AbortSignal.timeout(2000)}).then(r=>r.json()).then(j=>process.exit(j.service==="speculum"?0:1)).catch(()=>process.exit(1))' "$url"; then
+		if node -e 'fetch(process.argv[1],{signal:AbortSignal.timeout(2000)}).then(r=>r.json()).then(j=>process.exit(j.service==="beryl"?0:1)).catch(()=>process.exit(1))' "$url"; then
 			record server "$REPO"
 			say ok "board server healthy at http://localhost:$PORT"
 			return
@@ -240,7 +240,7 @@ allow_mcp_tools() {
 add_hooks() {
 	local settings="$HOME_DIR/.claude/settings.json"
 	if [ "$dry" = 1 ]; then
-		say dry "add speculum hooks ($HOOK_COMMAND) to $settings"
+		say dry "add beryl hooks ($HOOK_COMMAND) to $settings"
 		return
 	fi
 	local result backup
@@ -249,9 +249,9 @@ add_hooks() {
 	if [ "$result" = added ]; then
 		record hooks "$REPO" "$settings"
 		[ "$backup" = - ] || say ok "backed up settings to $backup"
-		say hooks "added speculum hooks to $settings"
+		say hooks "added beryl hooks to $settings"
 	else
-		say ok "speculum hooks already in $settings"
+		say ok "beryl hooks already in $settings"
 	fi
 }
 
@@ -268,4 +268,4 @@ link_cli
 [ "$with_server" = 0 ] || start_server
 [ "$allow_tools" = 0 ] || allow_mcp_tools
 [ "$hooks" = 0 ] || add_hooks
-say done "speculum installed from $REPO"
+say done "beryl installed from $REPO"

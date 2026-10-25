@@ -1,4 +1,4 @@
-# Using speculum
+# Using beryl
 
 ## Install
 
@@ -6,16 +6,16 @@ Needs Node.js 22+, pnpm 11 (`corepack enable`), and Docker with compose for the 
 
 ```sh
 scripts/install.sh --with-server --hooks
-speculum doctor
+beryl doctor
 ```
 
-This builds the packages, links the `speculum` skill and CLI (`~/.local/bin/speculum`), registers the MCP server with Claude Code (and Codex if present), starts the board server on <http://localhost:3270>, and adds the hooks that bring board notes into each turn. It is safe to re-run.
+This builds the packages, links the `beryl` skill and CLI (`~/.local/bin/beryl`), registers the MCP server with Claude Code (and Codex if present), starts the board server on <http://localhost:3270>, and adds the hooks that bring board notes into each turn. It is safe to re-run.
 
 | Flag | Does |
 | --- | --- |
 | `--with-server` | `docker compose up -d` and wait for the server to answer |
-| `--hooks` | add `speculum hook` to `~/.claude/settings.json` on `SessionStart` (compact, resume), `UserPromptSubmit` and `PostToolUse` of speculum tools |
-| `--allow-tools` | add `mcp__speculum__*` to `permissions.allow` |
+| `--hooks` | add `beryl hook` to `~/.claude/settings.json` on `SessionStart` (compact, resume), `UserPromptSubmit` and `PostToolUse` of beryl tools |
+| `--allow-tools` | add `mcp__beryl__*` to `permissions.allow` |
 | `--replace` | move conflicting paths aside and re-register |
 | `--skip-mcp` | do not register the MCP server |
 | `--dry-run` | print what would happen |
@@ -27,7 +27,7 @@ This builds the packages, links the `speculum` skill and CLI (`~/.local/bin/spec
 1. The agent starts grilling and calls `open_topic` with its first sketch of the model. The private board link opens in your browser.
 2. Each turn the agent writes what it learned (`put_nodes`), sets the Question it is asking (`update_topic current`), and asks it in the terminal.
 3. On the board, open Questions sit in the Questions sidebar and the Frontier view, each with the agent's recommendation. Answer any of them, in any order. Accept a recommendation, correct an assumption, comment on a column of a proposed table, ask the agent to explore a foggy area.
-4. Press **Send**. The agent's background listener (`speculum wait`) wakes it with your notes. Typing in the terminal brings them in too.
+4. Press **Send**. The agent's background listener (`beryl wait`) wakes it with your notes. Typing in the terminal brings them in too.
 5. The agent folds each note into the model, resolves it with a one-line reply, and moves on to the next unanswered Question.
 
 The private link (`#nk=…`) is for you: notes from it go straight into the agent's context. Share the plain link; it is read-only.
@@ -57,30 +57,30 @@ The Questions sidebar lists every Question the agent knows about; click one to f
 ## CLI
 
 ```
-speculum open "Team workspaces" --destination "A spec for …"     # prints: <topicId> <url> <noteUrl>
-speculum put <topicId> --file nodes.json
-speculum get <topicId> [--path storage] [--full] [--json]
-speculum topic <topicId> --current storage/engine
-speculum pull <topicId>
-speculum resolve <topicId> <noteId> --reply "Settled: MySQL" --changed storage/engine
-speculum wait <topicId>                                           # blocks until notes are sent
-speculum url <topicId> [--private]
-speculum doctor
+beryl open "Team workspaces" --destination "A spec for …"     # prints: <topicId> <url> <noteUrl>
+beryl put <topicId> --file nodes.json
+beryl get <topicId> [--path storage] [--full] [--json]
+beryl topic <topicId> --current storage/engine
+beryl pull <topicId>
+beryl resolve <topicId> <noteId> --reply "Settled: MySQL" --changed storage/engine
+beryl wait <topicId>                                           # blocks until notes are sent
+beryl url <topicId> [--private]
+beryl doctor
 ```
 
 ## Configuration
 
 | Variable | Default | Does |
 | --- | --- | --- |
-| `SPECULUM_URL` | unset | pin the client to one server (no fallback) |
-| `SPECULUM_OPEN` | `1` | `0` stops the MCP server opening the board link |
-| `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/speculum` |
+| `BERYL_URL` | unset | pin the client to one server (no fallback) |
+| `BERYL_OPEN` | `1` | `0` stops the MCP server opening the board link |
+| `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl` |
 
-Server: `DATABASE_URL`, `ORIGIN`, `SPECULUM_IDLE_MS`, `SPECULUM_WRITES_PER_WINDOW`, `SPECULUM_WRITE_WINDOW_MS`, `SPECULUM_HEARTBEAT_MS` (see `apps/web/src/env.ts`).
+Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS` (see `apps/web/src/env.ts`).
 
 ## Deploy
 
-The image is published as `ghcr.io/nvanderploeg/speculum`. [`deploy/`](../deploy/README.md) holds example production configuration: a compose stack, an env template, an nginx server block and an auto-update timer. Point agents at a hosted board with `SPECULUM_URL`.
+The image is published as `ghcr.io/nvanderploeg/beryl`. [`deploy/`](../deploy/README.md) holds example production configuration: a compose stack, an env template, an nginx server block and an auto-update timer. Point agents at a hosted board with `BERYL_URL`.
 
 ## Development
 

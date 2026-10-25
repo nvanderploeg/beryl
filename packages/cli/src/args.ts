@@ -1,23 +1,23 @@
 import { parseArgs } from 'node:util';
 
 export const USAGE = `usage:
-  speculum open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
+  beryl open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
                 [--tool t] [--model m] [--effort e] [--file nodes.json] [--cwd dir]
-  speculum open --topic <id>
-  speculum get <topicId> [--path p] [--full] [--json]
-  speculum put <topicId> [--file nodes.json]          nodes from the file, else stdin
-  speculum rm <topicId> <path>...
-  speculum mv <topicId> <from> <to>
-  speculum topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
+  beryl open --topic <id>
+  beryl get <topicId> [--path p] [--full] [--json]
+  beryl put <topicId> [--file nodes.json]          nodes from the file, else stdin
+  beryl rm <topicId> <path>...
+  beryl mv <topicId> <from> <to>
+  beryl topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
                  [--current path | --no-current]
-  speculum pull <topicId>
-  speculum resolve <topicId> <noteId> [--reply text] [--changed path]...
-  speculum wait <topicId> [--timeout 12h]             durations: 90s, 30m, 12h, or 0 for no limit
-  speculum note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
-  speculum send <topicId>
-  speculum url <topicId> [--private]
-  speculum doctor [--cwd dir]
-  speculum hook`;
+  beryl pull <topicId>
+  beryl resolve <topicId> <noteId> [--reply text] [--changed path]...
+  beryl wait <topicId> [--timeout 12h]             durations: 90s, 30m, 12h, or 0 for no limit
+  beryl note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
+  beryl send <topicId>
+  beryl url <topicId> [--private]
+  beryl doctor [--cwd dir]
+  beryl hook`;
 
 export class UsageError extends Error {}
 

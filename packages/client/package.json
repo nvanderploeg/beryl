@@ -1,5 +1,5 @@
 {
-	"name": "@speculum/client",
+	"name": "@beryl/client",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "dist/index.js",

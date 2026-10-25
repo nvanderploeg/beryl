@@ -10,7 +10,7 @@ import type {
 	ClientOptions,
 	DoctorReport,
 	OpenedTopic,
-	SpeculumClient,
+	BerylClient,
 	Result
 } from './client-types.ts';
 import type { AgentInfo, Node, Note, Project, Pulled, Snapshot, Topic } from './types.ts';
@@ -53,7 +53,7 @@ interface Target {
 }
 
 export function defaultConfigDir(env: Record<string, string | undefined> = process.env): string {
-	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'speculum');
+	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'beryl');
 }
 
 // Build links from the server's replies, never from `server`: the address we reach it on may not be its public origin.
@@ -80,11 +80,11 @@ async function guard<T>(run: () => Promise<Result<T>>): Promise<Result<T>> {
 		return result.ok ? result : { ok: false, warning: result.warning };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		return { ok: false, warning: `speculum failed: ${message}` };
+		return { ok: false, warning: `beryl failed: ${message}` };
 	}
 }
 
-export function createClient(options: ClientOptions = {}): SpeculumClient {
+export function createClient(options: ClientOptions = {}): BerylClient {
 	const env = options.env ?? process.env;
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const requestTimeoutMs = options.requestTimeoutMs ?? 5000;
@@ -213,7 +213,7 @@ export function createClient(options: ClientOptions = {}): SpeculumClient {
 		};
 	}
 
-	const api: SpeculumClient = {
+	const api: BerylClient = {
 		discover: () => discovery.discover().catch(() => null),
 
 		openTopic: (input) =>

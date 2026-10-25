@@ -125,7 +125,7 @@ describe('formatPulled', () => {
 
 		expect(formatPulled(pulled, { id: TOPIC_ID, title: 'Payments retry design' })).toBe(
 			[
-				`speculum: 2 new notes from the board on topic ${TOPIC_ID} (Payments retry design):`,
+				`beryl: 2 new notes from the board on topic ${TOPIC_ID} (Payments retry design):`,
 				`- [answer] storage/engine "Pick the database": MySQL, same as chronicle. (note ${N1})`,
 				`- [comment] storage/schema "Tables" › tables › users.email: should be unique. (by Sam) (note ${N2})`,
 				'Still unresolved from earlier:',
@@ -138,7 +138,7 @@ describe('formatPulled', () => {
 
 	it('says there is nothing new in one line when the board is quiet', () => {
 		expect(formatPulled(empty, { id: TOPIC_ID, title: 'Payments retry design' })).toBe(
-			`speculum: no new notes on the board for topic ${TOPIC_ID}.`
+			`beryl: no new notes on the board for topic ${TOPIC_ID}.`
 		);
 	});
 
@@ -155,7 +155,7 @@ describe('formatPulled', () => {
 
 		expect(formatPulled(pulled, { id: TOPIC_ID })).toBe(
 			[
-				`speculum: no new notes on the board for topic ${TOPIC_ID}.`,
+				`beryl: no new notes on the board for topic ${TOPIC_ID}.`,
 				'Still unresolved from earlier:',
 				`- [explore] topic: What about queues? (note ${N1})`,
 				`- [drop] a "A" › w: drop this (by Sam) (note ${N2})`,
@@ -167,7 +167,7 @@ describe('formatPulled', () => {
 
 	it('leaves the closing line out when only stale gists remain', () => {
 		expect(formatPulled({ ...empty, stale: [{ path: 'a', title: 'A' }] }, { id: TOPIC_ID })).toBe(
-			`speculum: no new notes on the board for topic ${TOPIC_ID}.\nStale gists: a.`
+			`beryl: no new notes on the board for topic ${TOPIC_ID}.\nStale gists: a.`
 		);
 	});
 
@@ -179,7 +179,7 @@ describe('formatPulled', () => {
 
 		expect(formatPulled(pulled, { id: TOPIC_ID })).toBe(
 			[
-				`speculum: 1 new note from the board on topic ${TOPIC_ID}:`,
+				`beryl: 1 new note from the board on topic ${TOPIC_ID}:`,
 				`- [comment] topic: Looks right. (note ${N1})`,
 				'Fold each note into the model, then call resolve_notes with a one-line reply for each.'
 			].join('\n')

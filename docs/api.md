@@ -1,4 +1,4 @@
-# speculum API contract
+# beryl API contract
 
 Every package builds against this file. When behaviour and this file disagree, this file wins until it is changed. Vocabulary is in `CONTEXT.md`; widget data shapes are in `docs/widgets.md`.
 
@@ -135,7 +135,7 @@ interface Snapshot {
 	lastSeq: number; // highest event seq for this Topic, 0 if none
 }
 
-interface SpeculumEvent {
+interface BerylEvent {
 	seq: number;
 	type: 'topic' | 'node' | 'node_removed' | 'note' | 'note_removed' | 'send';
 	topicId: string;
@@ -185,7 +185,7 @@ JSON in and out. Errors are `{ error: string }`. 🔑 needs `Authorization: Bear
 
 | Method | Path | Body | Success |
 | --- | --- | --- | --- |
-| GET | `/api/health` | — | 200 `{ service: 'speculum', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }` |
+| GET | `/api/health` | — | 200 `{ service: 'beryl', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }` |
 | POST | `/api/projects` | `{ name? }` | 201 `{ id, name, writeKey, noteKey, url }` |
 | GET | `/api/projects/:id` | — | 200 `{ project, topics: TopicSummary[] }` (updatedAt desc) |
 | PATCH 🔑 | `/api/projects/:id` | `{ name }` | 200 `{ project }` |
@@ -195,7 +195,7 @@ JSON in and out. Errors are `{ error: string }`. 🔑 needs `Authorization: Bear
 | PUT 🔑 | `/api/topics/:id/nodes` | `{ nodes: NodeInput[] }` | 200 `{ nodes }` (the written Nodes, in input order) |
 | DELETE 🔑 | `/api/topics/:id/nodes` | `{ paths: string[] }` | 200 `{ removed: string[] }` |
 | POST 🔑 | `/api/topics/:id/move` | `{ from, to }` | 200 `{ moved: { from, to }[] }` |
-| GET | `/api/topics/:id/events` | query `path?` | 200 `{ events: SpeculumEvent[] }` (seq asc; `path` filters to that Node) |
+| GET | `/api/topics/:id/events` | query `path?` | 200 `{ events: BerylEvent[] }` (seq asc; `path` filters to that Node) |
 | GET | `/api/topics/:id/stream` | header `Last-Event-ID` or query `since` | 200 `text/event-stream` |
 | POST ✎ | `/api/topics/:id/notes` | `{ anchor, intent, text?, author? }` | 201 `{ note }` |
 | PATCH ✎ | `/api/notes/:noteId` | `{ intent?, text? }` | 200 `{ note }` |
@@ -214,12 +214,12 @@ interface Pulled {
 }
 ```
 
-- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<id>`. Keys are `sw_` and `sn_` followed by 43 base64url characters.
+- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<id>`. Keys are `bw_` and `bn_` followed by 43 base64url characters.
 - `POST /api/projects/:id/topics`: `url` = `<origin>/p/<projectId>/t/<topicId>`. `nodes` are written as one batch after the Topic.
 - `PATCH /api/topics/:id`: `current` must be `null` or the Path of an open Node (400). `status: 'closed'` sets `closedAt`; `'open'` clears it.
 - `GET /api/topics/:id/wait`: `timeoutMs` defaults to 25 000, clamped to 1 000–60 000. Answers at once when any `queued` Note has `sentAt` set, with their count; otherwise on the next `send` event for the Topic, or `{ sent: 0 }` at the timeout.
 - `TopicSummary.counts` and `queuedNotes` are computed from the Topic's Nodes and Notes on read.
-- Every `POST`, `PUT`, `PATCH` and `DELETE` under `/api` draws from a token bucket per client address: `SPECULUM_WRITES_PER_WINDOW` (default 300) at once, refilled at that many per `SPECULUM_WRITE_WINDOW_MS` (default 300 000); `0` disables it. An empty bucket → 429 `{ error: 'too many writes from this address; retry later' }` with `Retry-After: <whole seconds>`. `GET /wait` is not a write.
+- Every `POST`, `PUT`, `PATCH` and `DELETE` under `/api` draws from a token bucket per client address: `BERYL_WRITES_PER_WINDOW` (default 300) at once, refilled at that many per `BERYL_WRITE_WINDOW_MS` (default 300 000); `0` disables it. An empty bucket → 429 `{ error: 'too many writes from this address; retry later' }` with `Retry-After: <whole seconds>`. `GET /wait` is not a write.
 - 401 `{ error: 'missing key' }` with no bearer token; 403 `{ error: 'invalid key' }` when it is not the key that route needs; 404 `{ error: 'project not found' | 'topic not found' | 'note not found' }`; 400 for malformed ids, paths or bodies.
 
 ## Stream
@@ -229,8 +229,8 @@ interface Pulled {
 - Replay: with `Last-Event-ID: N` or `?since=N`, first send every Topic event with `seq > N` in order, then live events. Without either, live only.
 - Frame: `id: <seq>\nevent: <type>\ndata: <JSON payload>\n\n`.
 - Opening: `: ok\n\n` as soon as the stream opens, before any replay.
-- Heartbeat: `: ping\n\n` every `SPECULUM_HEARTBEAT_MS` (default 25 000).
-- Idle: deadline = max(Topic `updatedAt`, stream open time) + `SPECULUM_IDLE_MS` (default 14 400 000); each published event resets it. At the deadline send `event: idle\ndata: {}\n\n` and close.
+- Heartbeat: `: ping\n\n` every `BERYL_HEARTBEAT_MS` (default 25 000).
+- Idle: deadline = max(Topic `updatedAt`, stream open time) + `BERYL_IDLE_MS` (default 14 400 000); each published event resets it. At the deadline send `event: idle\ndata: {}\n\n` and close.
 
 ## Storage
 

@@ -20,15 +20,15 @@ jobs:
     permissions:
       contents: read
     env:
-      DATABASE_URL: mysql://speculum:speculum@127.0.0.1:3326/speculum_test
+      DATABASE_URL: mysql://beryl:beryl@127.0.0.1:3326/beryl_test
     services:
       mysql:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: speculum_test
-          MYSQL_USER: speculum
-          MYSQL_PASSWORD: speculum
+          MYSQL_DATABASE: beryl_test
+          MYSQL_USER: beryl
+          MYSQL_PASSWORD: beryl
         ports:
           - 3326:3306
         options: >-

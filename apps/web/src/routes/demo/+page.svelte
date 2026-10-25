@@ -37,10 +37,10 @@
 </script>
 
 <svelte:head>
-	<title>Demo: {board.topic.title} · speculum</title>
+	<title>Demo: {board.topic.title} · beryl</title>
 	<meta
 		name="description"
-		content="A scripted grill about team workspaces, folded turn by turn onto a speculum board."
+		content="A scripted grill about team workspaces, folded turn by turn onto a beryl board."
 	/>
 </svelte:head>
 
@@ -52,7 +52,7 @@
 				>A scripted grill about adding team workspaces to a tracker. It is read-only: notes and Send
 				are switched off.</span
 			>
-			<a href={resolve('/')}>What is speculum?</a>
+			<a href={resolve('/')}>What is beryl?</a>
 		</div>
 	{/snippet}
 	{#snippet bottom()}

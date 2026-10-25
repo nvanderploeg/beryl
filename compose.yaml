@@ -6,9 +6,9 @@ services:
       - '${MYSQL_PORT:-3326}:3306'
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: speculum
-      MYSQL_USER: speculum
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-speculum}
+      MYSQL_DATABASE: beryl
+      MYSQL_USER: beryl
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beryl}
     volumes:
       - mysqldata:/var/lib/mysql
       - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
@@ -27,17 +27,17 @@ services:
       timeout: 5s
       retries: 20
   app:
-    image: ghcr.io/nvanderploeg/speculum:latest
+    image: ghcr.io/nvanderploeg/beryl:latest
     build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - '${SPECULUM_PORT:-3270}:3000'
+      - '${BERYL_PORT:-3270}:3000'
     environment:
-      DATABASE_URL: mysql://speculum:${MYSQL_PASSWORD:-speculum}@db:3306/speculum
-      ORIGIN: ${SPECULUM_ORIGIN:-http://localhost:3270}
-      BODY_SIZE_LIMIT: ${SPECULUM_BODY_LIMIT:-8M}
+      DATABASE_URL: mysql://beryl:${MYSQL_PASSWORD:-beryl}@db:3306/beryl
+      ORIGIN: ${BERYL_ORIGIN:-http://localhost:3270}
+      BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
 volumes:
   mysqldata:

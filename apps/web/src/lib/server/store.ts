@@ -30,7 +30,7 @@ import type {
 	NodeInput,
 	Note,
 	NoteIntent,
-	SpeculumEvent,
+	BerylEvent,
 	Project,
 	Pulled,
 	Snapshot,
@@ -156,7 +156,7 @@ export async function getSnapshot(topicId: string): Promise<Snapshot | undefined
 	};
 }
 
-export async function eventsSince(topicId: string, seq: number): Promise<SpeculumEvent[]> {
+export async function eventsSince(topicId: string, seq: number): Promise<BerylEvent[]> {
 	const rows = await db
 		.select()
 		.from(events)
@@ -165,7 +165,7 @@ export async function eventsSince(topicId: string, seq: number): Promise<Speculu
 	return rows.map(toEvent);
 }
 
-export async function topicEvents(topicId: string, path?: string): Promise<SpeculumEvent[]> {
+export async function topicEvents(topicId: string, path?: string): Promise<BerylEvent[]> {
 	const rows = await db
 		.select()
 		.from(events)
@@ -187,9 +187,9 @@ interface Ctx {
 	now: Date;
 	topic: TopicRow;
 	emit(
-		type: SpeculumEvent['type'],
+		type: BerylEvent['type'],
 		path: string | null,
-		payload: SpeculumEvent['payload']
+		payload: BerylEvent['payload']
 	): Promise<void>;
 }
 
@@ -216,7 +216,7 @@ async function mutate<T>(
 	create?: TopicRow
 ): Promise<T> {
 	return exclusive(topicId, async () => {
-		const stored: SpeculumEvent[] = [];
+		const stored: BerylEvent[] = [];
 		const value = await db.transaction(async (tx) => {
 			const now = create?.createdAt ?? new Date();
 			let topic: TopicRow | undefined = create;

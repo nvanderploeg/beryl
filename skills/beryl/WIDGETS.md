@@ -1,6 +1,6 @@
-# speculum widgets
+# beryl widgets
 
-A widget is `{ key, type, title?, data }` in a node's `widgets` (the array replaces the node's widgets whole). `key` is short and stable (`tables`, `plan`): notes pin to it. Shapes below are exact: unknown fields are rejected, so a typo comes back as a `speculum:` warning naming the field.
+A widget is `{ key, type, title?, data }` in a node's `widgets` (the array replaces the node's widgets whole). `key` is short and stable (`tables`, `plan`): notes pin to it. Shapes below are exact: unknown fields are rejected, so a typo comes back as a `beryl:` warning naming the field.
 
 Shared rules:
 - `change`: `"added" | "removed" | "changed" | "renamed"` on any element a proposal touches; leave it off what stays. `from` (old name) only with `"renamed"`.

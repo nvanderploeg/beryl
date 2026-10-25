@@ -9,7 +9,7 @@ import type {
 	Note,
 	NoteIntent,
 	NoteStatus,
-	SpeculumEvent,
+	BerylEvent,
 	Project,
 	Source,
 	Topic,
@@ -98,13 +98,13 @@ export function toNote(row: NoteRow): Note {
 	};
 }
 
-export function toEvent(row: EventRow): SpeculumEvent {
+export function toEvent(row: EventRow): BerylEvent {
 	return {
 		seq: Number(row.seq),
-		type: row.type as SpeculumEvent['type'],
+		type: row.type as BerylEvent['type'],
 		topicId: row.topicId,
 		path: row.path ?? null,
-		payload: row.payload as SpeculumEvent['payload'],
+		payload: row.payload as BerylEvent['payload'],
 		at: iso(row.at)
 	};
 }

@@ -9,15 +9,15 @@ import {
 	type DoctorReport,
 	type NodeInput,
 	type NoteIntent,
-	type SpeculumClient,
+	type BerylClient,
 	type Result
-} from '@speculum/client';
+} from '@beryl/client';
 import { USAGE, UsageError, parse } from './args.ts';
 
 export interface RunIo {
 	stdout: (s: string) => void;
 	stderr: (s: string) => void;
-	client?: SpeculumClient;
+	client?: BerylClient;
 	readStdin?: () => Promise<string>;
 }
 
@@ -81,7 +81,7 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 
 	const finish = <T>(result: Result<T>, print: (value: T) => string): number => {
 		if (!result.ok) {
-			io.stderr(`speculum: ${result.warning}`);
+			io.stderr(`beryl: ${result.warning}`);
 			return 0;
 		}
 		const text = print(result.value);
@@ -276,14 +276,14 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 		}
 	} catch (error) {
 		if (error instanceof UsageError) {
-			io.stderr(`speculum: ${error.message}\n${USAGE}`);
+			io.stderr(`beryl: ${error.message}\n${USAGE}`);
 			return 2;
 		}
 		if (error instanceof InputError) {
-			io.stderr(`speculum: ${error.message}`);
+			io.stderr(`beryl: ${error.message}`);
 			return 2;
 		}
-		io.stderr(`speculum: ${error instanceof Error ? error.message : String(error)}`);
+		io.stderr(`beryl: ${error instanceof Error ? error.message : String(error)}`);
 		return 0;
 	}
 }

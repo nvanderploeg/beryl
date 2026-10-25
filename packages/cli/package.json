@@ -1,9 +1,9 @@
 {
-	"name": "@speculum/cli",
+	"name": "@beryl/cli",
 	"version": "0.1.0",
 	"type": "module",
 	"bin": {
-		"speculum": "dist/index.js"
+		"beryl": "dist/index.js"
 	},
 	"files": [
 		"dist"
@@ -14,7 +14,7 @@
 		"test": "vitest run --passWithNoTests"
 	},
 	"dependencies": {
-		"@speculum/client": "workspace:*"
+		"@beryl/client": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "^22",

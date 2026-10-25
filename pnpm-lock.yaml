@@ -119,7 +119,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@speculum/client':
+      '@beryl/client':
         specifier: workspace:*
         version: link:../client
     devDependencies:
@@ -150,7 +150,7 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
         version: 1.32.2(zod@4.6.7)
-      '@speculum/client':
+      '@beryl/client':
         specifier: workspace:*
         version: link:../client
       zod:

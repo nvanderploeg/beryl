@@ -13,10 +13,10 @@ import {
 	type EdgeRel,
 	type NodeKind,
 	type NodeStatus,
-	type SpeculumClient,
+	type BerylClient,
 	type Result,
 	type WidgetType
-} from '@speculum/client';
+} from '@beryl/client';
 import { z } from 'zod';
 
 const oneOf = <T extends string>(values: readonly T[]) => z.enum(values as [T, ...T[]]);
@@ -46,7 +46,7 @@ const widget = z.object({
 	key: z.string(),
 	type: oneOf<WidgetType>(WIDGET_TYPES),
 	title: z.string().optional(),
-	data: z.unknown().describe("Shaped per `type`, as the speculum skill's WIDGETS.md describes.")
+	data: z.unknown().describe("Shaped per `type`, as the beryl skill's WIDGETS.md describes.")
 });
 
 const nodeInput = z.object({
@@ -78,14 +78,14 @@ function respond<T>(
 	result: Result<T>,
 	render: (value: T) => string = JSON.stringify
 ): CallToolResult {
-	return text(result.ok ? render(result.value) : `speculum: ${result.warning}`);
+	return text(result.ok ? render(result.value) : `beryl: ${result.warning}`);
 }
 
 export type Opener = (url: string) => void;
 
 // Fire and forget: a missing opener or display must never surface to the agent.
 export function openInBrowser(url: string): void {
-	if (process.env.SPECULUM_OPEN === '0') return;
+	if (process.env.BERYL_OPEN === '0') return;
 	const [cmd, args] =
 		process.platform === 'darwin'
 			? ['open', [url]]
@@ -102,17 +102,17 @@ export function openInBrowser(url: string): void {
 }
 
 export function createServer(
-	client: SpeculumClient = createClient(),
+	client: BerylClient = createClient(),
 	open: Opener = openInBrowser
 ): McpServer {
-	const server = new McpServer({ name: 'speculum', version: '0.1.0' });
+	const server = new McpServer({ name: 'beryl', version: '0.1.0' });
 	const opened = new Set<string>();
 
 	server.registerTool(
 		'open_topic',
 		{
 			description:
-				"Call this when a grill starts, to open its Topic on this repo's speculum board (or pass `topicId` to resume one), then print the returned `noteUrl` to the user as their private link.",
+				"Call this when a grill starts, to open its Topic on this repo's beryl board (or pass `topicId` to resume one), then print the returned `noteUrl` to the user as their private link.",
 			inputSchema: {
 				title: z.string().optional().describe('Required unless `topicId` is given.'),
 				destination: z
@@ -167,7 +167,7 @@ export function createServer(
 		'put_nodes',
 		{
 			description:
-				"Create or update Nodes by path (missing ancestors become areas; `kind` is required on create), with widget shapes as the speculum skill's WIDGETS.md describes.",
+				"Create or update Nodes by path (missing ancestors become areas; `kind` is required on create), with widget shapes as the beryl skill's WIDGETS.md describes.",
 			inputSchema: { topicId: z.string(), nodes: z.array(nodeInput) }
 		},
 		async (args) =>

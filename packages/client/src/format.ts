@@ -31,12 +31,12 @@ export function formatPulled(pulled: Pulled, topic: { id: string; title?: string
 	const lines =
 		count > 0
 			? [
-					`speculum: ${count} new note${count === 1 ? '' : 's'} from the board on topic ${topic.id}${
+					`beryl: ${count} new note${count === 1 ? '' : 's'} from the board on topic ${topic.id}${
 						topic.title ? ` (${topic.title})` : ''
 					}:`,
 					...pulled.notes.map((note) => noteLine(note, pulled.context))
 				]
-			: [`speculum: no new notes on the board for topic ${topic.id}.`];
+			: [`beryl: no new notes on the board for topic ${topic.id}.`];
 	if (pulled.unresolved.length > 0) {
 		lines.push(
 			'Still unresolved from earlier:',

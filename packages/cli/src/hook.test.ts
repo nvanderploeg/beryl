@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { SpeculumClient, Pulled } from '@speculum/client';
+import type { BerylClient, Pulled } from '@beryl/client';
 import { handleHook, type HookInput } from './hook.ts';
 
 const TOPIC = '0b5f8a52-8c55-4c1e-9d7e-3f2a1c9b8e77';
@@ -11,7 +11,7 @@ const URL = `http://localhost:3270/p/proj/t/${TOPIC}`;
 const OPENED = {
 	topicId: TOPIC,
 	url: URL,
-	noteUrl: `${URL}#nk=sn_x`,
+	noteUrl: `${URL}#nk=bn_x`,
 	projectUrl: 'http://localhost:3270/p/proj',
 	server: 'http://localhost:3270',
 	projectId: 'proj',
@@ -38,8 +38,8 @@ const NOTE = {
 	updatedAt: ''
 };
 
-const NO_LISTENER = `speculum: no board listener is running. Before you end this turn, run \`speculum wait ${TOPIC}\` in the background so Send on the board reaches you.`;
-const UNREACHABLE = `speculum: could not reach the board for topic ${TOPIC}; call pull_notes before you answer.`;
+const NO_LISTENER = `beryl: no board listener is running. Before you end this turn, run \`beryl wait ${TOPIC}\` in the background so Send on the board reaches you.`;
+const UNREACHABLE = `beryl: could not reach the board for topic ${TOPIC}; call pull_notes before you answer.`;
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -47,13 +47,13 @@ afterEach(() => {
 });
 
 function session(id = 'sess-1', opts: { listening?: boolean; timeoutMs?: number } = {}) {
-	const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'speculum-hook-')), 'sessions');
+	const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'beryl-hook-')), 'sessions');
 	dirs.push(path.dirname(dir));
 	const client = { pullNotes: vi.fn(async () => ({ ok: true, value: QUIET })) };
 	const isListening = vi.fn(() => opts.listening ?? true);
 	const deps = {
 		dir,
-		client: client as unknown as SpeculumClient,
+		client: client as unknown as BerylClient,
 		isListening,
 		timeoutMs: opts.timeoutMs
 	};
@@ -75,13 +75,13 @@ const post = (tool_name: string, extra: Partial<HookInput> = {}): HookInput => (
 	...extra
 });
 
-const openTopic = post('mcp__speculum__open_topic', {
+const openTopic = post('mcp__beryl__open_topic', {
 	tool_input: { title: 'Retries' },
 	tool_response: OPEN_RESPONSE
 });
 const prompt: HookInput = { hook_event_name: 'UserPromptSubmit' };
 const closeTopic = (topicId = TOPIC, status = 'closed') =>
-	post('mcp__speculum__update_topic', {
+	post('mcp__beryl__update_topic', {
 		tool_input: { topicId, status },
 		tool_response: [{ type: 'text', text: '{"topic":{}}' }]
 	});
@@ -111,9 +111,7 @@ describe('recording the Topic', () => {
 	it('reads a response serialised as a JSON string', async () => {
 		const s = session();
 
-		await s.send(
-			post('mcp__speculum__open_topic', { tool_response: JSON.stringify(OPEN_RESPONSE) })
-		);
+		await s.send(post('mcp__beryl__open_topic', { tool_response: JSON.stringify(OPEN_RESPONSE) }));
 
 		expect(s.state()).toEqual({ topicId: TOPIC, url: URL, closed: false });
 	});
@@ -122,7 +120,7 @@ describe('recording the Topic', () => {
 		const s = session();
 
 		await s.send(
-			post('mcp__speculum__get_topic', {
+			post('mcp__beryl__get_topic', {
 				tool_input: { topicId: TOPIC },
 				tool_response: [{ type: 'text', text: 'Topic "Retries" (open)\nNotes: 0 queued' }]
 			})
@@ -135,7 +133,7 @@ describe('recording the Topic', () => {
 		const s = session();
 		await s.send(openTopic);
 
-		await s.send(post('mcp__speculum__get_topic', { tool_input: { topicId: TOPIC } }));
+		await s.send(post('mcp__beryl__get_topic', { tool_input: { topicId: TOPIC } }));
 
 		expect(s.state()).toEqual({ topicId: TOPIC, url: URL, closed: false });
 	});
@@ -144,7 +142,7 @@ describe('recording the Topic', () => {
 		const s = session();
 
 		await s.send(
-			post('mcp__speculum__open_topic', {
+			post('mcp__beryl__open_topic', {
 				tool_input: { topicId: OTHER },
 				tool_response: [{ type: 'text', text: '{}' }]
 			})
@@ -157,10 +155,10 @@ describe('recording the Topic', () => {
 		const s = session();
 
 		await s.send(
-			post('mcp__speculum__open_topic', {
+			post('mcp__beryl__open_topic', {
 				tool_input: { topicId: TOPIC },
 				tool_response: [
-					{ type: 'text', text: 'speculum: speculum unreachable — continuing without the board' }
+					{ type: 'text', text: 'beryl: beryl unreachable — continuing without the board' }
 				]
 			})
 		);
@@ -199,13 +197,11 @@ describe('closing the Topic', () => {
 		await s.send(openTopic);
 
 		await s.send(closeTopic(OTHER));
+		await s.send(post('mcp__beryl__update_topic', { tool_input: { topicId: TOPIC, title: 't' } }));
 		await s.send(
-			post('mcp__speculum__update_topic', { tool_input: { topicId: TOPIC, title: 't' } })
-		);
-		await s.send(
-			post('mcp__speculum__update_topic', {
+			post('mcp__beryl__update_topic', {
 				tool_input: { topicId: TOPIC, status: 'closed' },
-				tool_response: [{ type: 'text', text: 'speculum: speculum rejected the write: nope' }]
+				tool_response: [{ type: 'text', text: 'beryl: beryl rejected the write: nope' }]
 			})
 		);
 
@@ -226,7 +222,7 @@ describe('UserPromptSubmit on an open Topic', () => {
 			hookSpecificOutput: {
 				hookEventName: 'UserPromptSubmit',
 				additionalContext: [
-					`speculum: 1 new note from the board on topic ${TOPIC}:`,
+					`beryl: 1 new note from the board on topic ${TOPIC}:`,
 					'- [comment] topic: Looks right. (note n1)',
 					'Fold each note into the model, then call resolve_notes with a one-line reply for each.'
 				].join('\n')
@@ -239,7 +235,7 @@ describe('UserPromptSubmit on an open Topic', () => {
 		await s.send(openTopic);
 
 		expect(await s.context(prompt)).toBe(
-			`speculum: no new notes on the board for topic ${TOPIC}.\n${NO_LISTENER}`
+			`beryl: no new notes on the board for topic ${TOPIC}.\n${NO_LISTENER}`
 		);
 		expect(s.isListening).toHaveBeenCalledWith(TOPIC);
 	});
@@ -248,7 +244,7 @@ describe('UserPromptSubmit on an open Topic', () => {
 		const s = session('sess-1', { listening: true });
 		await s.send(openTopic);
 
-		expect(await s.context(prompt)).toBe(`speculum: no new notes on the board for topic ${TOPIC}.`);
+		expect(await s.context(prompt)).toBe(`beryl: no new notes on the board for topic ${TOPIC}.`);
 	});
 
 	it('says the board could not be reached when the pull fails', async () => {
@@ -286,7 +282,7 @@ describe('SessionStart', () => {
 		expect(await s.send({ hook_event_name: 'SessionStart', source })).toEqual({
 			hookSpecificOutput: {
 				hookEventName: 'SessionStart',
-				additionalContext: `speculum: this session grills topic ${TOPIC} (${URL}). Call get_topic before writing to it again.`
+				additionalContext: `beryl: this session grills topic ${TOPIC} (${URL}). Call get_topic before writing to it again.`
 			}
 		});
 	});

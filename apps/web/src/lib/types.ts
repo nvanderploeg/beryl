@@ -196,12 +196,11 @@ export interface Pulled {
 	stale: { path: string; title: string }[];
 }
 
-export type SpeculumEventType =
-	'topic' | 'node' | 'node_removed' | 'note' | 'note_removed' | 'send';
+export type BerylEventType = 'topic' | 'node' | 'node_removed' | 'note' | 'note_removed' | 'send';
 
-export interface SpeculumEvent {
+export interface BerylEvent {
 	seq: number;
-	type: SpeculumEventType;
+	type: BerylEventType;
 	topicId: string;
 	path: string | null;
 	payload: Topic | Node | { path: string } | Note | { id: string } | { count: number; at: string };

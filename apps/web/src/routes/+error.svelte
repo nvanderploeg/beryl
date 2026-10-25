@@ -4,7 +4,7 @@
 	import Orb from '#lib/components/Orb.svelte';
 </script>
 
-<svelte:head><title>{page.status} · speculum</title></svelte:head>
+<svelte:head><title>{page.status} · beryl</title></svelte:head>
 
 <main>
 	<Orb size={56} heat={0} />
@@ -16,7 +16,7 @@
 			{page.error?.message}
 		{/if}
 	</p>
-	<a href={resolve('/')}>Go to speculum</a>
+	<a href={resolve('/')}>Go to beryl</a>
 </main>
 
 <style>

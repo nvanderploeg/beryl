@@ -4,10 +4,10 @@ set -euo pipefail
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 HELPER="$REPO/scripts/helper.mjs"
 MCP_BIN="$REPO/packages/mcp/dist/index.js"
-ALLOW_ENTRY='mcp__speculum__*'
+ALLOW_ENTRY='mcp__beryl__*'
 HOOK_COMMAND="node \"$REPO/packages/cli/dist/index.js\" hook"
 HOME_DIR=${HOME:?HOME must be set}
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME_DIR/.config}/speculum"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME_DIR/.config}/beryl"
 MANIFEST="$CONFIG_DIR/install.json"
 
 dry=0 purge=0
@@ -91,19 +91,19 @@ remove_link() {
 
 remove_claude_mcp() {
 	if ! command -v claude >/dev/null 2>&1; then
-		say keep "claude not on PATH; run 'claude mcp remove -s user speculum' yourself"
+		say keep "claude not on PATH; run 'claude mcp remove -s user beryl' yourself"
 		return
 	fi
 	local info
-	if ! info=$(claude mcp get speculum 2>&1); then
-		say ok "claude MCP 'speculum' already gone"
+	if ! info=$(claude mcp get beryl 2>&1); then
+		say ok "claude MCP 'beryl' already gone"
 	elif [[ $info != *"$MCP_BIN"* ]]; then
-		say keep "claude MCP 'speculum' points elsewhere"
+		say keep "claude MCP 'beryl' points elsewhere"
 	elif [ "$dry" = 1 ]; then
-		say mcp "run 'claude mcp remove -s user speculum'"
+		say mcp "run 'claude mcp remove -s user beryl'"
 	else
-		claude mcp remove -s user speculum >/dev/null
-		say mcp "removed 'speculum' from Claude Code"
+		claude mcp remove -s user beryl >/dev/null
+		say mcp "removed 'beryl' from Claude Code"
 	fi
 	forget claude-mcp "$REPO" -
 }
@@ -111,14 +111,14 @@ remove_claude_mcp() {
 remove_codex_mcp() {
 	local cfg=$1 result
 	if [ "$dry" = 1 ]; then
-		say mcp "remove [mcp_servers.speculum] from $cfg"
+		say mcp "remove [mcp_servers.beryl] from $cfg"
 		return
 	fi
 	result=$(node "$HELPER" codex-remove "$cfg" "$MCP_BIN")
 	case $result in
-		removed) say mcp "removed 'speculum' from $cfg" ;;
-		absent) say ok "codex MCP 'speculum' already gone from $cfg" ;;
-		*) say keep "codex 'speculum' block in $cfg points elsewhere" ;;
+		removed) say mcp "removed 'beryl' from $cfg" ;;
+		absent) say ok "codex MCP 'beryl' already gone from $cfg" ;;
+		*) say keep "codex 'beryl' block in $cfg points elsewhere" ;;
 	esac
 	forget codex-mcp "$REPO" "$cfg"
 }
@@ -142,14 +142,14 @@ remove_allow() {
 remove_hooks() {
 	local settings=$1 result
 	if [ "$dry" = 1 ]; then
-		say hooks "remove speculum hooks from $settings"
+		say hooks "remove beryl hooks from $settings"
 		return
 	fi
 	result=$(node "$HELPER" hooks-remove "$settings" "$HOOK_COMMAND")
 	if [ "$result" = removed ]; then
-		say hooks "removed speculum hooks from $settings"
+		say hooks "removed beryl hooks from $settings"
 	else
-		say ok "speculum hooks already absent from $settings"
+		say ok "beryl hooks already absent from $settings"
 	fi
 	forget hooks "$REPO" "$settings"
 	report_backups "$settings"

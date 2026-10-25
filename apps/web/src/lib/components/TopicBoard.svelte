@@ -17,7 +17,7 @@
 
 <svelte:head>
 	<title
-		>{board.unsent ? `(${board.unsent}) ` : ''}{board.topic.title} · {board.project.name} · speculum</title
+		>{board.unsent ? `(${board.unsent}) ` : ''}{board.topic.title} · {board.project.name} · beryl</title
 	>
 </svelte:head>
 

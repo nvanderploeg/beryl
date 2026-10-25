@@ -1,16 +1,16 @@
-# speculum client, CLI, MCP and hook contract
+# beryl client, CLI, MCP and hook contract
 
 Builds on `docs/api.md`. Nothing here may throw into an agent's work: every failure becomes a warning, and the grill goes on without the board.
 
-## `@speculum/client` (`packages/client/src/index.ts`)
+## `@beryl/client` (`packages/client/src/index.ts`)
 
 ```ts
-export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://speculum.nanzero.com'];
-export const UNREACHABLE_WARNING = 'speculum unreachable — continuing without the board';
+export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://beryl.nanzero.com'];
+export const UNREACHABLE_WARNING = 'beryl unreachable — continuing without the board';
 
 export interface ClientOptions {
 	env?: Record<string, string | undefined>; // default process.env
-	configDir?: string; // default `${XDG_CONFIG_HOME ?? ~/.config}/speculum`, read from `env`
+	configDir?: string; // default `${XDG_CONFIG_HOME ?? ~/.config}/beryl`, read from `env`
 	fetch?: typeof fetch; // default globalThis.fetch
 	candidates?: string[]; // default DEFAULT_CANDIDATES
 	probeTimeoutMs?: number; // loopback hosts; default 300
@@ -37,7 +37,7 @@ export interface NodeInput {
 	position?: number;
 }
 
-export interface SpeculumClient {
+export interface BerylClient {
 	discover(): Promise<string | null>;
 	openTopic(input: {
 		title?: string; // required unless topicId is given
@@ -94,7 +94,7 @@ export interface SpeculumClient {
 
 export interface DoctorReport {
 	configDir: string;
-	pinned: string | null; // SPECULUM_URL, normalised
+	pinned: string | null; // BERYL_URL, normalised
 	probes: { server: string; ok: boolean; version?: string }[];
 	server: string | null;
 	repoKey: string;
@@ -102,7 +102,7 @@ export interface DoctorReport {
 	registryError: string | null;
 }
 
-export function createClient(options?: ClientOptions): SpeculumClient;
+export function createClient(options?: ClientOptions): BerylClient;
 export function formatPulled(pulled: Pulled, topic: { id: string; title?: string }): string;
 export function formatOutline(snapshot: Snapshot, options?: { path?: string; detail?: 'outline' | 'full' }): string;
 export function repoIdentity(cwd: string): Promise<{ repoKey: string; name: string }>;
@@ -113,20 +113,20 @@ Also export the types of `docs/api.md` exactly.
 
 Behaviour:
 
-- **discover** — as chronicle's: servers normalised (trim, strip trailing `/`). `SPECULUM_URL` set and non-empty → probe it alone. Otherwise the first healthy candidate. Healthy = `GET <server>/api/health` answers 2xx with JSON `service === 'speculum'` within the probe timeout for its host.
-- **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, noteKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `speculum failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
+- **discover** — as chronicle's: servers normalised (trim, strip trailing `/`). `BERYL_URL` set and non-empty → probe it alone. Otherwise the first healthy candidate. Healthy = `GET <server>/api/health` answers 2xx with JSON `service === 'beryl'` within the probe timeout for its host.
+- **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, noteKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `beryl failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
 - **openTopic** — with `topicId`: needs its `topics.json` handle (else `unknown topic <id> on this machine`), `GET /api/topics/:id` to confirm it exists, `resumed: true`, nothing created. Without: `title` required; `discover()` (`null` → `UNREACHABLE_WARNING`); find or create the Project for `(server, repoKey)` as chronicle's `startTask` does (name = `project`, else the repo name from `repoIdentity`; rename when `project` differs; a 401/403/404 on topic create → create a fresh Project, overwrite the entry, retry once). `POST /api/projects/:id/topics`; `repo` and `branch` default from `gitRefs(cwd)`; `agent.tool` defaults to `'claude-code'` when `env.CLAUDECODE === '1'`. Save the handle.
 - **Topic-scoped calls** need the `topics.json` handle and use its server only, never Discovery. Write calls use the Project's Write key; `addNote` and `send` its Note key.
 - **waitForSent** — loops `GET /api/topics/:id/wait?timeoutMs=<pollMs>`. `sent > 0` → return it. Network error, timeout or 5xx → sleep with backoff starting at 1 s, doubling to 30 s, reset after any good answer. A 4xx → return the warning. Stops with `{ sent: 0 }` at the overall timeout or when `signal` aborts.
 - **Rate limit** — a 429 with `Retry-After` ≤ 5 s is waited out and the request sent once more; otherwise reported.
-- **Failures** — network error, timeout or 5xx → `UNREACHABLE_WARNING`; other non-2xx → `speculum rejected the write: <error>`. Methods never throw.
+- **Failures** — network error, timeout or 5xx → `UNREACHABLE_WARNING`; other non-2xx → `beryl rejected the write: <error>`. Methods never throw.
 
 ### formatPulled
 
 Plain text for the agent's context, ids included so it can resolve:
 
 ```
-speculum: 2 new notes from the board on topic <id> (Payments retry design):
+beryl: 2 new notes from the board on topic <id> (Payments retry design):
 - [answer] storage/engine "Pick the database": MySQL, same as chronicle. (note 6f1c…)
 - [comment] storage/schema "Tables" › tables › users.email: should be unique. (by Sam) (note 9a2e…)
 Still unresolved from earlier:
@@ -135,7 +135,7 @@ Stale gists: storage, auth.
 Fold each note into the model, then call resolve_notes with a one-line reply for each.
 ```
 
-- Header: `speculum: <n> new note(s) …` when there are notes, else `speculum: no new notes on the board for topic <id>.`
+- Header: `beryl: <n> new note(s) …` when there are notes, else `beryl: no new notes on the board for topic <id>.`
 - Where: `topic` for a null path; else `<path> "<title>"` from `context`, then ` › <widget>` and ` › <element>` when set.
 - Empty text: `accept` → `accept the recommendation`, `defer` → `defer this`, `drop` → `drop this`.
 - Unresolved notes print in full, in the same line format as new ones, so a pull whose answer was lost in transit still reaches the agent on the next one.
@@ -152,61 +152,61 @@ storage [area/open]* Storage — Where the model and events live.
 
 `*` marks a Stale gist, `#<rank>` an open decision's rank, `← now asking` the Current. Last line: `Notes: <q> queued, <u> delivered and unresolved.` `full` adds under each Node its body, recommendation, answer, edges (`→ relies_on storage/engine`), sources and each widget as `widget <key> (<type>): <compact JSON>`.
 
-## `speculum` CLI (`packages/cli`)
+## `beryl` CLI (`packages/cli`)
 
 `src/run.ts` exports `run(argv, io)` like chronicle's; `src/index.ts` dispatches `hook` and `wait` (long-running) itself and everything else to `run`. Parse with `node:util` `parseArgs`.
 
 ```
-speculum open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
+beryl open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
               [--tool t] [--model m] [--effort e] [--file nodes.json] [--cwd dir]
-speculum open --topic <id>                                   resume
+beryl open --topic <id>                                   resume
     stdout: "<topicId> <url> <noteUrl>"
-speculum get <topicId> [--path p] [--full] [--json]          formatOutline, or the Snapshot as JSON
-speculum put <topicId> [--file nodes.json]                   NodeInput[] or { nodes } from the file or stdin
+beryl get <topicId> [--path p] [--full] [--json]          formatOutline, or the Snapshot as JSON
+beryl put <topicId> [--file nodes.json]                   NodeInput[] or { nodes } from the file or stdin
     stdout: "<n> nodes written"
-speculum rm <topicId> <path>...                              stdout: removed paths, one per line
-speculum mv <topicId> <from> <to>                            stdout: "<from> -> <to>" per moved path
-speculum topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
+beryl rm <topicId> <path>...                              stdout: removed paths, one per line
+beryl mv <topicId> <from> <to>                            stdout: "<from> -> <to>" per moved path
+beryl topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
               [--current path | --no-current]               stdout: "<topicId> <status>"
-speculum pull <topicId>                                      stdout: formatPulled
-speculum resolve <topicId> <noteId> [--reply text] [--changed path]...
-speculum wait <topicId> [--timeout 12h]                      see Wait
-speculum note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
-speculum send <topicId>                                      stdout: "sent <n>"
-speculum url <topicId> [--private]
-speculum doctor
-speculum hook
+beryl pull <topicId>                                      stdout: formatPulled
+beryl resolve <topicId> <noteId> [--reply text] [--changed path]...
+beryl wait <topicId> [--timeout 12h]                      see Wait
+beryl note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
+beryl send <topicId>                                      stdout: "sent <n>"
+beryl url <topicId> [--private]
+beryl doctor
+beryl hook
 ```
 
-- A `Result` with `ok: false` → stderr `speculum: <warning>`, exit 0. Usage errors → usage on stderr, exit 2.
+- A `Result` with `ok: false` → stderr `beryl: <warning>`, exit 0. Usage errors → usage on stderr, exit 2.
 - Durations: `90s`, `30m`, `12h`, or `0` for no limit.
 
 ### Wait
 
-`speculum wait <topicId>` is the listener the agent runs in the background (Claude Code: Bash with `run_in_background`), so a Send on the board wakes it.
+`beryl wait <topicId>` is the listener the agent runs in the background (Claude Code: Bash with `run_in_background`), so a Send on the board wakes it.
 
-1. A live listener for this Topic already running (`<configDir>/waits/<topicId>.json` holds `{ pid, startedAt }` and that pid answers `kill(pid, 0)`) → stdout `speculum: already listening for topic <id> (pid <pid>).`, exit 0.
+1. A live listener for this Topic already running (`<configDir>/waits/<topicId>.json` holds `{ pid, startedAt }` and that pid answers `kill(pid, 0)`) → stdout `beryl: already listening for topic <id> (pid <pid>).`, exit 0.
 2. Write the pid file; remove it on every exit path, if it is still ours.
-3. `waitForSent`. On `sent > 0`: `pullNotes` (one retry), print `formatPulled`, then `Run speculum wait <id> in the background again once you have resolved them.`, exit 0. Pull failing twice → `speculum: notes were sent for topic <id> but could not be pulled; call pull_notes.`
-4. Overall timeout → `speculum: stopped listening for topic <id> after <duration>. Run speculum wait <id> in the background to keep listening.`, exit 0.
+3. `waitForSent`. On `sent > 0`: `pullNotes` (one retry), print `formatPulled`, then `Run beryl wait <id> in the background again once you have resolved them.`, exit 0. Pull failing twice → `beryl: notes were sent for topic <id> but could not be pulled; call pull_notes.`
+4. Overall timeout → `beryl: stopped listening for topic <id> after <duration>. Run beryl wait <id> in the background to keep listening.`, exit 0.
 5. SIGINT or SIGTERM → remove the pid file, exit 0 silently.
 
 ### Hook
 
-`speculum hook` reads one Claude Code hook event on stdin and prints hook JSON or nothing; it always exits 0. `src/hook.ts` exports `handleHook(raw: string, deps: { dir: string; client: SpeculumClient; isListening(topicId: string): boolean; timeoutMs?: number }): Promise<string>`. Per-session state lives in `<configDir>/sessions/<session_id>.json`: `{ topicId?, url?, closed: boolean }`, pruned after two weeks.
+`beryl hook` reads one Claude Code hook event on stdin and prints hook JSON or nothing; it always exits 0. `src/hook.ts` exports `handleHook(raw: string, deps: { dir: string; client: BerylClient; isListening(topicId: string): boolean; timeoutMs?: number }): Promise<string>`. Per-session state lives in `<configDir>/sessions/<session_id>.json`: `{ topicId?, url?, closed: boolean }`, pruned after two weeks.
 
 | Event | Does |
 | --- | --- |
-| `PostToolUse` of `mcp__speculum__open_topic` or `mcp__speculum__get_topic` | Records the `topicId` from the response (`"topicId":"…"`) or the input; `closed: false`. |
-| `PostToolUse` of `mcp__speculum__update_topic` with `status` | `closed` follows it for that Topic. |
-| `UserPromptSubmit`, Topic open | Pulls within `timeoutMs` (default 1500) and returns `formatPulled` as `additionalContext`. Without a live listener it adds: `speculum: no board listener is running. Before you end this turn, run \`speculum wait <id>\` in the background so Send on the board reaches you.` A failed pull returns `speculum: could not reach the board for topic <id>; call pull_notes before you answer.` |
-| `SessionStart` with source `compact` or `resume`, Topic open | `speculum: this session grills topic <id> (<url>). Call get_topic before writing to it again.` |
+| `PostToolUse` of `mcp__beryl__open_topic` or `mcp__beryl__get_topic` | Records the `topicId` from the response (`"topicId":"…"`) or the input; `closed: false`. |
+| `PostToolUse` of `mcp__beryl__update_topic` with `status` | `closed` follows it for that Topic. |
+| `UserPromptSubmit`, Topic open | Pulls within `timeoutMs` (default 1500) and returns `formatPulled` as `additionalContext`. Without a live listener it adds: `beryl: no board listener is running. Before you end this turn, run \`beryl wait <id>\` in the background so Send on the board reaches you.` A failed pull returns `beryl: could not reach the board for topic <id>; call pull_notes before you answer.` |
+| `SessionStart` with source `compact` or `resume`, Topic open | `beryl: this session grills topic <id> (<url>). Call get_topic before writing to it again.` |
 
 Anything else, unparseable input, a missing `session_id` or any failure → no output.
 
-## `speculum-mcp` (`packages/mcp`)
+## `beryl-mcp` (`packages/mcp`)
 
-`src/server.ts` exports `createServer(client?: SpeculumClient, open?: Opener): McpServer`, server name `speculum`; `src/index.ts` connects it over stdio.
+`src/server.ts` exports `createServer(client?: BerylClient, open?: Opener): McpServer`, server name `beryl`; `src/index.ts` connects it over stdio.
 
 | Tool | Input | Answer |
 | --- | --- | --- |
@@ -219,8 +219,8 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 | `pull_notes` | `{ topicId }` | `formatPulled` |
 | `resolve_notes` | `{ topicId, notes: { id, reply?, changed? }[] }` | JSON `{ resolved: id[] }` |
 
-- Failures → one text item `speculum: <warning>`, never `isError`.
+- Failures → one text item `beryl: <warning>`, never `isError`.
 - `widgets[].data` is passed through unchecked; the server validates it.
 - `open_topic` without `agent.tool` fills it from the MCP client's name (`claude` → `claude-code`, `codex` → `codex`).
-- **Opener** — after an `open_topic` that returns `ok`, open its `noteUrl` once with `open`, `cmd /c start` or `xdg-open`, detached, output discarded; `SPECULUM_OPEN=0` disables it; failures are swallowed.
-- Tool descriptions are one sentence an agent can act on. `open_topic`'s says to call it when a grill starts and to print the `noteUrl` to the user; `put_nodes`'s says widget shapes are in the speculum skill's `WIDGETS.md`.
+- **Opener** — after an `open_topic` that returns `ok`, open its `noteUrl` once with `open`, `cmd /c start` or `xdg-open`, detached, output discarded; `BERYL_OPEN=0` disables it; failures are swallowed.
+- Tool descriptions are one sentence an agent can act on. `open_topic`'s says to call it when a grill starts and to print the `noteUrl` to the user; `put_nodes`'s says widget shapes are in the beryl skill's `WIDGETS.md`.

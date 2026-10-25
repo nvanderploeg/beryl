@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
-import type { Node, SpeculumClient, Pulled, Snapshot, Topic } from '@speculum/client';
+import type { Node, BerylClient, Pulled, Snapshot, Topic } from '@beryl/client';
 import { createServer, type Opener } from './server.ts';
 
 type Method =
@@ -74,7 +74,7 @@ const PULLED: Pulled = { notes: [], unresolved: [], context: {}, stale: [] };
 const OPENED = {
 	topicId: 'topic-1',
 	url: URL,
-	noteUrl: `${URL}#nk=sn_1`,
+	noteUrl: `${URL}#nk=bn_1`,
 	projectUrl: `${SERVER}/p/proj-1`,
 	server: SERVER,
 	projectId: 'proj-1',
@@ -88,7 +88,7 @@ const notOk = (warning: string) => ({ ok: false, warning });
 function fakeClient(): FakeClient {
 	return {
 		openTopic: vi.fn(async () => ok(OPENED)),
-		getTopic: vi.fn(async () => ok({ snapshot: SNAPSHOT, url: URL, noteUrl: `${URL}#nk=sn_1` })),
+		getTopic: vi.fn(async () => ok({ snapshot: SNAPSHOT, url: URL, noteUrl: `${URL}#nk=bn_1` })),
 		putNodes: vi.fn(async () => ok({ nodes: [NODE] })),
 		removeNodes: vi.fn(async () => ok({ removed: ['storage'] })),
 		moveNode: vi.fn(async () => ok({ moved: [{ from: 'a', to: 'b' }] })),
@@ -109,7 +109,7 @@ async function connect(
 	clientName = 'test-agent',
 	open: Opener = vi.fn()
 ) {
-	const server = createServer(client as unknown as SpeculumClient, open);
+	const server = createServer(client as unknown as BerylClient, open);
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const mcp = new Client({ name: clientName, version: '0.0.0' });
 	await server.connect(serverTransport);
@@ -142,13 +142,13 @@ const TOOLS = [
 ];
 
 describe('tool listing', () => {
-	it('identifies itself as the speculum server', async () => {
+	it('identifies itself as the beryl server', async () => {
 		const { mcp } = await connect();
 
-		expect(mcp.getServerVersion()?.name).toBe('speculum');
+		expect(mcp.getServerVersion()?.name).toBe('beryl');
 	});
 
-	it('lists exactly the eight speculum tools', async () => {
+	it('lists exactly the eight beryl tools', async () => {
 		const { mcp } = await connect();
 
 		const { tools } = await mcp.listTools();
@@ -353,7 +353,7 @@ describe('the other tools', () => {
 		const { mcp, client } = await connect();
 
 		expect(await textOf(mcp, 'pull_notes', { topicId: 'topic-1' })).toBe(
-			'speculum: no new notes on the board for topic topic-1.'
+			'beryl: no new notes on the board for topic topic-1.'
 		);
 		expect(client.pullNotes).toHaveBeenCalledWith({ topicId: 'topic-1' });
 	});
@@ -379,13 +379,13 @@ describe('failures', () => {
 		['update_topic', 'updateTopic', { topicId: 'topic-1' }],
 		['pull_notes', 'pullNotes', { topicId: 'topic-1' }],
 		['resolve_notes', 'resolveNotes', { topicId: 'topic-1', notes: [] }]
-	] as const)('%s answers "speculum: <warning>" without isError', async (name, method, args) => {
-		const warning = 'speculum unreachable — continuing without the board';
+	] as const)('%s answers "beryl: <warning>" without isError', async (name, method, args) => {
+		const warning = 'beryl unreachable — continuing without the board';
 		const client = fakeClient();
 		client[method].mockResolvedValueOnce(notOk(warning));
 		const { mcp } = await connect(client);
 
-		expect(await textOf(mcp, name, args)).toBe(`speculum: ${warning}`);
+		expect(await textOf(mcp, name, args)).toBe(`beryl: ${warning}`);
 	});
 
 	it.each([
@@ -425,7 +425,7 @@ describe('board opener', () => {
 
 		await mcp.callTool({ name: 'open_topic', arguments: { title: 'T' } });
 
-		expect(open).toHaveBeenCalledExactlyOnceWith(`${URL}#nk=sn_1`);
+		expect(open).toHaveBeenCalledExactlyOnceWith(`${URL}#nk=bn_1`);
 	});
 
 	it('opens a Topic only once per server, but each new Topic', async () => {
@@ -436,16 +436,16 @@ describe('board opener', () => {
 		await mcp.callTool({ name: 'open_topic', arguments: { title: 'T' } });
 		await mcp.callTool({ name: 'open_topic', arguments: { topicId: 'topic-1' } });
 		client.openTopic.mockResolvedValueOnce(
-			ok({ ...OPENED, topicId: 'topic-2', noteUrl: 'http://x/t/topic-2#nk=sn_1' })
+			ok({ ...OPENED, topicId: 'topic-2', noteUrl: 'http://x/t/topic-2#nk=bn_1' })
 		);
 		await mcp.callTool({ name: 'open_topic', arguments: { title: 'U' } });
 
-		expect(open.mock.calls).toEqual([[`${URL}#nk=sn_1`], ['http://x/t/topic-2#nk=sn_1']]);
+		expect(open.mock.calls).toEqual([[`${URL}#nk=bn_1`], ['http://x/t/topic-2#nk=bn_1']]);
 	});
 
 	it('opens nothing when open_topic returns a warning, or on other tools', async () => {
 		const client = fakeClient();
-		client.openTopic.mockResolvedValueOnce(notOk('speculum unreachable'));
+		client.openTopic.mockResolvedValueOnce(notOk('beryl unreachable'));
 		const open = vi.fn();
 		const { mcp } = await connect(client, 'test-agent', open);
 

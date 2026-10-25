@@ -1,9 +1,9 @@
 {
-	"name": "@speculum/mcp",
+	"name": "@beryl/mcp",
 	"version": "0.1.0",
 	"type": "module",
 	"bin": {
-		"speculum-mcp": "dist/index.js"
+		"beryl-mcp": "dist/index.js"
 	},
 	"files": [
 		"dist"
@@ -15,7 +15,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.32.1",
-		"@speculum/client": "workspace:*",
+		"@beryl/client": "workspace:*",
 		"zod": "^4.6.7"
 	},
 	"devDependencies": {

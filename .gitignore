@@ -155,7 +155,7 @@ build/
 .claude/
 
 # Deployment secrets
-deploy/speculum.env
+deploy/beryl.env
 .playwright-mcp/
 
 # Playwright

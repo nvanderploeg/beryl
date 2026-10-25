@@ -1,6 +1,6 @@
 # Plain HTTP; terminate TLS here (certbot --nginx rewrites the listen lines) or in front of it.
 server {
-    server_name speculum.example.com;
+    server_name beryl.example.com;
 
     # Keep in step with BODY_SIZE_LIMIT in compose.prod.yml.
     client_max_body_size 8m;

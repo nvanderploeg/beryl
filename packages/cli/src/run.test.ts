@@ -2,11 +2,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { SpeculumClient, Pulled, Snapshot } from '@speculum/client';
+import type { BerylClient, Pulled, Snapshot } from '@beryl/client';
 import { run } from './run.ts';
 import { USAGE, formatDuration, parseDuration, UsageError } from './args.ts';
 
-const UNREACHABLE = 'speculum unreachable — continuing without the board';
+const UNREACHABLE = 'beryl unreachable — continuing without the board';
 const T = '2026-10-24T00:00:00.000Z';
 const URL = 'http://h/p/proj-1/t/topic-1';
 
@@ -83,7 +83,7 @@ async function invoke(argv: string[], client: FakeClient, stdin = '') {
 	const code = await run(argv, {
 		stdout: (s) => out.push(s),
 		stderr: (s) => err.push(s),
-		client: client as unknown as SpeculumClient,
+		client: client as unknown as BerylClient,
 		readStdin: async () => stdin
 	});
 	return { code, stdout: out.join('\n'), stderr: err.join('\n') };
@@ -92,7 +92,7 @@ async function invoke(argv: string[], client: FakeClient, stdin = '') {
 const tmpDirs: string[] = [];
 
 function tmpJson(data: unknown, raw?: string): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'speculum-cli-'));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'beryl-cli-'));
 	tmpDirs.push(dir);
 	const file = path.join(dir, 'nodes.json');
 	fs.writeFileSync(file, raw ?? JSON.stringify(data));
@@ -109,7 +109,7 @@ describe('open', () => {
 	const opened = ok({
 		topicId: 'topic-1',
 		url: URL,
-		noteUrl: `${URL}#nk=sn_1`,
+		noteUrl: `${URL}#nk=bn_1`,
 		projectUrl: 'http://h/p/proj-1',
 		server: 'http://h',
 		projectId: 'proj-1',
@@ -125,7 +125,7 @@ describe('open', () => {
 
 		expect(result).toEqual({
 			code: 0,
-			stdout: `topic-1 ${URL} ${URL}#nk=sn_1`,
+			stdout: `topic-1 ${URL} ${URL}#nk=bn_1`,
 			stderr: ''
 		});
 	});
@@ -211,7 +211,7 @@ describe('open', () => {
 		expect(await invoke(['open', 'Retries'], client)).toEqual({
 			code: 0,
 			stdout: '',
-			stderr: `speculum: ${UNREACHABLE}`
+			stderr: `beryl: ${UNREACHABLE}`
 		});
 	});
 });
@@ -394,7 +394,7 @@ describe('pull and resolve', () => {
 		const result = await invoke(['pull', 'topic-1'], client);
 
 		expect(client.pullNotes).toHaveBeenCalledWith({ topicId: 'topic-1' });
-		expect(result.stdout).toBe('speculum: no new notes on the board for topic topic-1.');
+		expect(result.stdout).toBe('beryl: no new notes on the board for topic topic-1.');
 	});
 
 	it('resolves one note with its reply and changed paths', async () => {
@@ -503,7 +503,7 @@ describe('doctor and usage', () => {
 	it('prints the doctor report', async () => {
 		const client = fakeClient();
 		client.doctor.mockResolvedValue({
-			configDir: '/c/speculum',
+			configDir: '/c/beryl',
 			pinned: null,
 			probes: [{ server: 'http://localhost:3270', ok: true, version: '0.1.0' }],
 			server: 'http://localhost:3270',
@@ -514,7 +514,7 @@ describe('doctor and usage', () => {
 
 		expect((await invoke(['doctor'], client)).stdout).toBe(
 			[
-				'config dir: /c/speculum',
+				'config dir: /c/beryl',
 				'pinned: none',
 				'probes:',
 				'  http://localhost:3270 ok (v0.1.0)',
@@ -547,7 +547,7 @@ describe('doctor and usage', () => {
 		expect(await invoke(['send', 'topic-1'], client)).toEqual({
 			code: 0,
 			stdout: '',
-			stderr: 'speculum: boom'
+			stderr: 'beryl: boom'
 		});
 	});
 });

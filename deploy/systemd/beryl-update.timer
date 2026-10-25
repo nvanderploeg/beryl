@@ -1,5 +1,5 @@
 [Unit]
-Description=Check for new speculum images every 10 minutes
+Description=Check for new beryl images every 10 minutes
 
 [Timer]
 OnBootSec=5min

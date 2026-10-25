@@ -1,6 +1,6 @@
-import type { SpeculumEvent } from '#lib/types.ts';
+import type { BerylEvent } from '#lib/types.ts';
 
-type Listener = (event: SpeculumEvent) => void;
+type Listener = (event: BerylEvent) => void;
 
 const listeners = new Map<string, Set<Listener>>();
 
@@ -14,12 +14,12 @@ export function subscribe(topicId: string, listener: Listener): () => void {
 	};
 }
 
-export function publish(topicId: string, event: SpeculumEvent): void {
+export function publish(topicId: string, event: BerylEvent): void {
 	for (const listener of [...(listeners.get(topicId) ?? [])]) {
 		try {
 			listener(event);
 		} catch (error) {
-			console.error('speculum bus listener failed', error);
+			console.error('beryl bus listener failed', error);
 		}
 	}
 }

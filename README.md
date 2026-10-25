@@ -1,8 +1,8 @@
-# speculum
+# beryl
 
 See the grill.
 
-speculum is a live, zoomable board of a grilling agent's model of a design. While an agent interviews you about a plan, it charts what it understands: areas, decisions, facts, assumptions, fog it can't yet phrase, risks, and widgets for the concrete shapes (table schemas, migration plans with row-level changes, files touched, class diagrams, flows, state machines, endpoint lists). Every open question is on the board with the agent's recommended answer, so you can answer them ahead, in your own order, instead of one at a time in the agent's. Your notes, pinned to a node or to one column, row or file, flow back into the agent's next turn.
+beryl is a live, zoomable board of a grilling agent's model of a design. While an agent interviews you about a plan, it charts what it understands: areas, decisions, facts, assumptions, fog it can't yet phrase, risks, and widgets for the concrete shapes (table schemas, migration plans with row-level changes, files touched, class diagrams, flows, state machines, endpoint lists). Every open question is on the board with the agent's recommended answer, so you can answer them ahead, in your own order, instead of one at a time in the agent's. Your notes, pinned to a node or to one column, row or file, flow back into the agent's next turn.
 
 ![The graph at close zoom: an open question with its migration plan, the Questions sidebar and the inspector](docs/captures/graph-near-dark.png)
 
@@ -24,17 +24,17 @@ speculum is a live, zoomable board of a grilling agent's model of a design. Whil
 Needs Node.js 22+, pnpm 11 (`corepack enable`), and Docker with compose for the local board server.
 
 ```sh
-git clone https://github.com/nvanderploeg/speculum
-cd speculum
+git clone https://github.com/nvanderploeg/beryl
+cd beryl
 scripts/install.sh --with-server --hooks
-speculum doctor
+beryl doctor
 ```
 
-This builds the packages, links the `speculum` skill and CLI, registers the MCP server with Claude Code (and Codex if present), starts the board on <http://localhost:3270>, and adds the hooks that bring board notes into each turn. It is safe to re-run; `scripts/uninstall.sh` removes exactly what it added.
+This builds the packages, links the `beryl` skill and CLI, registers the MCP server with Claude Code (and Codex if present), starts the board on <http://localhost:3270>, and adds the hooks that bring board notes into each turn. It is safe to re-run; `scripts/uninstall.sh` removes exactly what it added.
 
 ## Use it
 
-Start a grill as usual (the `grilling` skill, or "grill me on…"). With the `speculum` skill installed the agent opens a board, prints your private link, and keeps the board current every turn. Try it without an agent: open `/demo` for a scripted five-turn grill, or play it into a live board:
+Start a grill as usual (the `grilling` skill, or "grill me on…"). With the `beryl` skill installed the agent opens a board, prints your private link, and keeps the board current every turn. Try it without an agent: open `/demo` for a scripted five-turn grill, or play it into a live board:
 
 ```sh
 node scripts/simulate.mjs
