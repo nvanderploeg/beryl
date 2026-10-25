@@ -221,6 +221,13 @@ async function mutate<T>(
 			const now = create?.createdAt ?? new Date();
 			let topic: TopicRow | undefined = create;
 			if (create) {
+				// Lock the Project first: the insert's foreign-key check would otherwise share-lock it and
+				// deadlock with a sibling Topic's write bumping lastWriteAt.
+				await tx
+					.select({ id: projects.id })
+					.from(projects)
+					.where(eq(projects.id, create.projectId))
+					.for('update');
 				await tx.insert(topics).values(create);
 			} else {
 				[topic] = await tx.select().from(topics).where(eq(topics.id, topicId)).for('update');

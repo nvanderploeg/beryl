@@ -117,6 +117,8 @@ export class LiveTopic {
 
 	// Leave lastSeq alone: the stream event for this write must still apply.
 	upsertNote(note: Note): void {
+		const held = this.state.notes.find((n) => n.id === note.id);
+		if (held && held.updatedAt > note.updatedAt) return;
 		const notes = [...this.state.notes.filter((n) => n.id !== note.id), note].sort(
 			(a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
 		);
