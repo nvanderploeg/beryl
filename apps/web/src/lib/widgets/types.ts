@@ -126,12 +126,7 @@ export interface ClassDef {
 }
 
 export type ClassRelationKind =
-	| 'inherits'
-	| 'implements'
-	| 'composes'
-	| 'aggregates'
-	| 'uses'
-	| 'associates';
+	'inherits' | 'implements' | 'composes' | 'aggregates' | 'uses' | 'associates';
 
 export interface ClassRelation {
 	from: string;
