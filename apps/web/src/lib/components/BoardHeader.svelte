@@ -64,11 +64,6 @@
 		}
 	}
 
-	function toggleSidebar() {
-		if (matchMedia('(max-width: 900px)').matches) board.drawerOpen = !board.drawerOpen;
-		else board.setSidebar(!board.sidebarOpen);
-	}
-
 	const home = $derived(
 		board.mode === 'demo' ? resolve('/') : resolve('/p/[id]', { id: board.project.id })
 	);
@@ -78,10 +73,10 @@
 	<div class="row one">
 		<button
 			type="button"
-			class="icon-btn"
+			class="icon-btn drawer-btn"
 			aria-label="Toggle questions"
 			title="Questions"
-			onclick={toggleSidebar}
+			onclick={() => (board.drawerOpen = !board.drawerOpen)}
 		>
 			<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
 				<path
@@ -343,6 +338,11 @@
 	.icon-btn:hover {
 		color: var(--ink);
 		background: var(--surface-2);
+	}
+	@media (min-width: 901px) {
+		.drawer-btn {
+			display: none;
+		}
 	}
 	.orb-link {
 		flex: none;

@@ -131,7 +131,7 @@
 				<span class="total tabular">{total}</span>
 				<button
 					type="button"
-					class="collapse"
+					class="hide-btn"
 					title="Hide questions"
 					aria-label="Hide questions"
 					onclick={() => {
@@ -311,7 +311,7 @@
 		font-size: 0.78rem;
 		color: var(--muted);
 	}
-	.collapse {
+	.hide-btn {
 		margin-left: auto;
 		display: grid;
 		place-items: center;
@@ -323,7 +323,7 @@
 		color: var(--muted);
 		cursor: pointer;
 	}
-	.collapse:hover {
+	.hide-btn:hover {
 		background: var(--surface-2);
 		color: var(--ink);
 	}
