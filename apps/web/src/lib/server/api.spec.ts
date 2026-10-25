@@ -13,7 +13,7 @@ import {
 	type Body,
 	type Seeded
 } from '#lib/server/test/http.ts';
-import type { PalantirEvent } from '#lib/types.ts';
+import type { SpeculumEvent } from '#lib/types.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -54,7 +54,7 @@ describe('GET /api/health', () => {
 		const res = await api.health();
 		expect(res.status).toBe(200);
 		expect(res.headers.get('cache-control')).toBe('no-store');
-		expect(res.body).toEqual({ service: 'palantir', version: expect.any(String), db: 'ok' });
+		expect(res.body).toEqual({ service: 'speculum', version: expect.any(String), db: 'ok' });
 	});
 });
 
@@ -66,8 +66,8 @@ describe('POST /api/projects', () => {
 		expect(res.body).toEqual({
 			id: expect.stringMatching(UUID_V4),
 			name: 'Tracker',
-			writeKey: expect.stringMatching(/^pw_[A-Za-z0-9_-]{43}$/),
-			noteKey: expect.stringMatching(/^pn_[A-Za-z0-9_-]{43}$/),
+			writeKey: expect.stringMatching(/^sw_[A-Za-z0-9_-]{43}$/),
+			noteKey: expect.stringMatching(/^sn_[A-Za-z0-9_-]{43}$/),
 			url: `${ORIGIN}/p/${res.body.id}`
 		});
 	});
@@ -557,7 +557,7 @@ describe('PUT /api/topics/:id/nodes', () => {
 	});
 
 	it('publishes each stored event on the bus after the write commits', async () => {
-		const seen: PalantirEvent[] = [];
+		const seen: SpeculumEvent[] = [];
 		const unsubscribe = subscribe(topicId, (e) => seen.push(e));
 		try {
 			await put([{ path: 'a/b', kind: 'fact' }]);
@@ -1528,7 +1528,7 @@ describe('auth', () => {
 			status: 403,
 			body: { error: 'invalid key' }
 		});
-		expect(await call('pw_garbage')).toMatchObject({ status: 403, body: { error: 'invalid key' } });
+		expect(await call('sw_garbage')).toMatchObject({ status: 403, body: { error: 'invalid key' } });
 		expect((await call(other.writeKey)).status).toBe(403);
 	});
 

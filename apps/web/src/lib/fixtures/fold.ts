@@ -1,4 +1,4 @@
-import type { Node, NodeInput, Note, PalantirEvent, Project, Snapshot, Topic } from '#lib/types.ts';
+import type { Node, NodeInput, Note, SpeculumEvent, Project, Snapshot, Topic } from '#lib/types.ts';
 import { ancestorsOf, byTree } from '#lib/ui/topic.ts';
 import type { DemoFixture, DemoTurn } from './types.ts';
 
@@ -10,7 +10,7 @@ const STEP_MS = 1_000;
 
 export interface FoldResult {
 	snapshot: Snapshot;
-	events: PalantirEvent[];
+	events: SpeculumEvent[];
 }
 
 // Turn 0 is the Topic's creation; turn n starts here, and all of its writes land after it.
@@ -49,7 +49,7 @@ class Folder {
 	topic: Topic;
 	nodes = new Map<string, Node>();
 	notes: Note[] = [];
-	events: PalantirEvent[] = [];
+	events: SpeculumEvent[] = [];
 	private seq = 0;
 	private turn = 0;
 	private step = 0;
@@ -91,9 +91,9 @@ class Folder {
 	}
 
 	private emit(
-		type: PalantirEvent['type'],
+		type: SpeculumEvent['type'],
 		path: string | null,
-		payload: PalantirEvent['payload'],
+		payload: SpeculumEvent['payload'],
 		at: string
 	): void {
 		this.events.push({ seq: ++this.seq, type, topicId: DEMO_TOPIC_ID, path, payload, at });

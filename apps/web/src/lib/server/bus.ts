@@ -1,6 +1,6 @@
-import type { PalantirEvent } from '#lib/types.ts';
+import type { SpeculumEvent } from '#lib/types.ts';
 
-type Listener = (event: PalantirEvent) => void;
+type Listener = (event: SpeculumEvent) => void;
 
 const listeners = new Map<string, Set<Listener>>();
 
@@ -14,12 +14,12 @@ export function subscribe(topicId: string, listener: Listener): () => void {
 	};
 }
 
-export function publish(topicId: string, event: PalantirEvent): void {
+export function publish(topicId: string, event: SpeculumEvent): void {
 	for (const listener of [...(listeners.get(topicId) ?? [])]) {
 		try {
 			listener(event);
 		} catch (error) {
-			console.error('palantir bus listener failed', error);
+			console.error('speculum bus listener failed', error);
 		}
 	}
 }

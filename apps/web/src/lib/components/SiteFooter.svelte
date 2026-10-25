@@ -1,11 +1,11 @@
 <script lang="ts">
-	const repo = 'https://github.com/nvanderploeg/palantir';
+	const repo = 'https://github.com/nvanderploeg/speculum';
 	const hash = __GIT_HASH__;
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- every href is an external URL -->
-<nav class="site" aria-label="About palantir" data-testid="site-footer">
-	<a href={repo} target="_blank" rel="noopener noreferrer">github.com/nvanderploeg/palantir</a>
+<nav class="site" aria-label="About speculum" data-testid="site-footer">
+	<a href={repo} target="_blank" rel="noopener noreferrer">github.com/nvanderploeg/speculum</a>
 	<a href="https://nanzero.com" target="_blank" rel="noopener noreferrer"
 		>Powered by <strong>Nanzero</strong></a
 	>

@@ -1,4 +1,4 @@
-import type { Node, Note, PalantirEvent, Snapshot, Topic } from '../types.ts';
+import type { Node, Note, SpeculumEvent, Snapshot, Topic } from '../types.ts';
 import { applyEvent, type TopicState } from './topic.ts';
 
 export type Connection = 'static' | 'connecting' | 'live' | 'retrying' | 'idle';
@@ -7,13 +7,13 @@ export const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
 
 const FRAME_TYPES = ['topic', 'node', 'node_removed', 'note', 'note_removed', 'send'] as const;
 
-function framePath(type: PalantirEvent['type'], payload: PalantirEvent['payload']): string | null {
+function framePath(type: SpeculumEvent['type'], payload: SpeculumEvent['payload']): string | null {
 	if (type === 'node' || type === 'node_removed') return (payload as { path: string }).path;
 	if (type === 'note') return (payload as Note).anchor.path;
 	return null;
 }
 
-function frameTime(type: PalantirEvent['type'], payload: PalantirEvent['payload']): string {
+function frameTime(type: SpeculumEvent['type'], payload: SpeculumEvent['payload']): string {
 	if (type === 'node') return (payload as Node).updatedAt;
 	if (type === 'note') return (payload as Note).updatedAt;
 	if (type === 'topic') return (payload as Topic).updatedAt;
@@ -28,7 +28,7 @@ export class LiveTopic {
 	private source: EventSource | null = null;
 	private retry: ReturnType<typeof setTimeout> | null = null;
 	private attempt = 0;
-	private listeners: ((event: PalantirEvent) => void)[] = [];
+	private listeners: ((event: SpeculumEvent) => void)[] = [];
 
 	constructor(snapshot: Snapshot, follow: boolean) {
 		this.state = $state.raw({ ...snapshot });
@@ -36,7 +36,7 @@ export class LiveTopic {
 		this.connection = $state(follow ? 'connecting' : 'static');
 	}
 
-	onEvent(listener: (event: PalantirEvent) => void): () => void {
+	onEvent(listener: (event: SpeculumEvent) => void): () => void {
 		this.listeners.push(listener);
 		return () => {
 			this.listeners = this.listeners.filter((l) => l !== listener);
@@ -85,10 +85,10 @@ export class LiveTopic {
 		});
 	}
 
-	private frame(type: PalantirEvent['type'], e: MessageEvent): void {
+	private frame(type: SpeculumEvent['type'], e: MessageEvent): void {
 		const seq = Number(e.lastEventId);
 		if (!Number.isFinite(seq)) return;
-		let payload: PalantirEvent['payload'];
+		let payload: SpeculumEvent['payload'];
 		try {
 			payload = JSON.parse(e.data);
 		} catch {
@@ -104,7 +104,7 @@ export class LiveTopic {
 		});
 	}
 
-	receive(event: PalantirEvent): void {
+	receive(event: SpeculumEvent): void {
 		const next = applyEvent(this.state, event);
 		if (next === this.state) return;
 		this.state = next;

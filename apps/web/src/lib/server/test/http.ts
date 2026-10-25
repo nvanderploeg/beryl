@@ -27,7 +27,7 @@ import { POST as sendRoute } from '../../../routes/api/topics/[id]/send/+server.
 import { GET as streamRoute } from '../../../routes/api/topics/[id]/stream/+server.ts';
 import { GET as waitRoute } from '../../../routes/api/topics/[id]/wait/+server.ts';
 
-export const ORIGIN = 'http://palantir.test';
+export const ORIGIN = 'http://speculum.test';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Body = Record<string, any>;

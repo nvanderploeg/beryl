@@ -155,7 +155,7 @@ build/
 .claude/
 
 # Deployment secrets
-deploy/palantir.env
+deploy/speculum.env
 .playwright-mcp/
 
 # Playwright

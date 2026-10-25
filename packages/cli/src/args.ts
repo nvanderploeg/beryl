@@ -1,23 +1,23 @@
 import { parseArgs } from 'node:util';
 
 export const USAGE = `usage:
-  palantir open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
+  speculum open <title> [--destination d] [--summary s] [--project name] [--repo owner/name] [--branch b]
                 [--tool t] [--model m] [--effort e] [--file nodes.json] [--cwd dir]
-  palantir open --topic <id>
-  palantir get <topicId> [--path p] [--full] [--json]
-  palantir put <topicId> [--file nodes.json]          nodes from the file, else stdin
-  palantir rm <topicId> <path>...
-  palantir mv <topicId> <from> <to>
-  palantir topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
+  speculum open --topic <id>
+  speculum get <topicId> [--path p] [--full] [--json]
+  speculum put <topicId> [--file nodes.json]          nodes from the file, else stdin
+  speculum rm <topicId> <path>...
+  speculum mv <topicId> <from> <to>
+  speculum topic <topicId> [--title t] [--destination d] [--summary s] [--status open|closed]
                  [--current path | --no-current]
-  palantir pull <topicId>
-  palantir resolve <topicId> <noteId> [--reply text] [--changed path]...
-  palantir wait <topicId> [--timeout 12h]             durations: 90s, 30m, 12h, or 0 for no limit
-  palantir note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
-  palantir send <topicId>
-  palantir url <topicId> [--private]
-  palantir doctor [--cwd dir]
-  palantir hook`;
+  speculum pull <topicId>
+  speculum resolve <topicId> <noteId> [--reply text] [--changed path]...
+  speculum wait <topicId> [--timeout 12h]             durations: 90s, 30m, 12h, or 0 for no limit
+  speculum note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
+  speculum send <topicId>
+  speculum url <topicId> [--private]
+  speculum doctor [--cwd dir]
+  speculum hook`;
 
 export class UsageError extends Error {}
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import type { Node, Note, PalantirEvent } from '#lib/types.ts';
+	import type { Node, Note, SpeculumEvent } from '#lib/types.ts';
 	import { useBoard } from '#lib/ui/board.svelte.ts';
 	import { INTENT_LABEL, KIND_LABEL, STATUS_LABEL } from '#lib/ui/kinds.ts';
 	import { stamp } from '#lib/ui/time.ts';
@@ -9,7 +9,7 @@
 
 	const board = useBoard();
 
-	let events: PalantirEvent[] = $state([]);
+	let events: SpeculumEvent[] = $state([]);
 	let status: 'loading' | 'ready' | 'error' = $state('loading');
 
 	let loaded: string | null = null;
@@ -49,7 +49,7 @@
 
 	const FIELDS: (keyof Node)[] = ['title', 'gist', 'recommendation', 'answer', 'body'];
 
-	function describe(list: PalantirEvent[]): Line[] {
+	function describe(list: SpeculumEvent[]): Line[] {
 		let prev: Node | null = null;
 		const lines: Line[] = [];
 		for (const e of list) {

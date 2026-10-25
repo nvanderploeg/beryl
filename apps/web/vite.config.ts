@@ -7,10 +7,10 @@ import { buildInfo } from './build-info.ts';
 export default defineConfig(({ mode, command }) => {
 	// Set before the sveltekit plugin loads the environment; the real environment wins.
 	if (mode === 'test') {
-		process.env.DATABASE_URL ??= 'mysql://palantir:palantir@127.0.0.1:3326/palantir_test';
+		process.env.DATABASE_URL ??= 'mysql://speculum:speculum@127.0.0.1:3326/speculum_test';
 	}
 	if (mode === 'development') {
-		process.env.DATABASE_URL ??= 'mysql://palantir:palantir@127.0.0.1:3326/palantir_dev';
+		process.env.DATABASE_URL ??= 'mysql://speculum:speculum@127.0.0.1:3326/speculum_dev';
 	}
 	// Route analysis imports server modules; the runtime environment supplies the real value.
 	if (command === 'build') {

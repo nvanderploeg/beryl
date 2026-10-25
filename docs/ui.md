@@ -1,4 +1,4 @@
-# palantir board contract
+# speculum board contract
 
 The web app in `apps/web`: pure helpers, the live store, routes and views. Types are from `apps/web/src/lib/types.ts` (as in `docs/api.md`); widget rendering is in `docs/widgets.md`.
 
@@ -15,7 +15,7 @@ export interface TopicState {
 	lastSeq: number;
 }
 
-export function applyEvent(state: TopicState, event: PalantirEvent): TopicState;
+export function applyEvent(state: TopicState, event: SpeculumEvent): TopicState;
 export function nodeAt(nodes: Node[], path: string): Node | undefined;
 export function childrenOf(nodes: Node[], parentPath: string | null): Node[];
 export function descendantsOf(nodes: Node[], path: string): Node[];
@@ -84,7 +84,7 @@ export interface QuestionGroup {
 
 ## Routes
 
-- `/` — what palantir is, install in three lines, a link to `/demo`.
+- `/` — what speculum is, install in three lines, a link to `/demo`.
 - `/p/[id]` — the Project: its Topics (`TopicSummary`) with progress, counts, status and last update.
 - `/p/[id]/t/[topicId]` — the board.
 - `/demo` — the board over `fixtures/demo-grill.json` folded by `foldTurns`, read-only with a banner; `?turn=N` shows the state after N turns, and a turn scrubber steps through them.
@@ -105,7 +105,7 @@ The selected row stays highlighted and scrolls into view when selection changes 
 
 **Composer.** Intent picker defaulting to `defaultIntent`; an anchor chip (Node, Widget or Element; removable back to the Node); text; author, remembered per browser; Add (or Ctrl/⌘+Enter). Queued Notes can be edited or deleted. Without a Note key the composer, quick actions and Send are replaced by a line saying the board is read-only and the private link comes from the terminal.
 
-**Note key.** Read from `#nk=` on any `/p/[id]…` page, saved to localStorage `palantir:nk:<projectId>`, then stripped from the URL with `history.replaceState`.
+**Note key.** Read from `#nk=` on any `/p/[id]…` page, saved to localStorage `speculum:nk:<projectId>`, then stripped from the URL with `history.replaceState`.
 
 **Send.** Disabled with no queued Notes or no Note key. Posts `/send` and confirms "Sent N notes to the agent". Notes also reach the agent on its next terminal turn without Send.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { join } from 'node:path';
-import { createClient, defaultConfigDir } from '@palantir/client';
+import { createClient, defaultConfigDir } from '@speculum/client';
 
 const argv = process.argv.slice(2);
 const configDir = defaultConfigDir(process.env);

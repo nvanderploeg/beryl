@@ -1,7 +1,7 @@
-import { PALANTIR_HEARTBEAT_MS, PALANTIR_IDLE_MS } from '$app/env/private';
+import { SPECULUM_HEARTBEAT_MS, SPECULUM_IDLE_MS } from '$app/env/private';
 import { subscribe } from '#lib/server/bus.ts';
 import { eventsSince, getTopicRow } from '#lib/server/store.ts';
-import type { PalantirEvent } from '#lib/types.ts';
+import type { SpeculumEvent } from '#lib/types.ts';
 
 export interface StreamOptions {
 	since?: number;
@@ -13,7 +13,7 @@ export interface StreamOptions {
 
 const encoder = new TextEncoder();
 
-function frame(event: PalantirEvent): string {
+function frame(event: SpeculumEvent): string {
 	return `id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;
 }
 
@@ -22,8 +22,8 @@ export async function createTopicStream(
 	options: StreamOptions = {}
 ): Promise<ReadableStream<Uint8Array> | null> {
 	const now = options.now ?? Date.now;
-	const idleMs = options.idleMs ?? PALANTIR_IDLE_MS;
-	const heartbeatMs = options.heartbeatMs ?? PALANTIR_HEARTBEAT_MS;
+	const idleMs = options.idleMs ?? SPECULUM_IDLE_MS;
+	const heartbeatMs = options.heartbeatMs ?? SPECULUM_HEARTBEAT_MS;
 	const { since } = options;
 
 	const topic = await getTopicRow(topicId);
@@ -36,7 +36,7 @@ export async function createTopicStream(
 	let closed = false;
 	let replaying = since !== undefined;
 	let lastSeq = since ?? -1;
-	const buffered: PalantirEvent[] = [];
+	const buffered: SpeculumEvent[] = [];
 	let unsubscribe: (() => void) | undefined;
 	let idleTimer: ReturnType<typeof setTimeout> | undefined;
 	let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
@@ -76,13 +76,13 @@ export async function createTopicStream(
 		);
 	}
 
-	function emit(event: PalantirEvent): void {
+	function emit(event: SpeculumEvent): void {
 		if (event.seq <= lastSeq) return;
 		lastSeq = event.seq;
 		send(frame(event));
 	}
 
-	function onLive(event: PalantirEvent): void {
+	function onLive(event: SpeculumEvent): void {
 		if (closed) return;
 		deadline = now() + idleMs;
 		armIdle();

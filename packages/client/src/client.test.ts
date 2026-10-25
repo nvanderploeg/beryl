@@ -12,7 +12,7 @@ import {
 	DEFAULT_CANDIDATES,
 	UNREACHABLE_WARNING,
 	type ClientOptions,
-	type PalantirClient,
+	type SpeculumClient,
 	type Snapshot,
 	type Topic
 } from './index.ts';
@@ -105,13 +105,13 @@ function fakeFetch(handler: Handler): Fake {
 
 const healthy = (version = '0.1.0'): Reply => ({
 	status: 200,
-	body: { service: 'palantir', version, db: 'ok' }
+	body: { service: 'speculum', version, db: 'ok' }
 });
 
 const notFound: Reply = { status: 404, body: { error: 'not found' } };
 
-// A palantir server that hands out proj-<n> with pw_<n> and pn_<n>, and topic-<n> in it.
-function palantirServer(
+// A speculum server that hands out proj-<n> with sw_<n> and sn_<n>, and topic-<n> in it.
+function speculumServer(
 	opts: { origin?: string; route?: (req: Recorded) => Reply | undefined } = {}
 ): Handler {
 	let projects = 0;
@@ -125,14 +125,14 @@ function palantirServer(
 		if (req.method === 'POST' && req.path === '/api/projects') {
 			projects += 1;
 			const id = `proj-${projects}`;
-			keys.set(id, `pw_${projects}`);
+			keys.set(id, `sw_${projects}`);
 			return {
 				status: 201,
 				body: {
 					id,
 					name: (req.body as { name?: string }).name ?? 'Untitled',
-					writeKey: `pw_${projects}`,
-					noteKey: `pn_${projects}`,
+					writeKey: `sw_${projects}`,
+					noteKey: `sn_${projects}`,
 					url: `${origin}/p/${id}`
 				}
 			};
@@ -173,13 +173,13 @@ function palantirServer(
 let configDir: string;
 const tempDirs: string[] = [];
 
-function tempDir(prefix = 'palantir-'): string {
+function tempDir(prefix = 'speculum-'): string {
 	const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 	tempDirs.push(dir);
 	return dir;
 }
 
-function makeClient(fake: Fake, options: Partial<ClientOptions> = {}): PalantirClient {
+function makeClient(fake: Fake, options: Partial<ClientOptions> = {}): SpeculumClient {
 	return createClient({
 		env: {},
 		configDir,
@@ -210,15 +210,15 @@ function seedHandle(opts: { server?: string; topicId?: string } = {}) {
 		[server]: {
 			'/elsewhere/.git': {
 				projectId: 'proj-0',
-				writeKey: 'pw_other',
-				noteKey: 'pn_other',
+				writeKey: 'sw_other',
+				noteKey: 'sn_other',
 				name: 'other',
 				projectUrl: `${server}/p/proj-0`
 			},
 			'/work/repo/.git': {
 				projectId: 'proj-1',
-				writeKey: 'pw_1',
-				noteKey: 'pn_1',
+				writeKey: 'sw_1',
+				noteKey: 'sn_1',
 				name: 'repo',
 				projectUrl: `${server}/p/proj-1`
 			}
@@ -246,7 +246,7 @@ function git(cwd: string, args: string[]): void {
 }
 
 beforeEach(() => {
-	configDir = tempDir('palantir-config-');
+	configDir = tempDir('speculum-config-');
 });
 
 afterEach(() => {
@@ -259,20 +259,20 @@ describe('exported constants', () => {
 	});
 
 	it('uses the exact unreachable warning text', () => {
-		expect(UNREACHABLE_WARNING).toBe('palantir unreachable — continuing without the board');
+		expect(UNREACHABLE_WARNING).toBe('speculum unreachable — continuing without the board');
 	});
 
 	it('keeps config under XDG_CONFIG_HOME, else ~/.config', () => {
-		expect(defaultConfigDir({ XDG_CONFIG_HOME: '/x' })).toBe('/x/palantir');
-		expect(defaultConfigDir({})).toBe(path.join(os.homedir(), '.config', 'palantir'));
+		expect(defaultConfigDir({ XDG_CONFIG_HOME: '/x' })).toBe('/x/speculum');
+		expect(defaultConfigDir({})).toBe(path.join(os.homedir(), '.config', 'speculum'));
 	});
 });
 
 describe('discover', () => {
-	it('probes PALANTIR_URL alone, trimmed and without trailing slashes', async () => {
+	it('probes SPECULUM_URL alone, trimmed and without trailing slashes', async () => {
 		const fake = fakeFetch(() => healthy());
 		const client = makeClient(fake, {
-			env: { PALANTIR_URL: '  http://pinned.test:9000//  ' },
+			env: { SPECULUM_URL: '  http://pinned.test:9000//  ' },
 			candidates: ['http://candidate.test']
 		});
 
@@ -282,10 +282,10 @@ describe('discover', () => {
 		]);
 	});
 
-	it('returns null for an unhealthy PALANTIR_URL and never tries the candidates', async () => {
+	it('returns null for an unhealthy SPECULUM_URL and never tries the candidates', async () => {
 		const fake = fakeFetch((req) => (req.server === 'http://pinned.test' ? 'refuse' : healthy()));
 		const client = makeClient(fake, {
-			env: { PALANTIR_URL: 'http://pinned.test' },
+			env: { SPECULUM_URL: 'http://pinned.test' },
 			candidates: ['http://candidate.test']
 		});
 
@@ -293,9 +293,9 @@ describe('discover', () => {
 		expect(fake.requests.map((r) => r.server)).toEqual(['http://pinned.test']);
 	});
 
-	it('treats an empty PALANTIR_URL as unset', async () => {
+	it('treats an empty SPECULUM_URL as unset', async () => {
 		const fake = fakeFetch(() => healthy());
-		const client = makeClient(fake, { env: { PALANTIR_URL: '' } });
+		const client = makeClient(fake, { env: { SPECULUM_URL: '' } });
 
 		expect(await client.discover()).toBe(SERVER);
 	});
@@ -312,7 +312,7 @@ describe('discover', () => {
 
 	it.each([
 		['names another service', { status: 200, body: { service: 'chronicle', db: 'ok' } }],
-		['answers 503', { status: 503, body: { service: 'palantir', db: 'unavailable' } }],
+		['answers 503', { status: 503, body: { service: 'speculum', db: 'unavailable' } }],
 		['answers 200 with a body that is not JSON', { status: 200, text: 'ok' }],
 		['answers 404', notFound]
 	] as const)('does not count a server that %s as healthy', async (_label, reply) => {
@@ -340,15 +340,15 @@ describe('discover', () => {
 			await makeClient(slow, { ...options, candidates: ['http://127.0.0.1:3270'] }).discover()
 		).toBeNull();
 		expect(
-			await makeClient(slow, { ...options, candidates: ['https://palantir.example'] }).discover()
-		).toBe('https://palantir.example');
+			await makeClient(slow, { ...options, candidates: ['https://speculum.example'] }).discover()
+		).toBe('https://speculum.example');
 	});
 });
 
 describe('openTopic creating a topic', () => {
 	it('creates a Project named after the repo, posts the Topic with its Write key and records both registries', async () => {
-		const fake = fakeFetch(palantirServer());
-		const cwd = tempDir('palantir-repo-');
+		const fake = fakeFetch(speculumServer());
+		const cwd = tempDir('speculum-repo-');
 		const client = makeClient(fake);
 
 		const result = await client.openTopic({
@@ -364,7 +364,7 @@ describe('openTopic creating a topic', () => {
 			value: {
 				topicId: 'topic-1',
 				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=pn_1`,
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=sn_1`,
 				projectUrl: `${SERVER}/p/proj-1`,
 				server: SERVER,
 				projectId: 'proj-1',
@@ -378,7 +378,7 @@ describe('openTopic creating a topic', () => {
 			'POST /api/projects/proj-1/topics'
 		]);
 		expect(writes[0].body).toEqual({ name: path.basename(cwd) });
-		expect(writes[1].headers.authorization).toBe('Bearer pw_1');
+		expect(writes[1].headers.authorization).toBe('Bearer sw_1');
 		expect(writes[1].body).toEqual({
 			title: 'Payments retry design',
 			destination: 'A spec for retries',
@@ -390,8 +390,8 @@ describe('openTopic creating a topic', () => {
 			[SERVER]: {
 				[cwd]: {
 					projectId: 'proj-1',
-					writeKey: 'pw_1',
-					noteKey: 'pn_1',
+					writeKey: 'sw_1',
+					noteKey: 'sn_1',
 					name: path.basename(cwd),
 					projectUrl: `${SERVER}/p/proj-1`
 				}
@@ -406,7 +406,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('leaves undefined optional fields out of the topic body', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const client = makeClient(fake);
 
 		await client.openTopic({ title: 'Only a title', cwd: tempDir() });
@@ -416,7 +416,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('names a new Project after `project` when given', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const client = makeClient(fake);
 
 		await client.openTopic({ title: 'x', project: 'Billing', cwd: tempDir() });
@@ -425,7 +425,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('reuses the registered Project for later topics in the same repo', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const cwd = tempDir();
 		const client = makeClient(fake);
 
@@ -443,7 +443,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('renames the registered Project once when a later open names it differently', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const cwd = tempDir();
 		const client = makeClient(fake);
 
@@ -455,14 +455,14 @@ describe('openTopic creating a topic', () => {
 		expect(patches).toHaveLength(1);
 		expect(patches[0]).toMatchObject({
 			path: '/api/projects/proj-1',
-			headers: { authorization: 'Bearer pw_1' },
+			headers: { authorization: 'Bearer sw_1' },
 			body: { name: 'Billing' }
 		});
 		expect(readFile('projects.json')).toMatchObject({ [SERVER]: { [cwd]: { name: 'Billing' } } });
 	});
 
 	it('opens two topics at once in one repo under a single new Project', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const cwd = tempDir();
 
 		const results = await Promise.all([
@@ -483,15 +483,15 @@ describe('openTopic creating a topic', () => {
 				[SERVER]: {
 					[cwd]: {
 						projectId: 'proj-gone',
-						writeKey: 'pw_gone',
-						noteKey: 'pn_gone',
+						writeKey: 'sw_gone',
+						noteKey: 'sn_gone',
 						name: 'stale',
 						projectUrl: `${SERVER}/p/proj-gone`
 					}
 				}
 			});
 			const fake = fakeFetch(
-				palantirServer({
+				speculumServer({
 					route: (req) =>
 						req.path === '/api/projects/proj-gone/topics'
 							? { status, body: { error: 'stale' } }
@@ -508,16 +508,16 @@ describe('openTopic creating a topic', () => {
 			});
 			const posts = fake.writes().filter((r) => r.path.endsWith('/topics'));
 			expect(posts.map((r) => [r.path, r.headers.authorization])).toEqual([
-				['/api/projects/proj-gone/topics', 'Bearer pw_gone'],
-				['/api/projects/proj-1/topics', 'Bearer pw_1']
+				['/api/projects/proj-gone/topics', 'Bearer sw_gone'],
+				['/api/projects/proj-1/topics', 'Bearer sw_1']
 			]);
 			expect(posts[1].body).toEqual(posts[0].body);
 			expect(readFile('projects.json')).toEqual({
 				[SERVER]: {
 					[cwd]: {
 						projectId: 'proj-1',
-						writeKey: 'pw_1',
-						noteKey: 'pn_1',
+						writeKey: 'sw_1',
+						noteKey: 'sn_1',
 						name: path.basename(cwd),
 						projectUrl: `${SERVER}/p/proj-1`
 					}
@@ -529,7 +529,7 @@ describe('openTopic creating a topic', () => {
 	it('does not retry a second time when the fresh Project is refused too', async () => {
 		const cwd = tempDir();
 		const fake = fakeFetch(
-			palantirServer({
+			speculumServer({
 				route: (req) =>
 					req.path.endsWith('/topics') ? { status: 404, body: { error: 'gone' } } : undefined
 			})
@@ -538,7 +538,7 @@ describe('openTopic creating a topic', () => {
 
 		const result = await client.openTopic({ title: 'x', cwd });
 
-		expect(result).toEqual({ ok: false, warning: 'palantir rejected the write: gone' });
+		expect(result).toEqual({ ok: false, warning: 'speculum rejected the write: gone' });
 		expect(fake.writes().filter((r) => r.path.endsWith('/topics'))).toHaveLength(1);
 	});
 
@@ -565,7 +565,7 @@ describe('openTopic creating a topic', () => {
 
 	it('returns the unreachable warning when the topic POST never answers', async () => {
 		const fake = fakeFetch(
-			palantirServer({ route: (req) => (req.path.endsWith('/topics') ? 'hang' : undefined) })
+			speculumServer({ route: (req) => (req.path.endsWith('/topics') ? 'hang' : undefined) })
 		);
 
 		expect(await makeClient(fake).openTopic({ title: 'x', cwd: tempDir() })).toEqual({
@@ -576,7 +576,7 @@ describe('openTopic creating a topic', () => {
 
 	it('passes a refused topic body back as a rejection', async () => {
 		const fake = fakeFetch(
-			palantirServer({
+			speculumServer({
 				route: (req) =>
 					req.path.endsWith('/topics')
 						? { status: 400, body: { error: 'kind is required to create storage' } }
@@ -586,12 +586,12 @@ describe('openTopic creating a topic', () => {
 
 		expect(await makeClient(fake).openTopic({ title: 'x', cwd: tempDir() })).toEqual({
 			ok: false,
-			warning: 'palantir rejected the write: kind is required to create storage'
+			warning: 'speculum rejected the write: kind is required to create storage'
 		});
 	});
 
 	it('asks for a title without contacting any server', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 
 		const result = await makeClient(fake).openTopic({ destination: 'd', cwd: tempDir() });
 
@@ -603,14 +603,14 @@ describe('openTopic creating a topic', () => {
 	it.each(['projects.json', 'topics.json'])(
 		'leaves a damaged %s untouched and opens nothing, so stored keys survive',
 		async (name) => {
-			const fake = fakeFetch(palantirServer());
+			const fake = fakeFetch(speculumServer());
 			writeRaw(name, '{"almost": "json",}');
 
 			const result = await makeClient(fake).openTopic({ title: 'x', cwd: tempDir() });
 
 			expect(result).toEqual({
 				ok: false,
-				warning: `palantir failed: ${path.join(configDir, name)} is not a JSON object; fix or delete it`
+				warning: `speculum failed: ${path.join(configDir, name)} is not a JSON object; fix or delete it`
 			});
 			expect(fs.readFileSync(path.join(configDir, name), 'utf8')).toBe('{"almost": "json",}');
 			expect(fake.writes()).toHaveLength(0);
@@ -618,8 +618,8 @@ describe('openTopic creating a topic', () => {
 	);
 
 	it('links to the public origin the server answers with, not the address it was reached on', async () => {
-		const PUBLIC = 'https://palantir.example.com';
-		const fake = fakeFetch(palantirServer({ origin: PUBLIC }));
+		const PUBLIC = 'https://speculum.example.com';
+		const fake = fakeFetch(speculumServer({ origin: PUBLIC }));
 		const client = makeClient(fake);
 
 		const opened = await client.openTopic({ title: 'x', cwd: tempDir() });
@@ -628,7 +628,7 @@ describe('openTopic creating a topic', () => {
 			ok: true,
 			value: {
 				url: `${PUBLIC}/p/proj-1/t/topic-1`,
-				noteUrl: `${PUBLIC}/p/proj-1/t/topic-1#nk=pn_1`,
+				noteUrl: `${PUBLIC}/p/proj-1/t/topic-1#nk=sn_1`,
 				projectUrl: `${PUBLIC}/p/proj-1`,
 				server: SERVER
 			}
@@ -639,10 +639,10 @@ describe('openTopic creating a topic', () => {
 		});
 	});
 
-	it('posts to PALANTIR_URL alone when it is set', async () => {
-		const fake = fakeFetch(palantirServer());
+	it('posts to SPECULUM_URL alone when it is set', async () => {
+		const fake = fakeFetch(speculumServer());
 		const client = makeClient(fake, {
-			env: { PALANTIR_URL: 'http://pinned.test' },
+			env: { SPECULUM_URL: 'http://pinned.test' },
 			candidates: ['http://other.test']
 		});
 
@@ -653,7 +653,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('sends the repo and branch of the git checkout it runs in', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const cwd = tempDir();
 		git(cwd, ['init', '-q', '-b', 'feat/retries']);
 		git(cwd, ['remote', 'add', 'origin', 'git@github.com:me/payments.git']);
@@ -665,7 +665,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('lets an explicit repo and branch win over git', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const cwd = tempDir();
 		git(cwd, ['init', '-q', '-b', 'main']);
 
@@ -676,7 +676,7 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('fills agent.tool with claude-code when CLAUDECODE=1 and the caller named no tool', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 		const client = makeClient(fake, { env: { CLAUDECODE: '1' } });
 
 		await client.openTopic({ title: 'a', agent: { model: 'm' }, cwd: tempDir() });
@@ -691,8 +691,8 @@ describe('openTopic creating a topic', () => {
 	});
 
 	it('creates a missing configDir with mode 0700', async () => {
-		configDir = path.join(configDir, 'nested', 'palantir');
-		const client = makeClient(fakeFetch(palantirServer()));
+		configDir = path.join(configDir, 'nested', 'speculum');
+		const client = makeClient(fakeFetch(speculumServer()));
 
 		expect((await client.openTopic({ title: 'x', cwd: tempDir() })).ok).toBe(true);
 		expect(fs.statSync(configDir).mode & 0o777).toBe(0o700);
@@ -718,7 +718,7 @@ describe('openTopic resuming a topic', () => {
 			value: {
 				topicId: 'topic-1',
 				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=pn_1`,
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=sn_1`,
 				projectUrl: `${SERVER}/p/proj-1`,
 				server: SERVER,
 				projectId: 'proj-1',
@@ -732,7 +732,7 @@ describe('openTopic resuming a topic', () => {
 	});
 
 	it('names a Topic this machine has no handle for, without contacting any server', async () => {
-		const fake = fakeFetch(palantirServer());
+		const fake = fakeFetch(speculumServer());
 
 		expect(await makeClient(fake).openTopic({ topicId: 'topic-9' })).toEqual({
 			ok: false,
@@ -747,7 +747,7 @@ describe('openTopic resuming a topic', () => {
 
 		expect(await makeClient(fake).openTopic({ topicId: 'topic-1' })).toEqual({
 			ok: false,
-			warning: 'palantir rejected the write: topic not found'
+			warning: 'speculum rejected the write: topic not found'
 		});
 	});
 });
@@ -760,49 +760,49 @@ describe('topic-scoped calls', () => {
 	it.each([
 		[
 			'putNodes',
-			(c: PalantirClient) =>
+			(c: SpeculumClient) =>
 				c.putNodes({ topicId: 'topic-1', nodes: [{ path: 'a', kind: 'fact' }] }),
 			'PUT /api/topics/topic-1/nodes',
 			{ nodes: [{ path: 'a', kind: 'fact' }] },
 			{ nodes: [] },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'removeNodes',
-			(c: PalantirClient) => c.removeNodes({ topicId: 'topic-1', paths: ['a', 'b'] }),
+			(c: SpeculumClient) => c.removeNodes({ topicId: 'topic-1', paths: ['a', 'b'] }),
 			'DELETE /api/topics/topic-1/nodes',
 			{ paths: ['a', 'b'] },
 			{ removed: ['a', 'b'] },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'moveNode',
-			(c: PalantirClient) => c.moveNode({ topicId: 'topic-1', from: 'a', to: 'b' }),
+			(c: SpeculumClient) => c.moveNode({ topicId: 'topic-1', from: 'a', to: 'b' }),
 			'POST /api/topics/topic-1/move',
 			{ from: 'a', to: 'b' },
 			{ moved: [{ from: 'a', to: 'b' }] },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'updateTopic',
-			(c: PalantirClient) =>
+			(c: SpeculumClient) =>
 				c.updateTopic({ topicId: 'topic-1', status: 'closed', current: null, title: 't' }),
 			'PATCH /api/topics/topic-1',
 			{ status: 'closed', current: null, title: 't' },
 			{ topic: TOPIC },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'pullNotes',
-			(c: PalantirClient) => c.pullNotes({ topicId: 'topic-1' }),
+			(c: SpeculumClient) => c.pullNotes({ topicId: 'topic-1' }),
 			'POST /api/topics/topic-1/pull',
 			undefined,
 			{ notes: [], unresolved: [], context: {}, stale: [] },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'resolveNotes',
-			(c: PalantirClient) =>
+			(c: SpeculumClient) =>
 				c.resolveNotes({
 					topicId: 'topic-1',
 					notes: [{ id: 'n1', reply: 'done', changed: ['a'] }, { id: 'n2' }]
@@ -810,11 +810,11 @@ describe('topic-scoped calls', () => {
 			'POST /api/topics/topic-1/resolve',
 			{ notes: [{ id: 'n1', reply: 'done', changed: ['a'] }, { id: 'n2' }] },
 			{ notes: [] },
-			'pw_1'
+			'sw_1'
 		],
 		[
 			'addNote',
-			(c: PalantirClient) =>
+			(c: SpeculumClient) =>
 				c.addNote({
 					topicId: 'topic-1',
 					anchor: { path: 'a', widget: 'w', element: 'e' },
@@ -824,15 +824,15 @@ describe('topic-scoped calls', () => {
 			'POST /api/topics/topic-1/notes',
 			{ anchor: { path: 'a', widget: 'w', element: 'e' }, intent: 'comment', text: 'hi' },
 			{ note: { id: 'n1' } },
-			'pn_1'
+			'sn_1'
 		],
 		[
 			'send',
-			(c: PalantirClient) => c.send({ topicId: 'topic-1' }),
+			(c: SpeculumClient) => c.send({ topicId: 'topic-1' }),
 			'POST /api/topics/topic-1/send',
 			undefined,
 			{ sent: 2 },
-			'pn_1'
+			'sn_1'
 		]
 	] as const)(
 		'%s sends %s… to the handle server with the right key',
@@ -861,7 +861,7 @@ describe('topic-scoped calls', () => {
 			value: {
 				snapshot: SNAPSHOT,
 				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=pn_1`
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=sn_1`
 			}
 		});
 		expect(fake.requests[0].headers.authorization).toBeUndefined();
@@ -877,26 +877,26 @@ describe('topic-scoped calls', () => {
 		});
 		expect(await client.topicUrl({ topicId: 'topic-1', private: true })).toEqual({
 			ok: true,
-			value: { url: `${SERVER}/p/proj-1/t/topic-1#nk=pn_1` }
+			value: { url: `${SERVER}/p/proj-1/t/topic-1#nk=sn_1` }
 		});
 	});
 
 	it.each([
-		['getTopic', (c: PalantirClient) => c.getTopic({ topicId: 'nope' })],
-		['putNodes', (c: PalantirClient) => c.putNodes({ topicId: 'nope', nodes: [] })],
-		['removeNodes', (c: PalantirClient) => c.removeNodes({ topicId: 'nope', paths: ['a'] })],
-		['moveNode', (c: PalantirClient) => c.moveNode({ topicId: 'nope', from: 'a', to: 'b' })],
-		['updateTopic', (c: PalantirClient) => c.updateTopic({ topicId: 'nope', title: 't' })],
-		['pullNotes', (c: PalantirClient) => c.pullNotes({ topicId: 'nope' })],
-		['resolveNotes', (c: PalantirClient) => c.resolveNotes({ topicId: 'nope', notes: [] })],
-		['waitForSent', (c: PalantirClient) => c.waitForSent({ topicId: 'nope' })],
+		['getTopic', (c: SpeculumClient) => c.getTopic({ topicId: 'nope' })],
+		['putNodes', (c: SpeculumClient) => c.putNodes({ topicId: 'nope', nodes: [] })],
+		['removeNodes', (c: SpeculumClient) => c.removeNodes({ topicId: 'nope', paths: ['a'] })],
+		['moveNode', (c: SpeculumClient) => c.moveNode({ topicId: 'nope', from: 'a', to: 'b' })],
+		['updateTopic', (c: SpeculumClient) => c.updateTopic({ topicId: 'nope', title: 't' })],
+		['pullNotes', (c: SpeculumClient) => c.pullNotes({ topicId: 'nope' })],
+		['resolveNotes', (c: SpeculumClient) => c.resolveNotes({ topicId: 'nope', notes: [] })],
+		['waitForSent', (c: SpeculumClient) => c.waitForSent({ topicId: 'nope' })],
 		[
 			'addNote',
-			(c: PalantirClient) =>
+			(c: SpeculumClient) =>
 				c.addNote({ topicId: 'nope', anchor: { path: null }, intent: 'accept' })
 		],
-		['send', (c: PalantirClient) => c.send({ topicId: 'nope' })],
-		['topicUrl', (c: PalantirClient) => c.topicUrl({ topicId: 'nope' })]
+		['send', (c: SpeculumClient) => c.send({ topicId: 'nope' })],
+		['topicUrl', (c: SpeculumClient) => c.topicUrl({ topicId: 'nope' })]
 	] as const)('%s names an unknown topic without contacting any server', async (_name, invoke) => {
 		seedHandle();
 		const fake = fakeFetch(ok({}));
@@ -914,7 +914,7 @@ describe('topic-scoped calls', () => {
 
 		expect(await makeClient(fake).pullNotes({ topicId: 'topic-1' })).toEqual({
 			ok: false,
-			warning: `palantir failed: ${path.join(configDir, 'topics.json')} is not a JSON object; fix or delete it`
+			warning: `speculum failed: ${path.join(configDir, 'topics.json')} is not a JSON object; fix or delete it`
 		});
 		expect(fs.readFileSync(path.join(configDir, 'topics.json'), 'utf8')).toBe('[1, 2]');
 		expect(fake.requests).toHaveLength(0);
@@ -957,7 +957,7 @@ describe('topic-scoped calls', () => {
 
 		expect(result).toEqual({
 			ok: false,
-			warning: 'palantir rejected the write: too many writes from this address; retry later'
+			warning: 'speculum rejected the write: too many writes from this address; retry later'
 		});
 		expect(sleep).not.toHaveBeenCalled();
 		expect(fake.requests).toHaveLength(1);
@@ -973,14 +973,14 @@ describe('topic-scoped calls', () => {
 		[
 			'a 403 with an error',
 			{ status: 403, body: { error: 'invalid key' } },
-			'palantir rejected the write: invalid key'
+			'speculum rejected the write: invalid key'
 		],
 		[
 			'a 400 with an error',
 			{ status: 400, body: { error: 'no node storage' } },
-			'palantir rejected the write: no node storage'
+			'speculum rejected the write: no node storage'
 		],
-		['a 418 without an error', { status: 418, text: '' }, 'palantir rejected the write: HTTP 418']
+		['a 418 without an error', { status: 418, text: '' }, 'speculum rejected the write: HTTP 418']
 	] as const)('maps %s to its warning', async (_label, reply, warning) => {
 		seedHandle();
 		const client = makeClient(
@@ -1014,7 +1014,7 @@ describe('waitForSent', () => {
 		expect(fake.requests.map((r) => `${r.method} ${r.server}${r.path}`)).toEqual(
 			Array(3).fill(`GET ${SERVER}/api/topics/topic-1/wait?timeoutMs=25000`)
 		);
-		expect(fake.requests[0].headers.authorization).toBe('Bearer pw_1');
+		expect(fake.requests[0].headers.authorization).toBe('Bearer sw_1');
 	});
 
 	it('backs off from 1 s, doubling to 30 s, and starts over after a good answer', async () => {
@@ -1039,7 +1039,7 @@ describe('waitForSent', () => {
 
 		expect(await makeClient(fake).waitForSent({ topicId: 'topic-1' })).toEqual({
 			ok: false,
-			warning: 'palantir rejected the write: invalid key'
+			warning: 'speculum rejected the write: invalid key'
 		});
 		expect(fake.requests).toHaveLength(1);
 	});
@@ -1162,8 +1162,8 @@ describe('doctor', () => {
 			'http://pinned.test': {
 				[cwd]: {
 					projectId: 'proj-1',
-					writeKey: 'pw_1',
-					noteKey: 'pn_1',
+					writeKey: 'sw_1',
+					noteKey: 'sn_1',
 					name: 'repo',
 					projectUrl: 'http://pinned.test/p/proj-1'
 				}
@@ -1171,7 +1171,7 @@ describe('doctor', () => {
 		});
 		const client = makeClient(
 			fakeFetch(() => healthy('1.2.3')),
-			{ env: { PALANTIR_URL: 'http://pinned.test/' } }
+			{ env: { SPECULUM_URL: 'http://pinned.test/' } }
 		);
 
 		expect(await client.doctor({ cwd })).toEqual({
@@ -1249,15 +1249,15 @@ describe('repoIdentity and gitRefs', () => {
 	it('reads the origin remote and checked-out branch, and nothing outside git', async () => {
 		const repo = tempDir();
 		git(repo, ['init', '-q', '-b', 'topic/x']);
-		git(repo, ['remote', 'add', 'origin', 'https://github.com/me/palantir.git']);
+		git(repo, ['remote', 'add', 'origin', 'https://github.com/me/speculum.git']);
 
-		expect(await gitRefs(repo)).toEqual({ repo: 'me/palantir', branch: 'topic/x' });
+		expect(await gitRefs(repo)).toEqual({ repo: 'me/speculum', branch: 'topic/x' });
 		expect(await gitRefs(tempDir())).toEqual({ repo: undefined, branch: undefined });
 	});
 
 	it.each([
-		['git@github.com:me/palantir.git', 'me/palantir'],
-		['https://github.com/me/palantir', 'me/palantir'],
+		['git@github.com:me/speculum.git', 'me/speculum'],
+		['https://github.com/me/speculum', 'me/speculum'],
 		['https://gitlab.example.com/group/repo.git/', 'group/repo'],
 		['ssh://git@host:22/owner/name.git', 'owner/name']
 	])('reads %s as %s', (remote, repo) => {

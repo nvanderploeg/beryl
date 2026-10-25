@@ -6,7 +6,7 @@ import type {
 	NodeKind,
 	Note,
 	NoteIntent,
-	PalantirEvent,
+	SpeculumEvent,
 	Project,
 	Snapshot,
 	Topic
@@ -50,7 +50,7 @@ export interface BoardInit {
 	view?: View;
 	node?: string | null;
 	since?: string | null;
-	history?: (path: string) => PalantirEvent[];
+	history?: (path: string) => SpeculumEvent[];
 }
 
 const BOARD = Symbol('board');
@@ -66,7 +66,7 @@ export function useBoard(): Board {
 export class Board {
 	readonly live: LiveTopic;
 	readonly mode: 'live' | 'demo';
-	private readonly demoHistory?: (path: string) => PalantirEvent[];
+	private readonly demoHistory?: (path: string) => SpeculumEvent[];
 
 	view: View = $state('graph');
 	selected: string | null = $state(null);
@@ -240,11 +240,11 @@ export class Board {
 		this.toastTimer = setTimeout(() => (this.toast = null), 4200);
 	}
 
-	async history(path: string): Promise<PalantirEvent[]> {
+	async history(path: string): Promise<SpeculumEvent[]> {
 		if (this.demoHistory) return this.demoHistory(path);
 		const res = await fetch(`/api/topics/${this.topic.id}/events?path=${encodeURIComponent(path)}`);
 		if (!res.ok) throw new Error(`history unavailable (${res.status})`);
-		const body = (await res.json()) as { events: PalantirEvent[] };
+		const body = (await res.json()) as { events: SpeculumEvent[] };
 		return body.events;
 	}
 

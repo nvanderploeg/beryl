@@ -8,7 +8,7 @@ import {
 	writeFileSync
 } from 'node:fs';
 import { join } from 'node:path';
-import { formatPulled, type PalantirClient, type Pulled, type Result } from '@palantir/client';
+import { formatPulled, type SpeculumClient, type Pulled, type Result } from '@speculum/client';
 
 export interface HookInput {
 	session_id?: string;
@@ -27,7 +27,7 @@ export interface SessionState {
 
 export interface HookDeps {
 	dir: string;
-	client: PalantirClient;
+	client: SpeculumClient;
 	isListening(topicId: string): boolean;
 	timeoutMs?: number;
 }
@@ -35,18 +35,18 @@ export interface HookDeps {
 export const HOOK_TIMEOUT_MS = 1500;
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
-const OPEN_TOPIC = 'mcp__palantir__open_topic';
-const GET_TOPIC = 'mcp__palantir__get_topic';
-const UPDATE_TOPIC = 'mcp__palantir__update_topic';
+const OPEN_TOPIC = 'mcp__speculum__open_topic';
+const GET_TOPIC = 'mcp__speculum__get_topic';
+const UPDATE_TOPIC = 'mcp__speculum__update_topic';
 
 const noListener = (topicId: string) =>
-	`palantir: no board listener is running. Before you end this turn, run \`palantir wait ${topicId}\` in the background so Send on the board reaches you.`;
+	`speculum: no board listener is running. Before you end this turn, run \`speculum wait ${topicId}\` in the background so Send on the board reaches you.`;
 
 const unreachable = (topicId: string) =>
-	`palantir: could not reach the board for topic ${topicId}; call pull_notes before you answer.`;
+	`speculum: could not reach the board for topic ${topicId}; call pull_notes before you answer.`;
 
 const resumed = (s: SessionState) =>
-	`palantir: this session grills topic ${s.topicId}${s.url ? ` (${s.url})` : ''}. Call get_topic before writing to it again.`;
+	`speculum: this session grills topic ${s.topicId}${s.url ? ` (${s.url})` : ''}. Call get_topic before writing to it again.`;
 
 function responseText(response: unknown): string {
 	if (typeof response === 'string') return response;
@@ -63,7 +63,7 @@ function responseText(response: unknown): string {
 const field = (text: string, name: string) =>
 	new RegExp(`"${name}\\\\?":\\\\?"([^"\\\\]+)`).exec(text)?.[1];
 
-const failed = (text: string) => text.trimStart().startsWith('palantir:');
+const failed = (text: string) => text.trimStart().startsWith('speculum:');
 
 function afterTool(state: SessionState, input: HookInput): SessionState {
 	const tool = input.tool_name;
@@ -92,7 +92,7 @@ function context(event: string, text: string): string {
 }
 
 async function pullWithin(
-	client: PalantirClient,
+	client: SpeculumClient,
 	topicId: string,
 	ms: number
 ): Promise<Result<Pulled> | null> {

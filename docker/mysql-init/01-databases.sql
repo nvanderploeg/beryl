@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS palantir_dev;
-CREATE DATABASE IF NOT EXISTS palantir_test;
-GRANT ALL PRIVILEGES ON `palantir%`.* TO 'palantir'@'%';
+CREATE DATABASE IF NOT EXISTS speculum_dev;
+CREATE DATABASE IF NOT EXISTS speculum_test;
+GRANT ALL PRIVILEGES ON `speculum%`.* TO 'speculum'@'%';
 FLUSH PRIVILEGES;

@@ -9,7 +9,7 @@ import type {
 	Note,
 	NoteIntent,
 	NoteStatus,
-	PalantirEvent,
+	SpeculumEvent,
 	Project,
 	Source,
 	Topic,
@@ -98,13 +98,13 @@ export function toNote(row: NoteRow): Note {
 	};
 }
 
-export function toEvent(row: EventRow): PalantirEvent {
+export function toEvent(row: EventRow): SpeculumEvent {
 	return {
 		seq: Number(row.seq),
-		type: row.type as PalantirEvent['type'],
+		type: row.type as SpeculumEvent['type'],
 		topicId: row.topicId,
 		path: row.path ?? null,
-		payload: row.payload as PalantirEvent['payload'],
+		payload: row.payload as SpeculumEvent['payload'],
 		at: iso(row.at)
 	};
 }

@@ -1,9 +1,9 @@
 {
-	"name": "@palantir/mcp",
+	"name": "@speculum/mcp",
 	"version": "0.1.0",
 	"type": "module",
 	"bin": {
-		"palantir-mcp": "dist/index.js"
+		"speculum-mcp": "dist/index.js"
 	},
 	"files": [
 		"dist"
@@ -15,7 +15,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.32.1",
-		"@palantir/client": "workspace:*",
+		"@speculum/client": "workspace:*",
 		"zod": "^4.6.7"
 	},
 	"devDependencies": {

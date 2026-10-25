@@ -21,7 +21,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.project.name} · palantir</title>
+	<title>{data.project.name} · speculum</title>
 </svelte:head>
 
 {#snippet topicList(list: typeof data.topics)}
@@ -73,7 +73,7 @@
 
 <div class="page">
 	<header class="top">
-		<a href={resolve('/')} class="brand"><Orb size={28} /> palantir</a>
+		<a href={resolve('/')} class="brand"><Orb size={28} /> speculum</a>
 	</header>
 	<main>
 		<h1>{data.project.name}</h1>

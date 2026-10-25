@@ -9,15 +9,15 @@ import {
 	type DoctorReport,
 	type NodeInput,
 	type NoteIntent,
-	type PalantirClient,
+	type SpeculumClient,
 	type Result
-} from '@palantir/client';
+} from '@speculum/client';
 import { USAGE, UsageError, parse } from './args.ts';
 
 export interface RunIo {
 	stdout: (s: string) => void;
 	stderr: (s: string) => void;
-	client?: PalantirClient;
+	client?: SpeculumClient;
 	readStdin?: () => Promise<string>;
 }
 
@@ -81,7 +81,7 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 
 	const finish = <T>(result: Result<T>, print: (value: T) => string): number => {
 		if (!result.ok) {
-			io.stderr(`palantir: ${result.warning}`);
+			io.stderr(`speculum: ${result.warning}`);
 			return 0;
 		}
 		const text = print(result.value);
@@ -276,14 +276,14 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 		}
 	} catch (error) {
 		if (error instanceof UsageError) {
-			io.stderr(`palantir: ${error.message}\n${USAGE}`);
+			io.stderr(`speculum: ${error.message}\n${USAGE}`);
 			return 2;
 		}
 		if (error instanceof InputError) {
-			io.stderr(`palantir: ${error.message}`);
+			io.stderr(`speculum: ${error.message}`);
 			return 2;
 		}
-		io.stderr(`palantir: ${error instanceof Error ? error.message : String(error)}`);
+		io.stderr(`speculum: ${error instanceof Error ? error.message : String(error)}`);
 		return 0;
 	}
 }

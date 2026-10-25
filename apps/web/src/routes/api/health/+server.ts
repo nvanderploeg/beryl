@@ -4,7 +4,7 @@ import { db } from '#lib/server/db/index.ts';
 import pkg from '../../../../package.json' with { type: 'json' };
 
 export const GET: RequestHandler = async () => {
-	const body = { service: 'palantir', version: pkg.version };
+	const body = { service: 'speculum', version: pkg.version };
 	const headers = { 'cache-control': 'no-store' };
 	try {
 		await db.execute(sql`select 1`);

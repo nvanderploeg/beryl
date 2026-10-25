@@ -1,11 +1,11 @@
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
 import { building } from '$app/env';
-import { PALANTIR_WRITE_WINDOW_MS, PALANTIR_WRITES_PER_WINDOW } from '$app/env/private';
+import { SPECULUM_WRITE_WINDOW_MS, SPECULUM_WRITES_PER_WINDOW } from '$app/env/private';
 import { bootstrap } from '#lib/server/bootstrap.ts';
 import { log } from '#lib/server/log.ts';
 import { createRateLimiter, limitWrites } from '#lib/server/ratelimit.ts';
 
-const writes = createRateLimiter(PALANTIR_WRITES_PER_WINDOW, PALANTIR_WRITE_WINDOW_MS);
+const writes = createRateLimiter(SPECULUM_WRITES_PER_WINDOW, SPECULUM_WRITE_WINDOW_MS);
 
 export const init: ServerInit = async () => {
 	if (building) return;

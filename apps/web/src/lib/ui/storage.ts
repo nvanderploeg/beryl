@@ -18,10 +18,10 @@ export function writeStored(key: string, value: string | null): void {
 }
 
 export const keys = {
-	noteKey: (projectId: string) => `palantir:nk:${projectId}`,
-	seen: (topicId: string) => `palantir:seen:${topicId}`,
-	sidebar: 'palantir:sidebar',
-	include: 'palantir:include',
-	author: 'palantir:author',
-	theme: 'palantir:theme'
+	noteKey: (projectId: string) => `speculum:nk:${projectId}`,
+	seen: (topicId: string) => `speculum:seen:${topicId}`,
+	sidebar: 'speculum:sidebar',
+	include: 'speculum:include',
+	author: 'speculum:author',
+	theme: 'speculum:theme'
 };

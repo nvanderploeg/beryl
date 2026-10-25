@@ -1,9 +1,9 @@
 {
-	"name": "@palantir/cli",
+	"name": "@speculum/cli",
 	"version": "0.1.0",
 	"type": "module",
 	"bin": {
-		"palantir": "dist/index.js"
+		"speculum": "dist/index.js"
 	},
 	"files": [
 		"dist"
@@ -14,7 +14,7 @@
 		"test": "vitest run --passWithNoTests"
 	},
 	"dependencies": {
-		"@palantir/client": "workspace:*"
+		"@speculum/client": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "^22",

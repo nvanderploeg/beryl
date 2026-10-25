@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { PalantirClient, Pulled } from '@palantir/client';
+import type { SpeculumClient, Pulled } from '@speculum/client';
 import { isAlive, isListening, pidFile, runWait, waitCommand, type WaitDeps } from './wait.ts';
 
 const TOPIC = '0b5f8a52-8c55-4c1e-9d7e-3f2a1c9b8e77';
@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 function setup(overrides: Partial<WaitDeps> = {}) {
-	const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'palantir-wait-')), 'waits');
+	const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'speculum-wait-')), 'waits');
 	dirs.push(path.dirname(dir));
 	const out: string[] = [];
 	const err: string[] = [];
@@ -56,7 +56,7 @@ function setup(overrides: Partial<WaitDeps> = {}) {
 	};
 	const sleep = vi.fn(async () => {});
 	const deps: WaitDeps = {
-		client: client as unknown as PalantirClient,
+		client: client as unknown as SpeculumClient,
 		dir,
 		pid: ME,
 		stdout: (s) => out.push(s),
@@ -88,14 +88,14 @@ function hold(file: string, pid: number) {
 	fs.writeFileSync(file, JSON.stringify({ pid, startedAt: '2026-10-24T00:00:00.000Z' }));
 }
 
-describe('palantir wait', () => {
+describe('speculum wait', () => {
 	it('says another live listener holds the Topic, and leaves its pid file alone', async () => {
 		const w = setup();
 		hold(w.file, OTHER);
 
 		expect(await runWait(TOPIC, 1000, w.deps)).toBe(0);
 
-		expect(w.out).toEqual([`palantir: already listening for topic ${TOPIC} (pid ${OTHER}).`]);
+		expect(w.out).toEqual([`speculum: already listening for topic ${TOPIC} (pid ${OTHER}).`]);
 		expect(w.client.waitForSent).not.toHaveBeenCalled();
 		expect(JSON.parse(fs.readFileSync(w.file, 'utf8')).pid).toBe(OTHER);
 	});
@@ -136,11 +136,11 @@ describe('palantir wait', () => {
 		expect(w.client.pullNotes).toHaveBeenCalledExactlyOnceWith({ topicId: TOPIC });
 		expect(w.out).toEqual([
 			[
-				`palantir: 1 new note from the board on topic ${TOPIC}:`,
+				`speculum: 1 new note from the board on topic ${TOPIC}:`,
 				'- [comment] topic: Looks right. (note n1)',
 				'Fold each note into the model, then call resolve_notes with a one-line reply for each.'
 			].join('\n'),
-			`Run palantir wait ${TOPIC} in the background again once you have resolved them.`
+			`Run speculum wait ${TOPIC} in the background again once you have resolved them.`
 		]);
 		expect(fs.existsSync(w.file)).toBe(false);
 		expect(w.unsubscribe).toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('palantir wait', () => {
 
 		expect(w.client.pullNotes).toHaveBeenCalledTimes(2);
 		expect(w.out).toEqual([
-			`palantir: notes were sent for topic ${TOPIC} but could not be pulled; call pull_notes.`
+			`speculum: notes were sent for topic ${TOPIC} but could not be pulled; call pull_notes.`
 		]);
 		expect(fs.existsSync(w.file)).toBe(false);
 	});
@@ -181,7 +181,7 @@ describe('palantir wait', () => {
 		expect(await runWait(TOPIC, ms, w.deps)).toBe(0);
 
 		expect(w.out).toEqual([
-			`palantir: stopped listening for topic ${TOPIC} after ${label}. Run palantir wait ${TOPIC} in the background to keep listening.`
+			`speculum: stopped listening for topic ${TOPIC} after ${label}. Run speculum wait ${TOPIC} in the background to keep listening.`
 		]);
 		expect(w.client.pullNotes).not.toHaveBeenCalled();
 		expect(fs.existsSync(w.file)).toBe(false);
@@ -216,7 +216,7 @@ describe('palantir wait', () => {
 
 		expect(await runWait(TOPIC, 1000, w.deps)).toBe(0);
 
-		expect(w.err).toEqual(['palantir: unknown topic x on this machine']);
+		expect(w.err).toEqual(['speculum: unknown topic x on this machine']);
 		expect(fs.existsSync(w.file)).toBe(false);
 	});
 

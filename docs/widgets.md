@@ -1,6 +1,6 @@
-# palantir widgets contract
+# speculum widgets contract
 
-A Widget is `{ key, type, title?, data }` on a Node (`docs/api.md`). This file fixes each type's `data`, its Elements and what the server checks. Types live in `apps/web/src/lib/widgets/types.ts`; the agent-facing reference is `skills/palantir/WIDGETS.md` and must agree with this file.
+A Widget is `{ key, type, title?, data }` on a Node (`docs/api.md`). This file fixes each type's `data`, its Elements and what the server checks. Types live in `apps/web/src/lib/widgets/types.ts`; the agent-facing reference is `skills/speculum/WIDGETS.md` and must agree with this file.
 
 ## Shared rules
 

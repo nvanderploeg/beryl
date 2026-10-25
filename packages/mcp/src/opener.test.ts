@@ -15,24 +15,24 @@ describe('openInBrowser', () => {
 		const child = { on: vi.fn(), unref: vi.fn() };
 		spawn.mockReturnValue(child);
 
-		openInBrowser('http://h/t/1#nk=pn_1');
+		openInBrowser('http://h/t/1#nk=sn_1');
 
 		expect(spawn).toHaveBeenCalledOnce();
 		const [cmd, args, options] = spawn.mock.calls[0];
 		const expected =
 			process.platform === 'darwin'
-				? ['open', ['http://h/t/1#nk=pn_1']]
+				? ['open', ['http://h/t/1#nk=sn_1']]
 				: process.platform === 'win32'
-					? ['cmd', ['/c', 'start', '', 'http://h/t/1#nk=pn_1']]
-					: ['xdg-open', ['http://h/t/1#nk=pn_1']];
+					? ['cmd', ['/c', 'start', '', 'http://h/t/1#nk=sn_1']]
+					: ['xdg-open', ['http://h/t/1#nk=sn_1']];
 		expect([cmd, args]).toEqual(expected);
 		expect(options).toEqual({ detached: true, stdio: 'ignore' });
 		expect(child.on).toHaveBeenCalledWith('error', expect.any(Function));
 		expect(child.unref).toHaveBeenCalled();
 	});
 
-	it('does nothing when PALANTIR_OPEN=0', () => {
-		vi.stubEnv('PALANTIR_OPEN', '0');
+	it('does nothing when SPECULUM_OPEN=0', () => {
+		vi.stubEnv('SPECULUM_OPEN', '0');
 
 		openInBrowser('http://h');
 

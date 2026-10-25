@@ -1,5 +1,5 @@
 {
-	"name": "@palantir/client",
+	"name": "@speculum/client",
 	"version": "0.1.0",
 	"type": "module",
 	"main": "dist/index.js",

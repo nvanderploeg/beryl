@@ -5,7 +5,7 @@ import type {
 	NodeKind,
 	Note,
 	NoteIntent,
-	PalantirEvent,
+	SpeculumEvent,
 	Project,
 	Topic
 } from '../types.ts';
@@ -68,7 +68,7 @@ function isInside(path: string, ancestor: string): boolean {
 	return path.startsWith(`${ancestor}/`);
 }
 
-export function applyEvent(state: TopicState, event: PalantirEvent): TopicState {
+export function applyEvent(state: TopicState, event: SpeculumEvent): TopicState {
 	if (event.seq <= state.lastSeq) return state;
 	const next: TopicState = { ...state, lastSeq: event.seq };
 	switch (event.type) {

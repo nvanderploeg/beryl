@@ -1,11 +1,11 @@
-# palantir
+# speculum
 
 A live, zoomable view of a grilling agent's model of a design. The agent writes what it understands as a tree of Nodes; people browse it, answer ahead in their own order, and leave Notes that flow back into the agent's next turn. Terms below are binding vocabulary; the contracts are `docs/api.md` (types, HTTP, stream), `docs/widgets.md` (widget data), `docs/client.md` (client, CLI, MCP, hook) and `docs/ui.md` (board helpers and views). Where this file and a contract disagree, the contract wins.
 
 ## Language
 
 **Project**:
-One repo's palantir space: its Topics, a Write key and a Note key. Its UUID is also its URL (`/p/<id>`).
+One repo's speculum space: its Topics, a Write key and a Note key. Its UUID is also its URL (`/p/<id>`).
 
 **Write key**:
 The secret that writes the model. Returned once at Project creation, kept on the agent's machine; the server stores only its sha256.
@@ -107,7 +107,7 @@ The agent taking every Queued Note into its context, which marks them delivered.
 The agent closing a delivered Note with a one-line Reply and the Paths it changed.
 
 **Wait**:
-`palantir wait`: a listener the agent runs in the background between turns. It exits when Notes are sent, pulls them and prints them, which wakes the agent.
+`speculum wait`: a listener the agent runs in the background between turns. It exits when Notes are sent, pulls them and prints them, which wakes the agent.
 
 **Event**:
 A full-row snapshot after a write (Topic, Node, Note), or a Node removal or Send marker, numbered by `seq`.

@@ -30,7 +30,7 @@ import type {
 	NodeInput,
 	Note,
 	NoteIntent,
-	PalantirEvent,
+	SpeculumEvent,
 	Project,
 	Pulled,
 	Snapshot,
@@ -156,7 +156,7 @@ export async function getSnapshot(topicId: string): Promise<Snapshot | undefined
 	};
 }
 
-export async function eventsSince(topicId: string, seq: number): Promise<PalantirEvent[]> {
+export async function eventsSince(topicId: string, seq: number): Promise<SpeculumEvent[]> {
 	const rows = await db
 		.select()
 		.from(events)
@@ -165,7 +165,7 @@ export async function eventsSince(topicId: string, seq: number): Promise<Palanti
 	return rows.map(toEvent);
 }
 
-export async function topicEvents(topicId: string, path?: string): Promise<PalantirEvent[]> {
+export async function topicEvents(topicId: string, path?: string): Promise<SpeculumEvent[]> {
 	const rows = await db
 		.select()
 		.from(events)
@@ -187,9 +187,9 @@ interface Ctx {
 	now: Date;
 	topic: TopicRow;
 	emit(
-		type: PalantirEvent['type'],
+		type: SpeculumEvent['type'],
 		path: string | null,
-		payload: PalantirEvent['payload']
+		payload: SpeculumEvent['payload']
 	): Promise<void>;
 }
 
@@ -216,7 +216,7 @@ async function mutate<T>(
 	create?: TopicRow
 ): Promise<T> {
 	return exclusive(topicId, async () => {
-		const stored: PalantirEvent[] = [];
+		const stored: SpeculumEvent[] = [];
 		const value = await db.transaction(async (tx) => {
 			const now = create?.createdAt ?? new Date();
 			let topic: TopicRow | undefined = create;

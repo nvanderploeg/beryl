@@ -26,7 +26,7 @@ export function createDiscovery(opts: {
 	probeTimeoutMs: number;
 	remoteProbeTimeoutMs: number;
 }) {
-	const pinned = normaliseServer(opts.env.PALANTIR_URL ?? '') || null;
+	const pinned = normaliseServer(opts.env.SPECULUM_URL ?? '') || null;
 	const targets = pinned ? [pinned] : opts.candidates.map(normaliseServer).filter(Boolean);
 
 	async function probe(server: string): Promise<Probe> {
@@ -36,7 +36,7 @@ export function createDiscovery(opts: {
 			`${server}/api/health`,
 			{ method: 'GET' }
 		);
-		if (!reply.ok || reply.body?.service !== 'palantir') return { server, ok: false };
+		if (!reply.ok || reply.body?.service !== 'speculum') return { server, ok: false };
 		return typeof reply.body.version === 'string'
 			? { server, ok: true, version: reply.body.version }
 			: { server, ok: true };

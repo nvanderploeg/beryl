@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { formatPulled, type PalantirClient } from '@palantir/client';
+import { formatPulled, type SpeculumClient } from '@speculum/client';
 import { USAGE, UsageError, formatDuration, parse, parseDuration } from './args.ts';
 
 export interface WaitDeps {
-	client: PalantirClient;
+	client: SpeculumClient;
 	dir: string;
 	pid: number;
 	stdout: (s: string) => void;
@@ -85,7 +85,7 @@ export async function runWait(topicId: string, timeoutMs: number, deps: WaitDeps
 
 	const claimed = claim(file, deps.pid, new Date(now()).toISOString(), alive);
 	if (!claimed.ok) {
-		deps.stdout(`palantir: already listening for topic ${topicId} (pid ${claimed.pid}).`);
+		deps.stdout(`speculum: already listening for topic ${topicId} (pid ${claimed.pid}).`);
 		return 0;
 	}
 
@@ -99,12 +99,12 @@ export async function runWait(topicId: string, timeoutMs: number, deps: WaitDeps
 		});
 		if (controller.signal.aborted) return 0;
 		if (!waited.ok) {
-			deps.stderr(`palantir: ${waited.warning}`);
+			deps.stderr(`speculum: ${waited.warning}`);
 			return 0;
 		}
 		if (waited.value.sent === 0) {
 			deps.stdout(
-				`palantir: stopped listening for topic ${topicId} after ${formatDuration(timeoutMs)}. Run palantir wait ${topicId} in the background to keep listening.`
+				`speculum: stopped listening for topic ${topicId} after ${formatDuration(timeoutMs)}. Run speculum wait ${topicId} in the background to keep listening.`
 			);
 			return 0;
 		}
@@ -116,13 +116,13 @@ export async function runWait(topicId: string, timeoutMs: number, deps: WaitDeps
 		}
 		if (!pulled.ok) {
 			deps.stdout(
-				`palantir: notes were sent for topic ${topicId} but could not be pulled; call pull_notes.`
+				`speculum: notes were sent for topic ${topicId} but could not be pulled; call pull_notes.`
 			);
 			return 0;
 		}
 		deps.stdout(formatPulled(pulled.value, { id: topicId }));
 		deps.stdout(
-			`Run palantir wait ${topicId} in the background again once you have resolved them.`
+			`Run speculum wait ${topicId} in the background again once you have resolved them.`
 		);
 		return 0;
 	} finally {
@@ -138,10 +138,10 @@ export async function waitCommand(argv: string[], deps: WaitDeps): Promise<numbe
 		return await runWait(positionals[0], timeoutMs, deps);
 	} catch (error) {
 		if (error instanceof UsageError) {
-			deps.stderr(`palantir: ${error.message}\n${USAGE}`);
+			deps.stderr(`speculum: ${error.message}\n${USAGE}`);
 			return 2;
 		}
-		deps.stderr(`palantir: ${error instanceof Error ? error.message : String(error)}`);
+		deps.stderr(`speculum: ${error instanceof Error ? error.message : String(error)}`);
 		return 0;
 	}
 }

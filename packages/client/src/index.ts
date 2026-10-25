@@ -10,7 +10,7 @@ import type {
 	ClientOptions,
 	DoctorReport,
 	OpenedTopic,
-	PalantirClient,
+	SpeculumClient,
 	Result
 } from './client-types.ts';
 import type { AgentInfo, Node, Note, Project, Pulled, Snapshot, Topic } from './types.ts';
@@ -53,7 +53,7 @@ interface Target {
 }
 
 export function defaultConfigDir(env: Record<string, string | undefined> = process.env): string {
-	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'palantir');
+	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'speculum');
 }
 
 // Build links from the server's replies, never from `server`: the address we reach it on may not be its public origin.
@@ -80,11 +80,11 @@ async function guard<T>(run: () => Promise<Result<T>>): Promise<Result<T>> {
 		return result.ok ? result : { ok: false, warning: result.warning };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		return { ok: false, warning: `palantir failed: ${message}` };
+		return { ok: false, warning: `speculum failed: ${message}` };
 	}
 }
 
-export function createClient(options: ClientOptions = {}): PalantirClient {
+export function createClient(options: ClientOptions = {}): SpeculumClient {
 	const env = options.env ?? process.env;
 	const fetchFn = options.fetch ?? globalThis.fetch;
 	const requestTimeoutMs = options.requestTimeoutMs ?? 5000;
@@ -213,7 +213,7 @@ export function createClient(options: ClientOptions = {}): PalantirClient {
 		};
 	}
 
-	const api: PalantirClient = {
+	const api: SpeculumClient = {
 		discover: () => discovery.discover().catch(() => null),
 
 		openTopic: (input) =>

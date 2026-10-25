@@ -5,7 +5,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const { values } = parseArgs({
 	options: {
-		server: { type: 'string', default: process.env.PALANTIR_URL || 'http://localhost:3270' },
+		server: { type: 'string', default: process.env.SPECULUM_URL || 'http://localhost:3270' },
 		fixture: {
 			type: 'string',
 			default: new URL('../apps/web/src/lib/fixtures/demo-grill.json', import.meta.url).pathname

@@ -11,7 +11,7 @@ import {
 
 export type KeyKind = 'write' | 'note';
 
-const PREFIX: Record<KeyKind, string> = { write: 'pw_', note: 'pn_' };
+const PREFIX: Record<KeyKind, string> = { write: 'sw_', note: 'sn_' };
 
 export function generateKey(kind: KeyKind): string {
 	return `${PREFIX[kind]}${randomBytes(32).toString('base64url')}`;
