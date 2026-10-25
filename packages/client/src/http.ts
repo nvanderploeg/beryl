@@ -26,7 +26,7 @@ export async function request<T>(
 ): Promise<Reply<T>> {
 	const headers: Record<string, string> = { accept: 'application/json' };
 	if (init.key) headers.authorization = `Bearer ${init.key}`;
-	if (init.body !== undefined) headers['content-type'] = 'application/json';
+	if (init.method !== 'GET') headers['content-type'] = 'application/json';
 
 	const timeout = AbortSignal.timeout(timeoutMs);
 	let status: number;

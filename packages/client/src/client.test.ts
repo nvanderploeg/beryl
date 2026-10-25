@@ -851,6 +851,16 @@ describe('topic-scoped calls', () => {
 		}
 	);
 
+	it('marks every non-GET request as JSON, bodyless ones included, so the server never reads them as form posts', async () => {
+		seedHandle();
+		const fake = fakeFetch(ok({ notes: [], unresolved: [], context: {}, stale: [] }));
+
+		await makeClient(fake).pullNotes({ topicId: 'topic-1' });
+
+		expect(fake.requests[0].body).toBeUndefined();
+		expect(fake.requests[0].headers['content-type']).toBe('application/json');
+	});
+
 	it('getTopic reads the Snapshot without a key and returns both links', async () => {
 		seedHandle();
 		const fake = fakeFetch(ok(SNAPSHOT));
