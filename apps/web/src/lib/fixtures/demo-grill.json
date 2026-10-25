@@ -116,7 +116,11 @@
 										"columns": [
 											{ "name": "id", "type": "bigint", "pk": true },
 											{ "name": "key", "type": "varchar(16)", "unique": true },
-											{ "name": "owner_id", "type": "bigint", "references": { "table": "users", "column": "id" } },
+											{
+												"name": "owner_id",
+												"type": "bigint",
+												"references": { "table": "users", "column": "id" }
+											},
 											{ "name": "name", "type": "varchar(200)" }
 										]
 									},
@@ -124,8 +128,17 @@
 										"name": "labours",
 										"columns": [
 											{ "name": "id", "type": "bigint", "pk": true },
-											{ "name": "realm_id", "type": "bigint", "references": { "table": "realms", "column": "id" } },
-											{ "name": "parent_id", "type": "bigint", "nullable": true, "references": { "table": "labours", "column": "id" } },
+											{
+												"name": "realm_id",
+												"type": "bigint",
+												"references": { "table": "realms", "column": "id" }
+											},
+											{
+												"name": "parent_id",
+												"type": "bigint",
+												"nullable": true,
+												"references": { "table": "labours", "column": "id" }
+											},
 											{ "name": "title", "type": "text" }
 										],
 										"indexes": [{ "name": "labours_realm_idx", "columns": ["realm_id"] }]
@@ -209,9 +222,21 @@
 			"say": "Here is the proposed schema: a workspaces table, a memberships table with a role, and realms moving from owner_id to workspace_id. Does that fit?",
 			"resolve": [
 				{ "note": 0, "reply": "Settled: row-level workspace_id.", "changed": ["tenancy/model"] },
-				{ "note": 1, "reply": "Settled: users can join many workspaces; added a switcher question under UI.", "changed": ["tenancy/scope"] },
-				{ "note": 2, "reply": "Corrected: invite by username or email.", "changed": ["invites/channel"] },
-				{ "note": 3, "reply": "Good catch: added a question about cross-realm parents.", "changed": ["data/parents"] }
+				{
+					"note": 1,
+					"reply": "Settled: users can join many workspaces; added a switcher question under UI.",
+					"changed": ["tenancy/scope"]
+				},
+				{
+					"note": 2,
+					"reply": "Corrected: invite by username or email.",
+					"changed": ["invites/channel"]
+				},
+				{
+					"note": 3,
+					"reply": "Good catch: added a question about cross-realm parents.",
+					"changed": ["data/parents"]
+				}
 			],
 			"nodes": [
 				{
@@ -296,15 +321,33 @@
 											{ "name": "id", "type": "bigint", "pk": true, "change": "added" },
 											{ "name": "slug", "type": "varchar(64)", "unique": true, "change": "added" },
 											{ "name": "name", "type": "varchar(200)", "change": "added" },
-											{ "name": "personal", "type": "boolean", "default": "false", "change": "added", "note": "one per user, made by the migration" }
+											{
+												"name": "personal",
+												"type": "boolean",
+												"default": "false",
+												"change": "added",
+												"note": "one per user, made by the migration"
+											}
 										]
 									},
 									{
 										"name": "memberships",
 										"change": "added",
 										"columns": [
-											{ "name": "workspace_id", "type": "bigint", "pk": true, "references": { "table": "workspaces", "column": "id" }, "change": "added" },
-											{ "name": "user_id", "type": "bigint", "pk": true, "references": { "table": "users", "column": "id" }, "change": "added" },
+											{
+												"name": "workspace_id",
+												"type": "bigint",
+												"pk": true,
+												"references": { "table": "workspaces", "column": "id" },
+												"change": "added"
+											},
+											{
+												"name": "user_id",
+												"type": "bigint",
+												"pk": true,
+												"references": { "table": "users", "column": "id" },
+												"change": "added"
+											},
 											{ "name": "role", "type": "varchar(16)", "change": "added" }
 										]
 									},
@@ -314,11 +357,28 @@
 										"columns": [
 											{ "name": "id", "type": "bigint", "pk": true },
 											{ "name": "key", "type": "varchar(16)", "unique": true },
-											{ "name": "workspace_id", "type": "bigint", "references": { "table": "workspaces", "column": "id" }, "change": "added" },
-											{ "name": "created_by", "type": "bigint", "references": { "table": "users", "column": "id" }, "change": "renamed", "from": "owner_id" },
+											{
+												"name": "workspace_id",
+												"type": "bigint",
+												"references": { "table": "workspaces", "column": "id" },
+												"change": "added"
+											},
+											{
+												"name": "created_by",
+												"type": "bigint",
+												"references": { "table": "users", "column": "id" },
+												"change": "renamed",
+												"from": "owner_id"
+											},
 											{ "name": "name", "type": "varchar(200)" }
 										],
-										"indexes": [{ "name": "realms_workspace_idx", "columns": ["workspace_id"], "change": "added" }]
+										"indexes": [
+											{
+												"name": "realms_workspace_idx",
+												"columns": ["workspace_id"],
+												"change": "added"
+											}
+										]
 									},
 									{
 										"name": "users",
@@ -358,8 +418,16 @@
 								"rows": [
 									{ "key": "read", "cells": ["Read realms", true, true, true, true] },
 									{ "key": "write", "cells": ["Edit labours", true, true, true, false] },
-									{ "key": "members", "cells": ["Manage members", true, true, false, false], "change": "added" },
-									{ "key": "billing", "cells": ["Billing", true, false, false, false], "change": "added" },
+									{
+										"key": "members",
+										"cells": ["Manage members", true, true, false, false],
+										"change": "added"
+									},
+									{
+										"key": "billing",
+										"cells": ["Billing", true, false, false, false],
+										"change": "added"
+									},
 									{ "key": "delete", "cells": ["Delete workspace", true, false, false, false] }
 								]
 							}
@@ -400,7 +468,12 @@
 					"text": "Make role an enum, not free text.",
 					"author": "Sam"
 				},
-				{ "anchor": { "path": "data/parents" }, "intent": "answer", "text": "Agreed, same workspace only.", "author": "Sam" },
+				{
+					"anchor": { "path": "data/parents" },
+					"intent": "answer",
+					"text": "Agreed, same workspace only.",
+					"author": "Sam"
+				},
 				{
 					"anchor": { "path": "migration/existing" },
 					"intent": "explore",
@@ -414,9 +487,17 @@
 			"pull": true,
 			"say": "Here is the migration plan: one personal workspace per user, realms move into it, cross-workspace parents get detached. Does it match what you expect?",
 			"resolve": [
-				{ "note": 4, "reply": "role is now an enum of owner, admin, member, guest.", "changed": ["data/schema"] },
+				{
+					"note": 4,
+					"reply": "role is now an enum of owner, admin, member, guest.",
+					"changed": ["data/schema"]
+				},
 				{ "note": 5, "reply": "Settled: same workspace only.", "changed": ["data/parents"] },
-				{ "note": 6, "reply": "Charted the migration plan and asked about it next.", "changed": ["migration/plan", "migration/deploys"] }
+				{
+					"note": 6,
+					"reply": "Charted the migration plan and asked about it next.",
+					"changed": ["migration/plan", "migration/deploys"]
+				}
 			],
 			"nodes": [
 				{
@@ -437,16 +518,38 @@
 											{ "name": "id", "type": "bigint", "pk": true, "change": "added" },
 											{ "name": "slug", "type": "varchar(64)", "unique": true, "change": "added" },
 											{ "name": "name", "type": "varchar(200)", "change": "added" },
-											{ "name": "personal", "type": "boolean", "default": "false", "change": "added", "note": "one per user, made by the migration" }
+											{
+												"name": "personal",
+												"type": "boolean",
+												"default": "false",
+												"change": "added",
+												"note": "one per user, made by the migration"
+											}
 										]
 									},
 									{
 										"name": "memberships",
 										"change": "added",
 										"columns": [
-											{ "name": "workspace_id", "type": "bigint", "pk": true, "references": { "table": "workspaces", "column": "id" }, "change": "added" },
-											{ "name": "user_id", "type": "bigint", "pk": true, "references": { "table": "users", "column": "id" }, "change": "added" },
-											{ "name": "role", "type": "enum('owner','admin','member','guest')", "change": "added" }
+											{
+												"name": "workspace_id",
+												"type": "bigint",
+												"pk": true,
+												"references": { "table": "workspaces", "column": "id" },
+												"change": "added"
+											},
+											{
+												"name": "user_id",
+												"type": "bigint",
+												"pk": true,
+												"references": { "table": "users", "column": "id" },
+												"change": "added"
+											},
+											{
+												"name": "role",
+												"type": "enum('owner','admin','member','guest')",
+												"change": "added"
+											}
 										]
 									},
 									{
@@ -455,11 +558,28 @@
 										"columns": [
 											{ "name": "id", "type": "bigint", "pk": true },
 											{ "name": "key", "type": "varchar(16)", "unique": true },
-											{ "name": "workspace_id", "type": "bigint", "references": { "table": "workspaces", "column": "id" }, "change": "added" },
-											{ "name": "created_by", "type": "bigint", "references": { "table": "users", "column": "id" }, "change": "renamed", "from": "owner_id" },
+											{
+												"name": "workspace_id",
+												"type": "bigint",
+												"references": { "table": "workspaces", "column": "id" },
+												"change": "added"
+											},
+											{
+												"name": "created_by",
+												"type": "bigint",
+												"references": { "table": "users", "column": "id" },
+												"change": "renamed",
+												"from": "owner_id"
+											},
 											{ "name": "name", "type": "varchar(200)" }
 										],
-										"indexes": [{ "name": "realms_workspace_idx", "columns": ["workspace_id"], "change": "added" }]
+										"indexes": [
+											{
+												"name": "realms_workspace_idx",
+												"columns": ["workspace_id"],
+												"change": "added"
+											}
+										]
 									},
 									{
 										"name": "users",
@@ -473,7 +593,11 @@
 						}
 					]
 				},
-				{ "path": "data/parents", "status": "settled", "answer": "Same workspace only; the migration detaches parents that would cross." },
+				{
+					"path": "data/parents",
+					"status": "settled",
+					"answer": "Same workspace only; the migration detaches parents that would cross."
+				},
 				{
 					"path": "migration/plan",
 					"kind": "decision",
@@ -500,10 +624,18 @@
 										"risk": "low",
 										"reversible": true,
 										"columns": [
-											{ "name": "id", "change": "added", "after": "bigint primary key auto_increment" },
+											{
+												"name": "id",
+												"change": "added",
+												"after": "bigint primary key auto_increment"
+											},
 											{ "name": "slug", "change": "added", "after": "varchar(64) not null unique" },
 											{ "name": "name", "change": "added", "after": "varchar(200) not null" },
-											{ "name": "personal", "change": "added", "after": "boolean not null default false" }
+											{
+												"name": "personal",
+												"change": "added",
+												"after": "boolean not null default false"
+											}
 										]
 									},
 									{
@@ -515,9 +647,21 @@
 										"rows": {
 											"columns": ["id", "slug", "name", "personal"],
 											"items": [
-												{ "key": "u-1", "change": "added", "values": [1, "norman", "Norman's workspace", true] },
-												{ "key": "u-2", "change": "added", "values": [2, "sam", "Sam's workspace", true] },
-												{ "key": "u-17", "change": "added", "values": [17, "ci-bot", "ci-bot's workspace", true] }
+												{
+													"key": "u-1",
+													"change": "added",
+													"values": [1, "norman", "Norman's workspace", true]
+												},
+												{
+													"key": "u-2",
+													"change": "added",
+													"values": [2, "sam", "Sam's workspace", true]
+												},
+												{
+													"key": "u-17",
+													"change": "added",
+													"values": [17, "ci-bot", "ci-bot's workspace", true]
+												}
 											]
 										}
 									},
@@ -528,8 +672,17 @@
 										"risk": "medium",
 										"reversible": true,
 										"columns": [
-											{ "name": "workspace_id", "change": "added", "after": "bigint null references workspaces(id)" },
-											{ "name": "owner_id", "change": "renamed", "before": "owner_id bigint not null", "after": "created_by bigint not null" }
+											{
+												"name": "workspace_id",
+												"change": "added",
+												"after": "bigint null references workspaces(id)"
+											},
+											{
+												"name": "owner_id",
+												"change": "renamed",
+												"before": "owner_id bigint not null",
+												"after": "created_by bigint not null"
+											}
 										],
 										"sql": "ALTER TABLE realms\n  ADD COLUMN workspace_id BIGINT NULL,\n  RENAME COLUMN owner_id TO created_by;\nUPDATE realms SET workspace_id = created_by;\nALTER TABLE realms MODIFY workspace_id BIGINT NOT NULL;"
 									},
@@ -544,8 +697,18 @@
 										"rows": {
 											"columns": ["id", "realm", "parent_id"],
 											"items": [
-												{ "key": "l-204", "change": "changed", "values": [204, "AM", null], "before": [204, "AM", 98] },
-												{ "key": "l-311", "change": "changed", "values": [311, "OPS", null], "before": [311, "OPS", 12] },
+												{
+													"key": "l-204",
+													"change": "changed",
+													"values": [204, "AM", null],
+													"before": [204, "AM", 98]
+												},
+												{
+													"key": "l-311",
+													"change": "changed",
+													"values": [311, "OPS", null],
+													"before": [311, "OPS", 12]
+												},
 												{ "key": "l-512", "change": "kept", "values": [512, "AM", 204] }
 											]
 										}
@@ -584,8 +747,19 @@
 							"type": "options",
 							"data": {
 								"options": [
-									{ "key": "one", "title": "One deploy", "pros": ["Simple"], "cons": ["Rollback means a down migration"] },
-									{ "key": "two", "title": "Two deploys", "pros": ["Each step reversible", "Backfill can run warm"], "cons": ["A flag to remove later"], "recommended": true }
+									{
+										"key": "one",
+										"title": "One deploy",
+										"pros": ["Simple"],
+										"cons": ["Rollback means a down migration"]
+									},
+									{
+										"key": "two",
+										"title": "Two deploys",
+										"pros": ["Each step reversible", "Backfill can run warm"],
+										"cons": ["A flag to remove later"],
+										"recommended": true
+									}
 								]
 							}
 						}
@@ -616,11 +790,41 @@
 									{ "key": "guest", "label": "Invitee", "kind": "person" }
 								],
 								"steps": [
-									{ "key": "s1", "from": "owner", "to": "app", "label": "invite(email, role)", "kind": "call" },
-									{ "key": "s2", "from": "app", "to": "mail", "label": "send invite link", "kind": "async" },
-									{ "key": "s3", "from": "mail", "to": "guest", "label": "email with token", "kind": "async" },
-									{ "key": "s4", "from": "guest", "to": "app", "label": "accept(token)", "kind": "call" },
-									{ "key": "s5", "from": "app", "to": "guest", "label": "membership created", "kind": "reply" }
+									{
+										"key": "s1",
+										"from": "owner",
+										"to": "app",
+										"label": "invite(email, role)",
+										"kind": "call"
+									},
+									{
+										"key": "s2",
+										"from": "app",
+										"to": "mail",
+										"label": "send invite link",
+										"kind": "async"
+									},
+									{
+										"key": "s3",
+										"from": "mail",
+										"to": "guest",
+										"label": "email with token",
+										"kind": "async"
+									},
+									{
+										"key": "s4",
+										"from": "guest",
+										"to": "app",
+										"label": "accept(token)",
+										"kind": "call"
+									},
+									{
+										"key": "s5",
+										"from": "app",
+										"to": "guest",
+										"label": "membership created",
+										"kind": "reply"
+									}
 								]
 							}
 						},
@@ -651,20 +855,33 @@
 			"topic": { "current": "migration/plan" },
 			"notes": [
 				{
-					"anchor": { "path": "migration/plan", "widget": "plan", "element": "backfill-workspaces#u-17" },
+					"anchor": {
+						"path": "migration/plan",
+						"widget": "plan",
+						"element": "backfill-workspaces#u-17"
+					},
 					"intent": "correct",
 					"text": "ci-bot is a bot account. Skip bots; they join workspaces explicitly.",
 					"author": "Sam"
 				},
 				{ "anchor": { "path": "migration/deploys" }, "intent": "accept", "author": "Sam" },
-				{ "anchor": { "path": "permissions/realm-override" }, "intent": "defer", "text": "Later, once teams ask for it.", "author": "Sam" }
+				{
+					"anchor": { "path": "permissions/realm-override" },
+					"intent": "defer",
+					"text": "Later, once teams ask for it.",
+					"author": "Sam"
+				}
 			]
 		},
 		{
 			"pull": true,
 			"say": "Invites: should owners be able to resend a pending invite, and does resending restart the 7 days?",
 			"resolve": [
-				{ "note": 7, "reply": "Bots are skipped by the backfill and the membership seed.", "changed": ["migration/plan"] },
+				{
+					"note": 7,
+					"reply": "Bots are skipped by the backfill and the membership seed.",
+					"changed": ["migration/plan"]
+				},
 				{ "note": 8, "reply": "Settled: two deploys.", "changed": ["migration/deploys"] },
 				{ "note": 9, "reply": "Parked.", "changed": ["permissions/realm-override"] }
 			],
@@ -688,10 +905,18 @@
 										"risk": "low",
 										"reversible": true,
 										"columns": [
-											{ "name": "id", "change": "added", "after": "bigint primary key auto_increment" },
+											{
+												"name": "id",
+												"change": "added",
+												"after": "bigint primary key auto_increment"
+											},
 											{ "name": "slug", "change": "added", "after": "varchar(64) not null unique" },
 											{ "name": "name", "change": "added", "after": "varchar(200) not null" },
-											{ "name": "personal", "change": "added", "after": "boolean not null default false" }
+											{
+												"name": "personal",
+												"change": "added",
+												"after": "boolean not null default false"
+											}
 										]
 									},
 									{
@@ -704,9 +929,21 @@
 										"rows": {
 											"columns": ["id", "slug", "name", "personal"],
 											"items": [
-												{ "key": "u-1", "change": "added", "values": [1, "norman", "Norman's workspace", true] },
-												{ "key": "u-2", "change": "added", "values": [2, "sam", "Sam's workspace", true] },
-												{ "key": "u-17", "change": "removed", "values": [17, "ci-bot", "ci-bot's workspace", true] }
+												{
+													"key": "u-1",
+													"change": "added",
+													"values": [1, "norman", "Norman's workspace", true]
+												},
+												{
+													"key": "u-2",
+													"change": "added",
+													"values": [2, "sam", "Sam's workspace", true]
+												},
+												{
+													"key": "u-17",
+													"change": "removed",
+													"values": [17, "ci-bot", "ci-bot's workspace", true]
+												}
 											]
 										}
 									},
@@ -717,8 +954,17 @@
 										"risk": "medium",
 										"reversible": true,
 										"columns": [
-											{ "name": "workspace_id", "change": "added", "after": "bigint null references workspaces(id)" },
-											{ "name": "owner_id", "change": "renamed", "before": "owner_id bigint not null", "after": "created_by bigint not null" }
+											{
+												"name": "workspace_id",
+												"change": "added",
+												"after": "bigint null references workspaces(id)"
+											},
+											{
+												"name": "owner_id",
+												"change": "renamed",
+												"before": "owner_id bigint not null",
+												"after": "created_by bigint not null"
+											}
 										],
 										"sql": "ALTER TABLE realms\n  ADD COLUMN workspace_id BIGINT NULL,\n  RENAME COLUMN owner_id TO created_by;\nUPDATE realms SET workspace_id = created_by;\nALTER TABLE realms MODIFY workspace_id BIGINT NOT NULL;"
 									},
@@ -733,8 +979,18 @@
 										"rows": {
 											"columns": ["id", "realm", "parent_id"],
 											"items": [
-												{ "key": "l-204", "change": "changed", "values": [204, "AM", null], "before": [204, "AM", 98] },
-												{ "key": "l-311", "change": "changed", "values": [311, "OPS", null], "before": [311, "OPS", 12] },
+												{
+													"key": "l-204",
+													"change": "changed",
+													"values": [204, "AM", null],
+													"before": [204, "AM", 98]
+												},
+												{
+													"key": "l-311",
+													"change": "changed",
+													"values": [311, "OPS", null],
+													"before": [311, "OPS", 12]
+												},
 												{ "key": "l-512", "change": "kept", "values": [512, "AM", 204] }
 											]
 										}
@@ -758,7 +1014,11 @@
 						}
 					]
 				},
-				{ "path": "migration/deploys", "status": "settled", "answer": "Two deploys: schema and backfill behind a flag, then the code that requires workspace_id." },
+				{
+					"path": "migration/deploys",
+					"status": "settled",
+					"answer": "Two deploys: schema and backfill behind a flag, then the code that requires workspace_id."
+				},
 				{ "path": "permissions/realm-override", "status": "parked" },
 				{
 					"path": "data/services",
@@ -778,8 +1038,18 @@
 										"stereotype": "service",
 										"change": "added",
 										"methods": [
-											{ "name": "create", "params": "name: string, owner: UserId", "returns": "Workspace", "visibility": "+" },
-											{ "name": "forUser", "params": "user: UserId", "returns": "Workspace[]", "visibility": "+" }
+											{
+												"name": "create",
+												"params": "name: string, owner: UserId",
+												"returns": "Workspace",
+												"visibility": "+"
+											},
+											{
+												"name": "forUser",
+												"params": "user: UserId",
+												"returns": "Workspace[]",
+												"visibility": "+"
+											}
 										]
 									},
 									{
@@ -788,8 +1058,18 @@
 										"stereotype": "service",
 										"change": "added",
 										"methods": [
-											{ "name": "roleOf", "params": "user: UserId, ws: WorkspaceId", "returns": "Role | null", "visibility": "+" },
-											{ "name": "setRole", "params": "user: UserId, role: Role", "returns": "void", "visibility": "+" }
+											{
+												"name": "roleOf",
+												"params": "user: UserId, ws: WorkspaceId",
+												"returns": "Role | null",
+												"visibility": "+"
+											},
+											{
+												"name": "setRole",
+												"params": "user: UserId, role: Role",
+												"returns": "void",
+												"visibility": "+"
+											}
 										]
 									},
 									{
@@ -799,8 +1079,18 @@
 										"change": "added",
 										"fields": [{ "name": "ttl", "type": "Duration", "visibility": "-" }],
 										"methods": [
-											{ "name": "invite", "params": "ws: WorkspaceId, to: string, role: Role", "returns": "Invite", "visibility": "+" },
-											{ "name": "accept", "params": "token: string", "returns": "Membership", "visibility": "+" }
+											{
+												"name": "invite",
+												"params": "ws: WorkspaceId, to: string, role: Role",
+												"returns": "Invite",
+												"visibility": "+"
+											},
+											{
+												"name": "accept",
+												"params": "token: string",
+												"returns": "Membership",
+												"visibility": "+"
+											}
 										]
 									},
 									{
@@ -808,7 +1098,12 @@
 										"name": "Role",
 										"stereotype": "enum",
 										"change": "added",
-										"fields": [{ "name": "owner" }, { "name": "admin" }, { "name": "member" }, { "name": "guest" }]
+										"fields": [
+											{ "name": "owner" },
+											{ "name": "admin" },
+											{ "name": "member" },
+											{ "name": "guest" }
+										]
 									},
 									{
 										"key": "RealmService",
@@ -816,16 +1111,38 @@
 										"stereotype": "service",
 										"change": "changed",
 										"methods": [
-											{ "name": "forOwner", "params": "user: UserId", "returns": "Realm[]", "change": "removed", "visibility": "+" },
-											{ "name": "forWorkspace", "params": "ws: WorkspaceId", "returns": "Realm[]", "change": "added", "visibility": "+" }
+											{
+												"name": "forOwner",
+												"params": "user: UserId",
+												"returns": "Realm[]",
+												"change": "removed",
+												"visibility": "+"
+											},
+											{
+												"name": "forWorkspace",
+												"params": "ws: WorkspaceId",
+												"returns": "Realm[]",
+												"change": "added",
+												"visibility": "+"
+											}
 										]
 									}
 								],
 								"relations": [
-									{ "from": "InviteService", "to": "MembershipService", "kind": "uses", "label": "creates" },
+									{
+										"from": "InviteService",
+										"to": "MembershipService",
+										"kind": "uses",
+										"label": "creates"
+									},
 									{ "from": "MembershipService", "to": "Role", "kind": "uses" },
 									{ "from": "WorkspaceService", "to": "MembershipService", "kind": "uses" },
-									{ "from": "RealmService", "to": "WorkspaceService", "kind": "uses", "change": "added" }
+									{
+										"from": "RealmService",
+										"to": "WorkspaceService",
+										"kind": "uses",
+										"change": "added"
+									}
 								]
 							}
 						}
@@ -846,11 +1163,48 @@
 							"title": "Routes",
 							"data": {
 								"endpoints": [
-									{ "key": "list-members", "method": "GET", "path": "/api/workspaces/:slug/members", "summary": "Members and their roles", "auth": "member", "change": "added" },
-									{ "key": "invite", "method": "POST", "path": "/api/workspaces/:slug/invites", "summary": "Invite by username or email", "auth": "admin", "request": "{ to: string; role: Role }", "response": "{ invite: Invite }", "change": "added" },
-									{ "key": "accept", "method": "POST", "path": "/api/invites/:token/accept", "summary": "Accept an invite", "auth": "invitee", "response": "{ membership: Membership }", "change": "added" },
-									{ "key": "revoke", "method": "DELETE", "path": "/api/workspaces/:slug/invites/:id", "summary": "Revoke a pending invite", "auth": "admin", "change": "added" },
-									{ "key": "tool-invite", "method": "TOOL", "path": "invite_member", "summary": "MCP: invite someone", "change": "added" }
+									{
+										"key": "list-members",
+										"method": "GET",
+										"path": "/api/workspaces/:slug/members",
+										"summary": "Members and their roles",
+										"auth": "member",
+										"change": "added"
+									},
+									{
+										"key": "invite",
+										"method": "POST",
+										"path": "/api/workspaces/:slug/invites",
+										"summary": "Invite by username or email",
+										"auth": "admin",
+										"request": "{ to: string; role: Role }",
+										"response": "{ invite: Invite }",
+										"change": "added"
+									},
+									{
+										"key": "accept",
+										"method": "POST",
+										"path": "/api/invites/:token/accept",
+										"summary": "Accept an invite",
+										"auth": "invitee",
+										"response": "{ membership: Membership }",
+										"change": "added"
+									},
+									{
+										"key": "revoke",
+										"method": "DELETE",
+										"path": "/api/workspaces/:slug/invites/:id",
+										"summary": "Revoke a pending invite",
+										"auth": "admin",
+										"change": "added"
+									},
+									{
+										"key": "tool-invite",
+										"method": "TOOL",
+										"path": "invite_member",
+										"summary": "MCP: invite someone",
+										"change": "added"
+									}
 								]
 							}
 						}
@@ -888,11 +1242,37 @@
 							"data": {
 								"root": "apps/web",
 								"files": [
-									{ "path": "src/routes/w/[slug]/+layout.svelte", "change": "added", "summary": "Workspace shell with the switcher", "added": 80 },
-									{ "path": "src/routes/w/[slug]/+layout.server.ts", "change": "added", "summary": "Loads the workspace and checks membership", "added": 40 },
-									{ "path": "src/routes/r/[key]/+page.svelte", "change": "renamed", "from": "src/routes/realm/[key]/+page.svelte", "added": 4, "removed": 4 },
-									{ "path": "src/lib/components/Header.svelte", "change": "changed", "summary": "Adds the switcher menu", "added": 35, "removed": 6 },
-									{ "path": "src/lib/components/OwnerBadge.svelte", "change": "removed", "removed": 22 },
+									{
+										"path": "src/routes/w/[slug]/+layout.svelte",
+										"change": "added",
+										"summary": "Workspace shell with the switcher",
+										"added": 80
+									},
+									{
+										"path": "src/routes/w/[slug]/+layout.server.ts",
+										"change": "added",
+										"summary": "Loads the workspace and checks membership",
+										"added": 40
+									},
+									{
+										"path": "src/routes/r/[key]/+page.svelte",
+										"change": "renamed",
+										"from": "src/routes/realm/[key]/+page.svelte",
+										"added": 4,
+										"removed": 4
+									},
+									{
+										"path": "src/lib/components/Header.svelte",
+										"change": "changed",
+										"summary": "Adds the switcher menu",
+										"added": 35,
+										"removed": 6
+									},
+									{
+										"path": "src/lib/components/OwnerBadge.svelte",
+										"change": "removed",
+										"removed": 22
+									},
 									{ "path": "src/lib/server/db/schema.ts", "summary": "Read for the new tables" }
 								]
 							}
@@ -902,9 +1282,18 @@
 			],
 			"topic": { "current": "invites/flow" },
 			"notes": [
-				{ "anchor": { "path": "invites/flow" }, "intent": "answer", "text": "Yes, resend, and it restarts the 7 days.", "author": "Sam" },
 				{
-					"anchor": { "path": "ui/switcher", "widget": "files", "element": "src/routes/w/[slug]/+layout.svelte" },
+					"anchor": { "path": "invites/flow" },
+					"intent": "answer",
+					"text": "Yes, resend, and it restarts the 7 days.",
+					"author": "Sam"
+				},
+				{
+					"anchor": {
+						"path": "ui/switcher",
+						"widget": "files",
+						"element": "src/routes/w/[slug]/+layout.svelte"
+					},
 					"intent": "comment",
 					"text": "Slug in the URL, not the numeric id.",
 					"author": "Sam"
@@ -916,8 +1305,16 @@
 			"pull": true,
 			"say": "Roles: are owner, admin, member and guest enough, and should admins manage billing?",
 			"resolve": [
-				{ "note": 10, "reply": "Added a resend transition that restarts the expiry.", "changed": ["invites/flow"] },
-				{ "note": 11, "reply": "Kept the slug route; noted it on the switcher.", "changed": ["ui/switcher"] }
+				{
+					"note": 10,
+					"reply": "Added a resend transition that restarts the expiry.",
+					"changed": ["invites/flow"]
+				},
+				{
+					"note": 11,
+					"reply": "Kept the slug route; noted it on the switcher.",
+					"changed": ["ui/switcher"]
+				}
 			],
 			"nodes": [
 				{
@@ -937,12 +1334,49 @@
 									{ "key": "guest", "label": "Invitee", "kind": "person" }
 								],
 								"steps": [
-									{ "key": "s1", "from": "owner", "to": "app", "label": "invite(email, role)", "kind": "call" },
-									{ "key": "s2", "from": "app", "to": "mail", "label": "send invite link", "kind": "async" },
-									{ "key": "s3", "from": "mail", "to": "guest", "label": "email with token", "kind": "async" },
-									{ "key": "s4", "from": "guest", "to": "app", "label": "accept(token)", "kind": "call" },
-									{ "key": "s5", "from": "app", "to": "guest", "label": "membership created", "kind": "reply" },
-									{ "key": "n1", "from": "owner", "to": "app", "label": "resend restarts the 7 days", "kind": "note", "change": "added" }
+									{
+										"key": "s1",
+										"from": "owner",
+										"to": "app",
+										"label": "invite(email, role)",
+										"kind": "call"
+									},
+									{
+										"key": "s2",
+										"from": "app",
+										"to": "mail",
+										"label": "send invite link",
+										"kind": "async"
+									},
+									{
+										"key": "s3",
+										"from": "mail",
+										"to": "guest",
+										"label": "email with token",
+										"kind": "async"
+									},
+									{
+										"key": "s4",
+										"from": "guest",
+										"to": "app",
+										"label": "accept(token)",
+										"kind": "call"
+									},
+									{
+										"key": "s5",
+										"from": "app",
+										"to": "guest",
+										"label": "membership created",
+										"kind": "reply"
+									},
+									{
+										"key": "n1",
+										"from": "owner",
+										"to": "app",
+										"label": "resend restarts the 7 days",
+										"kind": "note",
+										"change": "added"
+									}
 								]
 							}
 						},
@@ -963,13 +1397,22 @@
 									{ "from": "pending", "to": "declined", "label": "decline" },
 									{ "from": "pending", "to": "expired", "label": "7 days" },
 									{ "from": "pending", "to": "revoked", "label": "revoke" },
-									{ "key": "resend", "from": "pending", "to": "pending", "label": "resend", "change": "added" }
+									{
+										"key": "resend",
+										"from": "pending",
+										"to": "pending",
+										"label": "resend",
+										"change": "added"
+									}
 								]
 							}
 						}
 					]
 				},
-				{ "path": "ui/switcher", "body": "Routes live under `/w/[slug]`; the slug comes from `workspaces.slug`." },
+				{
+					"path": "ui/switcher",
+					"body": "Routes live under `/w/[slug]`; the slug comes from `workspaces.slug`."
+				},
 				{
 					"path": "migration/lock",
 					"status": "settled",

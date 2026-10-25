@@ -238,8 +238,9 @@ interface WidgetViewProps {
 ```
 
 - `preview` fits a 300 × 180 box and is read-only (a graph card at close zoom). `full` is the inspector rendering.
+- Each widget draws its own frame and its `title` header; a host never prints the title again.
 - In `full`, every Element is clickable and calls `onselect` with its key. An Element with marks shows a count badge; the `selected` one is highlighted.
-- Every Element's root carries `data-element="<key>"`.
+- Every Element's root carries `data-element="<key>"`. Wrap HTML Elements in `Element.svelte` and SVG ones in `shared/SvgElement.svelte`; both give the same selection, badge and change styling.
 - Change markers read the same in every widget: added green, removed red with strikethrough, changed amber, renamed amber with `from → name`.
 - An unknown `type` or data that fails `validateWidget` renders a fallback box naming the type and the reason, never throws.
 - Colors come from the CSS custom properties in `docs/ui.md`, so both themes work.

@@ -1,14 +1,7 @@
 // The types of docs/api.md, exactly. Change that file first.
 
 export type NodeKind =
-	| 'area'
-	| 'decision'
-	| 'assumption'
-	| 'fact'
-	| 'term'
-	| 'fog'
-	| 'constraint'
-	| 'risk';
+	'area' | 'decision' | 'assumption' | 'fact' | 'term' | 'fog' | 'constraint' | 'risk';
 export type NodeStatus = 'open' | 'settled' | 'parked' | 'dropped';
 export type EdgeRel = 'relies_on' | 'relates' | 'conflicts' | 'supersedes';
 export type TopicStatus = 'open' | 'closed';
@@ -204,24 +197,13 @@ export interface Pulled {
 }
 
 export type PalantirEventType =
-	| 'topic'
-	| 'node'
-	| 'node_removed'
-	| 'note'
-	| 'note_removed'
-	| 'send';
+	'topic' | 'node' | 'node_removed' | 'note' | 'note_removed' | 'send';
 
 export interface PalantirEvent {
 	seq: number;
 	type: PalantirEventType;
 	topicId: string;
 	path: string | null;
-	payload:
-		| Topic
-		| Node
-		| { path: string }
-		| Note
-		| { id: string }
-		| { count: number; at: string };
+	payload: Topic | Node | { path: string } | Note | { id: string } | { count: number; at: string };
 	at: string;
 }

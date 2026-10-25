@@ -74,7 +74,8 @@
 		outline: 2px solid var(--accent);
 		outline-offset: 1px;
 	}
-	.pw-selected {
+	.pw-selected,
+	.pw-selected:hover {
 		outline: 2px solid var(--accent);
 		outline-offset: 1px;
 		background: color-mix(in srgb, var(--accent) 10%, transparent);

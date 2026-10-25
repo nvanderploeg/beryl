@@ -4,63 +4,78 @@
 /* Theme tokens of docs/ui.md. Tune values freely; keep the names. */
 :root {
 	color-scheme: light;
-	--bg: #f6f4ef;
-	--surface: #ffffff;
-	--surface-2: #efebe3;
-	--ink: #1b2129;
-	--muted: #5d6874;
-	--line: #d9d3c7;
-	--accent: #e8590c;
-	--open: #e8590c;
-	--settled: #2b8a6e;
-	--parked: #74818e;
-	--dropped: #a8a29e;
-	--fog: #8a7fb8;
-	--added: #2f9e44;
-	--removed: #d6336c;
-	--changed: #d9822b;
-	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--bg: #e9edf1;
+	--surface: #f8fafb;
+	--surface-2: #dfe5eb;
+	--ink: #121a24;
+	--muted: #586473;
+	--line: #c9d1da;
+	--accent: #c55a00;
+	--open: #c55a00;
+	--settled: #2e7a6b;
+	--parked: #6b7684;
+	--dropped: #98a1ac;
+	--fog: #6a55c4;
+	--added: #1d8549;
+	--removed: #c3344a;
+	--changed: #9b7300;
+	--font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
 		color-scheme: dark;
-		--bg: #0e1319;
-		--surface: #151c24;
-		--surface-2: #1c252f;
-		--ink: #e7e5e0;
-		--muted: #93a0ad;
-		--line: #2a3540;
-		--accent: #ff7a1a;
-		--open: #ff8c33;
-		--settled: #3cc497;
-		--parked: #8796a5;
-		--dropped: #6b7280;
-		--fog: #a99bdb;
-		--added: #51cf66;
-		--removed: #f06595;
-		--changed: #ffa94d;
+		--bg: #0a1017;
+		--surface: #101922;
+		--surface-2: #16222e;
+		--ink: #e8e3d6;
+		--muted: #8693a1;
+		--line: #223040;
+		--accent: #ffa23a;
+		--open: #ffa23a;
+		--settled: #57a593;
+		--parked: #7b8795;
+		--dropped: #535e6a;
+		--fog: #a493ea;
+		--added: #55c387;
+		--removed: #f06f7d;
+		--changed: #e3c259;
 	}
 }
 
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--bg: #0e1319;
-	--surface: #151c24;
-	--surface-2: #1c252f;
-	--ink: #e7e5e0;
-	--muted: #93a0ad;
-	--line: #2a3540;
-	--accent: #ff7a1a;
-	--open: #ff8c33;
-	--settled: #3cc497;
-	--parked: #8796a5;
-	--dropped: #6b7280;
-	--fog: #a99bdb;
-	--added: #51cf66;
-	--removed: #f06595;
-	--changed: #ffa94d;
+	--bg: #0a1017;
+	--surface: #101922;
+	--surface-2: #16222e;
+	--ink: #e8e3d6;
+	--muted: #8693a1;
+	--line: #223040;
+	--accent: #ffa23a;
+	--open: #ffa23a;
+	--settled: #57a593;
+	--parked: #7b8795;
+	--dropped: #535e6a;
+	--fog: #a493ea;
+	--added: #55c387;
+	--removed: #f06f7d;
+	--changed: #e3c259;
+}
+
+/* Derived tones. Build new ones from the tokens above so both themes follow. */
+:root {
+	--risk: color-mix(in oklab, var(--accent) 45%, var(--removed));
+	--glow: color-mix(in srgb, var(--accent) 42%, transparent);
+	--glow-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+	--fresh: color-mix(in srgb, var(--ink) 55%, transparent);
+	--hatch-fog: repeating-linear-gradient(
+		-45deg,
+		color-mix(in srgb, var(--fog) 22%, transparent) 0 2px,
+		transparent 2px 7px
+	);
+	--shadow-pop: 0 10px 30px -12px rgb(0 0 0 / 0.45), 0 2px 6px -2px rgb(0 0 0 / 0.25);
+	--ease: cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 html,
@@ -68,4 +83,134 @@ body {
 	background: var(--bg);
 	color: var(--ink);
 	font-family: var(--font-sans);
+	font-feature-settings: 'ss01', 'cv11';
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	margin: 0;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-size: 0.92em;
+	letter-spacing: -0.01em;
+}
+
+/* Only the Current question moves on its own; tie any other motion to an action. */
+@keyframes pw-breathe {
+	0%,
+	100% {
+		box-shadow:
+			0 0 0 1.5px var(--accent),
+			0 0 14px 2px var(--glow-soft);
+	}
+	50% {
+		box-shadow:
+			0 0 0 1.5px var(--accent),
+			0 0 30px 8px var(--glow);
+	}
+}
+
+@keyframes pw-pulse {
+	0% {
+		box-shadow: 0 0 0 0 var(--glow);
+	}
+	100% {
+		box-shadow: 0 0 0 18px transparent;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}
+
+.pw-prose {
+	color: var(--ink);
+	font-size: 0.9rem;
+	line-height: 1.55;
+	overflow-wrap: anywhere;
+}
+.pw-prose :where(p, ul, ol, pre, blockquote) {
+	margin: 0 0 0.6em;
+}
+.pw-prose :where(p:last-child) {
+	margin-bottom: 0;
+}
+.pw-prose :where(ul, ol) {
+	padding-left: 1.2em;
+}
+.pw-prose :where(ul) {
+	list-style: disc;
+}
+.pw-prose :where(ol) {
+	list-style: decimal;
+}
+.pw-prose :where(code) {
+	font-family: var(--font-mono);
+	font-size: 0.86em;
+	padding: 0.05em 0.3em;
+	border-radius: 4px;
+	background: var(--surface-2);
+}
+.pw-prose :where(pre) {
+	padding: 0.6em 0.8em;
+	border-radius: 6px;
+	background: var(--surface-2);
+	overflow-x: auto;
+}
+.pw-prose :where(pre code) {
+	padding: 0;
+	background: none;
+}
+.pw-prose :where(a) {
+	color: var(--accent);
+	text-underline-offset: 3px;
+}
+.pw-prose :where(h1, h2, h3, h4) {
+	font-weight: 650;
+	margin: 0.9em 0 0.35em;
+	line-height: 1.25;
+}
+.pw-prose :where(h1) {
+	font-size: 1.15rem;
+}
+.pw-prose :where(h2) {
+	font-size: 1.05rem;
+}
+.pw-prose :where(h3, h4) {
+	font-size: 0.95rem;
+}
+.pw-prose :where(blockquote) {
+	border-left: 2px solid var(--line);
+	padding-left: 0.8em;
+	color: var(--muted);
+}
+.pw-prose :where(table) {
+	border-collapse: collapse;
+	font-size: 0.85em;
+}
+.pw-prose :where(th, td) {
+	border: 1px solid var(--line);
+	padding: 0.25em 0.5em;
 }

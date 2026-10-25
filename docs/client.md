@@ -129,7 +129,8 @@ Plain text for the agent's context, ids included so it can resolve:
 palantir: 2 new notes from the board on topic <id> (Payments retry design):
 - [answer] storage/engine "Pick the database": MySQL, same as chronicle. (note 6f1c…)
 - [comment] storage/schema "Tables" › tables › users.email: should be unique. (by Sam) (note 9a2e…)
-Unresolved from earlier: 1b7d… [correct] auth/session.
+Still unresolved from earlier:
+- [correct] auth/session "Session storage": tokens, not cookies. (note 1b7d…)
 Stale gists: storage, auth.
 Fold each note into the model, then call resolve_notes with a one-line reply for each.
 ```
@@ -137,7 +138,8 @@ Fold each note into the model, then call resolve_notes with a one-line reply for
 - Header: `palantir: <n> new note(s) …` when there are notes, else `palantir: no new notes on the board for topic <id>.`
 - Where: `topic` for a null path; else `<path> "<title>"` from `context`, then ` › <widget>` and ` › <element>` when set.
 - Empty text: `accept` → `accept the recommendation`, `defer` → `defer this`, `drop` → `drop this`.
-- The `Unresolved` and `Stale gists` lines appear only when non-empty; the last line only when there are new notes. Full UUIDs, not shortened.
+- Unresolved notes print in full, in the same line format as new ones, so a pull whose answer was lost in transit still reaches the agent on the next one.
+- The `Still unresolved` block and the `Stale gists` line appear only when non-empty; the last line when there are new or unresolved notes. Full UUIDs, not shortened.
 
 ### formatOutline
 

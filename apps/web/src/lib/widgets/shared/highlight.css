@@ -1,0 +1,67 @@
+/* Keep every color a theme token or a mix of tokens, so both themes work. */
+.pw-hl .hljs-comment,
+.pw-hl .hljs-quote {
+	color: var(--muted);
+	font-style: italic;
+}
+.pw-hl .hljs-keyword,
+.pw-hl .hljs-selector-tag,
+.pw-hl .hljs-doctag,
+.pw-hl .hljs-name,
+.pw-hl .hljs-section {
+	color: var(--accent);
+}
+.pw-hl .hljs-string,
+.pw-hl .hljs-regexp,
+.pw-hl .hljs-symbol,
+.pw-hl .hljs-char.escape_,
+.pw-hl .hljs-template-tag,
+.pw-hl .hljs-meta .hljs-string {
+	color: var(--settled);
+}
+.pw-hl .hljs-number,
+.pw-hl .hljs-literal {
+	color: var(--fog);
+}
+.pw-hl .hljs-built_in,
+.pw-hl .hljs-type,
+.pw-hl .hljs-title.class_,
+.pw-hl .hljs-title.class_.inherited__ {
+	color: color-mix(in srgb, var(--fog) 60%, var(--ink));
+}
+.pw-hl .hljs-title.function_,
+.pw-hl .hljs-title {
+	color: color-mix(in srgb, var(--accent) 50%, var(--ink));
+}
+.pw-hl .hljs-attr,
+.pw-hl .hljs-attribute,
+.pw-hl .hljs-property,
+.pw-hl .hljs-variable,
+.pw-hl .hljs-template-variable,
+.pw-hl .hljs-selector-class,
+.pw-hl .hljs-selector-id {
+	color: color-mix(in srgb, var(--settled) 55%, var(--ink));
+}
+.pw-hl .hljs-meta,
+.pw-hl .hljs-punctuation,
+.pw-hl .hljs-operator {
+	color: var(--muted);
+}
+.pw-hl .hljs-meta .hljs-keyword {
+	color: var(--accent);
+}
+.pw-hl .hljs-addition {
+	color: var(--added);
+}
+.pw-hl .hljs-deletion {
+	color: var(--removed);
+}
+.pw-hl .hljs-emphasis {
+	font-style: italic;
+}
+.pw-hl .hljs-strong {
+	font-weight: 700;
+}
+.pw-hl .hljs-link {
+	text-decoration: underline;
+}

@@ -1,0 +1,120 @@
+import { PALANTIR_HEARTBEAT_MS, PALANTIR_IDLE_MS } from '$app/env/private';
+import { subscribe } from '#lib/server/bus.ts';
+import { eventsSince, getTopicRow } from '#lib/server/store.ts';
+import type { PalantirEvent } from '#lib/types.ts';
+
+export interface StreamOptions {
+	since?: number;
+	idleMs?: number;
+	heartbeatMs?: number;
+	now?: () => number;
+	onClose?: (reason: 'idle' | 'client' | 'error') => void;
+}
+
+const encoder = new TextEncoder();
+
+function frame(event: PalantirEvent): string {
+	return `id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;
+}
+
+export async function createTopicStream(
+	topicId: string,
+	options: StreamOptions = {}
+): Promise<ReadableStream<Uint8Array> | null> {
+	const now = options.now ?? Date.now;
+	const idleMs = options.idleMs ?? PALANTIR_IDLE_MS;
+	const heartbeatMs = options.heartbeatMs ?? PALANTIR_HEARTBEAT_MS;
+	const { since } = options;
+
+	const topic = await getTopicRow(topicId);
+	if (!topic) return null;
+
+	const openedAt = now();
+	let deadline = Math.max(topic.updatedAt.getTime(), openedAt) + idleMs;
+
+	let controller!: ReadableStreamDefaultController<Uint8Array>;
+	let closed = false;
+	let replaying = since !== undefined;
+	let lastSeq = since ?? -1;
+	const buffered: PalantirEvent[] = [];
+	let unsubscribe: (() => void) | undefined;
+	let idleTimer: ReturnType<typeof setTimeout> | undefined;
+	let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+
+	function send(text: string): void {
+		if (closed) return;
+		try {
+			controller.enqueue(encoder.encode(text));
+		} catch {
+			cleanup();
+		}
+	}
+
+	function cleanup(reason: 'idle' | 'client' | 'error' = 'client'): void {
+		if (!closed) options.onClose?.(reason);
+		closed = true;
+		unsubscribe?.();
+		unsubscribe = undefined;
+		clearTimeout(idleTimer);
+		clearInterval(heartbeatTimer);
+	}
+
+	function armIdle(): void {
+		clearTimeout(idleTimer);
+		idleTimer = setTimeout(
+			() => {
+				if (closed) return;
+				send('event: idle\ndata: {}\n\n');
+				cleanup('idle');
+				try {
+					controller.close();
+				} catch {
+					// already errored or cancelled
+				}
+			},
+			Math.max(0, deadline - now())
+		);
+	}
+
+	function emit(event: PalantirEvent): void {
+		if (event.seq <= lastSeq) return;
+		lastSeq = event.seq;
+		send(frame(event));
+	}
+
+	function onLive(event: PalantirEvent): void {
+		if (closed) return;
+		deadline = now() + idleMs;
+		armIdle();
+		if (replaying) buffered.push(event);
+		else emit(event);
+	}
+
+	return new ReadableStream<Uint8Array>({
+		async start(c) {
+			controller = c;
+			unsubscribe = subscribe(topicId, onLive);
+			armIdle();
+			send(': ok\n\n');
+			try {
+				if (since !== undefined) {
+					for (const event of await eventsSince(topicId, since)) {
+						if (closed) return;
+						emit(event);
+					}
+				}
+			} catch (error) {
+				cleanup('error');
+				controller.error(error);
+				return;
+			}
+			replaying = false;
+			for (const event of buffered.splice(0)) emit(event);
+			if (closed) return;
+			heartbeatTimer = setInterval(() => send(': ping\n\n'), heartbeatMs);
+		},
+		cancel() {
+			cleanup();
+		}
+	});
+}

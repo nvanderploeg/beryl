@@ -1,4 +1,5 @@
 import type { Widget } from '#lib/types.ts';
+import { validateWidget } from './validate.ts';
 import { elements as markdownElements } from './markdown/elements.ts';
 import { elements as codeElements } from './code/elements.ts';
 import { elements as schemaElements } from './schema/elements.ts';
@@ -26,10 +27,12 @@ const byType: Record<string, (data: never) => { key: string; label: string }[]> 
 };
 
 export function elementsOf(widget: Widget): { key: string; label: string }[] {
-	const list = byType[widget?.type];
+	const checked = validateWidget(widget);
+	if (!checked.ok) return [];
+	const list = byType[checked.widget.type];
 	if (!list) return [];
 	try {
-		return list(widget.data as never);
+		return list(checked.widget.data as never);
 	} catch {
 		return [];
 	}
