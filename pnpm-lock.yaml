@@ -46,22 +46,6 @@ importers:
         version: 8.72.0(eslint@10.13.0(jiti@2.7.0))(typescript@6.0.3)
 
   apps/web:
-    dependencies:
-      '@xyflow/svelte':
-        specifier: ^1.7.0
-        version: 1.7.0(svelte@5.57.2(@typescript-eslint/types@8.72.0))
-      d3-hierarchy:
-        specifier: ^3.1.2
-        version: 3.1.2
-      elkjs:
-        specifier: ^0.12.0
-        version: 0.12.0
-      highlight.js:
-        specifier: ^11.12.0
-        version: 11.12.0
-      markdown-it:
-        specifier: ^15.0.3
-        version: 15.0.3
     devDependencies:
       '@sveltejs/adapter-node':
         specifier: ^6.0.0
@@ -90,12 +74,27 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.20.5
+      '@xyflow/svelte':
+        specifier: ^1.7.0
+        version: 1.7.0(svelte@5.57.2(@typescript-eslint/types@8.72.0))
+      d3-hierarchy:
+        specifier: ^3.1.2
+        version: 3.1.2
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.11
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.4(mysql2@3.24.6(@types/node@22.20.5))
+      elkjs:
+        specifier: ^0.12.0
+        version: 0.12.0
+      highlight.js:
+        specifier: ^11.12.0
+        version: 11.12.0
+      markdown-it:
+        specifier: ^15.0.3
+        version: 15.0.3
       mysql2:
         specifier: ^3.22.4
         version: 3.24.6(@types/node@22.20.5)
