@@ -5,6 +5,7 @@
 	import { provideBoard, type Board } from '#lib/ui/board.svelte.ts';
 	import { theme } from '#lib/ui/theme.svelte.ts';
 	import BoardHeader from './BoardHeader.svelte';
+	import SiteFooter from './SiteFooter.svelte';
 	import QuestionsSidebar from './QuestionsSidebar.svelte';
 	import Inspector from './Inspector.svelte';
 	import GraphView from './graph/GraphView.svelte';
@@ -88,6 +89,7 @@
 		</aside>
 	</div>
 	{@render bottom?.()}
+	<footer class="foot"><SiteFooter /></footer>
 	{#if board.toast}
 		{#key board.toast.n}
 			<div
@@ -141,6 +143,12 @@
 		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
+	}
+	.foot {
+		flex: none;
+		padding: 0.4rem 1rem;
+		border-top: 1px solid var(--line);
+		background: var(--surface);
 	}
 	.scrim {
 		display: none;

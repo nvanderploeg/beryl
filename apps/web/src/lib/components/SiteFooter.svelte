@@ -9,8 +9,14 @@
 	<a href="https://nanzero.com" target="_blank" rel="noopener noreferrer"
 		>Powered by <strong>Nanzero</strong></a
 	>
+	<a
+		href="https://ko-fi.com/skadiarchery"
+		target="_blank"
+		rel="noopener noreferrer"
+		data-testid="kofi-link">☕ Buy me a coffee</a
+	>
 	<span class="build" data-testid="build-stamp"
-		>v{__APP_VERSION__}
+		>v{__APP_VERSION__} ·
 		{#if hash === 'unknown'}{hash}{:else}<a
 				href="{repo}/commit/{hash}"
 				target="_blank"
