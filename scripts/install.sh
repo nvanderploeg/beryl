@@ -11,7 +11,7 @@ CODEX_CONFIG="${CODEX_HOME:-$HOME_DIR/.codex}/config.toml"
 PORT=${BERYL_PORT:-3270}
 
 HOOK_COMMAND="node \"$CLI_BIN\" hook"
-replace=0 dry=0 with_server=0 allow_tools=0 skip_mcp=0 hooks=0
+replace=0 dry=0 with_server=0 allow_tools=0 skip_mcp=0 hooks=1
 stamp=$(date +%Y%m%d%H%M%S)
 
 usage() {
@@ -25,8 +25,9 @@ Safe to re-run; existing paths that are not ours are skipped.
                   re-register the MCP server instead of skipping
   --with-server   start the local board server (docker compose up -d) and wait for it
   --allow-tools   add "mcp__beryl__*" to permissions.allow in ~/.claude/settings.json
-  --hooks         add Claude Code hooks to ~/.claude/settings.json that bring
-                  board notes into each turn of a session grilling a topic
+  --without-hooks do not add the Claude Code hooks to ~/.claude/settings.json
+                  that bring board notes into each turn of a session
+                  grilling a topic
   --skip-mcp      do not register the MCP server with Claude Code or Codex
   --dry-run       print what would happen without changing anything
   -h, --help      show this help
@@ -51,7 +52,7 @@ while [ $# -gt 0 ]; do
 		--replace) replace=1 ;;
 		--with-server) with_server=1 ;;
 		--allow-tools) allow_tools=1 ;;
-		--hooks) hooks=1 ;;
+		--without-hooks) hooks=0 ;;
 		--skip-mcp) skip_mcp=1 ;;
 		--dry-run) dry=1 ;;
 		-h | --help)

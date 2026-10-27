@@ -26,7 +26,7 @@ Needs Node.js 22+, pnpm 11 (`corepack enable`), and Docker with compose for the 
 ```sh
 git clone https://github.com/nvanderploeg/beryl
 cd beryl
-scripts/install.sh --with-server --hooks
+scripts/install.sh --with-server
 beryl doctor
 ```
 

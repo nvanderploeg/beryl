@@ -5,7 +5,7 @@
 Needs Node.js 22+, pnpm 11 (`corepack enable`), and Docker with compose for the local board server.
 
 ```sh
-scripts/install.sh --with-server --hooks
+scripts/install.sh --with-server
 beryl doctor
 ```
 
@@ -14,7 +14,7 @@ This builds the packages, links the `beryl` skill and CLI (`~/.local/bin/beryl`)
 | Flag | Does |
 | --- | --- |
 | `--with-server` | `docker compose up -d` and wait for the server to answer |
-| `--hooks` | add `beryl hook` to `~/.claude/settings.json` on `SessionStart` (compact, resume), `UserPromptSubmit` and `PostToolUse` of beryl tools |
+| `--without-hooks` | skip adding `beryl hook` to `~/.claude/settings.json`, which otherwise runs on `SessionStart` (compact, resume), `UserPromptSubmit` and `PostToolUse` of beryl tools |
 | `--allow-tools` | add `mcp__beryl__*` to `permissions.allow` |
 | `--replace` | move conflicting paths aside and re-register |
 | `--skip-mcp` | do not register the MCP server |
