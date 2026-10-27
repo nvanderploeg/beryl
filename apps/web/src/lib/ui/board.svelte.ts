@@ -15,6 +15,8 @@ import { indexByPath, parentPaths, without } from './index.ts';
 import { LiveTopic } from './live.svelte.ts';
 import { captureNoteKey } from './notekey.ts';
 import { keys, readStored, writeStored } from './storage.ts';
+import * as dock from './layout.ts';
+import type { Dock, Layout, PanelId } from './layout.ts';
 import { ancestorsOf, freshSince, nodeAt } from './topic.ts';
 
 export type View = 'graph' | 'map' | 'outline' | 'frontier';
@@ -72,7 +74,10 @@ export class Board {
 	selected: string | null = $state(null);
 	anchor: Pick<Anchor, 'widget' | 'element'> = $state({});
 	flight: Flight | null = $state(null);
-	sidebarOpen = $state(true);
+	layout: Layout = $state(dock.defaultLayout());
+	narrow = $state(false);
+	dragging: PanelId | null = $state(null);
+	composerFocus = $state(0);
 	drawerOpen = $state(false);
 	sheetOpen = $state(false);
 	include: NodeKind[] = $state([]);
@@ -122,8 +127,15 @@ export class Board {
 	}
 
 	start(): () => void {
-		const stored = readStored(keys.sidebar);
-		if (stored !== null) this.sidebarOpen = stored === '1';
+		const stored = readStored(keys.layout);
+		if (stored !== null) this.layout = dock.parseLayout(stored);
+		else if (readStored(keys.sidebar) === '0')
+			this.layout = dock.setCollapsed(this.layout, 'left', true);
+		const query = matchMedia('(max-width: 900px)');
+		this.narrow = query.matches;
+		const onNarrow = () => (this.narrow = query.matches);
+		query.addEventListener('change', onNarrow);
+		const stopNarrow = () => query.removeEventListener('change', onNarrow);
 		const include = readStored(keys.include);
 		if (include) {
 			this.include = include
@@ -131,7 +143,7 @@ export class Board {
 				.filter((k): k is NodeKind => EXTRA_KINDS.includes(k as NodeKind));
 		}
 		this.author = readStored(keys.author) ?? '';
-		if (this.mode === 'demo') return () => {};
+		if (this.mode === 'demo') return stopNarrow;
 
 		this.noteKey = captureNoteKey(this.project.id);
 		this.since = readStored(keys.seen(this.topic.id));
@@ -143,6 +155,7 @@ export class Board {
 		window.addEventListener('pagehide', saveVisit);
 		const stopLive = this.live.start();
 		return () => {
+			stopNarrow();
 			stopLive();
 			document.removeEventListener('visibilitychange', onVisibility);
 			window.removeEventListener('pagehide', saveVisit);
@@ -180,9 +193,33 @@ export class Board {
 		this.view = view;
 	}
 
+	get sidebarOpen(): boolean {
+		const home = dock.locate(this.layout, 'questions');
+		return !!home && !this.layout[home.dock].collapsed;
+	}
+
 	setSidebar(open: boolean): void {
-		this.sidebarOpen = open;
-		writeStored(keys.sidebar, open ? '1' : '0');
+		const home = dock.locate(this.layout, 'questions');
+		if (home) this.setLayout(dock.setCollapsed(this.layout, home.dock, !open));
+	}
+
+	setLayout(next: Layout): void {
+		if (next === this.layout) return;
+		this.layout = next;
+		writeStored(keys.layout, JSON.stringify(next));
+	}
+
+	resetLayout(): void {
+		this.layout = dock.defaultLayout();
+		writeStored(keys.layout, null);
+	}
+
+	dockPanel(panel: PanelId, zone: Dock): void {
+		this.setLayout(dock.moveToZone(this.layout, panel, zone));
+	}
+
+	reveal(panel: PanelId): void {
+		this.setLayout(dock.reveal(this.layout, panel));
 	}
 
 	toggleInclude(kind: NodeKind): void {

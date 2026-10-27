@@ -3,11 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { provideBoard, type Board } from '#lib/ui/board.svelte.ts';
+	import { STAGE_MIN, ZONE_MIN, narrowLayout, type PanelId } from '#lib/ui/layout.ts';
 	import { theme } from '#lib/ui/theme.svelte.ts';
 	import BoardHeader from './BoardHeader.svelte';
 	import SiteFooter from './SiteFooter.svelte';
-	import QuestionsSidebar from './QuestionsSidebar.svelte';
-	import Inspector from './Inspector.svelte';
+	import Dock from './dock/Dock.svelte';
+	import DockGroup from './dock/DockGroup.svelte';
+	import DockPanel from './dock/DockPanel.svelte';
+	import Mark from './Mark.svelte';
 	import GraphView from './graph/GraphView.svelte';
 	import MapView from './MapView.svelte';
 	import OutlineView from './OutlineView.svelte';
@@ -17,6 +20,23 @@
 
 	// svelte-ignore state_referenced_locally
 	provideBoard(board);
+
+	let bodyW = $state(0);
+	let bodyH = $state(0);
+	let sheetTab: PanelId = $state('details');
+
+	const sheetGroup = $derived({ ...narrowLayout().right.groups[0], active: sheetTab });
+	const isCurrent = $derived(
+		!!board.selectedNode && board.topic.current === board.selectedNode.path
+	);
+
+	function sideRoom(dock: 'left' | 'right'): number {
+		const other = board.layout[dock === 'left' ? 'right' : 'left'];
+		const taken = other.groups.length ? (other.collapsed ? 36 : other.size) : 0;
+		return Math.max(ZONE_MIN[dock], bodyW - STAGE_MIN - taken);
+	}
+
+	const bottomRoom = $derived(Math.max(ZONE_MIN.bottom, bodyH - 200));
 
 	onMount(() => {
 		theme.start();
@@ -46,48 +66,86 @@
 	}
 </script>
 
+{#snippet stage()}
+	{#if board.view === 'graph'}
+		<GraphView />
+	{:else if board.view === 'map'}
+		<MapView />
+	{:else if board.view === 'outline'}
+		<OutlineView />
+	{:else}
+		<FrontierView />
+	{/if}
+{/snippet}
+
 <svelte:window onkeydown={keydown} />
 
-<div class="board" class:rail={!board.sidebarOpen} data-testid="board" data-view={board.view}>
+<div class="board" data-testid="board" data-view={board.view}>
 	{@render top?.()}
 	<BoardHeader />
-	<div class="body">
-		<aside
-			class="sidebar"
-			class:open={board.drawerOpen}
-			aria-label="Questions"
-			data-testid="questions-sidebar"
-		>
-			<QuestionsSidebar />
-		</aside>
-		{#if board.drawerOpen}
-			<button
-				type="button"
-				class="scrim"
-				aria-label="Close questions"
-				onclick={() => (board.drawerOpen = false)}
-			></button>
-		{/if}
-		<main class="stage" aria-label="{board.view} view">
-			{#if board.view === 'graph'}
-				<GraphView />
-			{:else if board.view === 'map'}
-				<MapView />
-			{:else if board.view === 'outline'}
-				<OutlineView />
-			{:else}
-				<FrontierView />
+	{#if board.narrow}
+		<div class="body narrow">
+			<aside
+				class="drawer"
+				class:open={board.drawerOpen}
+				aria-label="Questions"
+				data-testid="questions-sidebar"
+			>
+				<DockPanel id="questions" />
+			</aside>
+			{#if board.drawerOpen}
+				<button
+					type="button"
+					class="scrim"
+					aria-label="Close questions"
+					onclick={() => (board.drawerOpen = false)}
+				></button>
 			{/if}
-		</main>
-		<aside
-			class="inspector"
-			class:open={board.sheetOpen}
-			aria-label="Inspector"
-			data-testid="inspector"
-		>
-			<Inspector />
-		</aside>
-	</div>
+			<main class="stage" aria-label="{board.view} view">
+				{@render stage()}
+			</main>
+			<aside
+				class="sheet"
+				class:open={board.sheetOpen}
+				aria-label="Inspector"
+				data-testid="inspector"
+			>
+				<button
+					type="button"
+					class="handle"
+					aria-expanded={board.sheetOpen}
+					onclick={() => (board.sheetOpen = !board.sheetOpen)}
+				>
+					<span class="grip"></span>
+					<span class="handle-title">
+						{#if board.selectedNode}
+							<Mark
+								kind={board.selectedNode.kind}
+								status={board.selectedNode.status}
+								size={14}
+								current={isCurrent}
+							/>
+							{board.selectedNode.title}
+						{:else}
+							{board.topic.title}
+						{/if}
+					</span>
+				</button>
+				<DockGroup dock="right" group={sheetGroup} fixed onactivate={(p) => (sheetTab = p)} />
+			</aside>
+		</div>
+	{:else}
+		<div class="body" bind:clientWidth={bodyW} bind:clientHeight={bodyH}>
+			<div class="row">
+				<Dock dock="left" room={sideRoom('left')} />
+				<main class="stage" aria-label="{board.view} view">
+					{@render stage()}
+				</main>
+				<Dock dock="right" room={sideRoom('right')} />
+			</div>
+			<Dock dock="bottom" room={bottomRoom} />
+		</div>
+	{/if}
 	{@render bottom?.()}
 	<footer class="foot"><SiteFooter /></footer>
 	{#if board.toast}
@@ -107,39 +165,26 @@
 
 <style>
 	.board {
-		--sb: 300px;
-		--ins: 420px;
 		height: 100dvh;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
 		background: var(--bg);
 	}
-	.board.rail {
-		--sb: 52px;
-	}
 	.body {
 		flex: 1;
 		min-height: 0;
-		display: grid;
-		grid-template-columns: var(--sb) minmax(0, 1fr) var(--ins);
-		transition: grid-template-columns 220ms var(--ease);
+		display: flex;
+		flex-direction: column;
 	}
-	.sidebar,
-	.inspector {
+	.row {
+		flex: 1;
 		min-height: 0;
-		min-width: 0;
-		background: var(--surface);
-		overflow: hidden;
-	}
-	.sidebar {
-		border-right: 1px solid var(--line);
-	}
-	.inspector {
-		border-left: 1px solid var(--line);
+		display: flex;
 	}
 	.stage {
 		position: relative;
+		flex: 1;
 		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
@@ -149,9 +194,6 @@
 		padding: 0.4rem 1rem;
 		border-top: 1px solid var(--line);
 		background: var(--surface);
-	}
-	.scrim {
-		display: none;
 	}
 	.toast {
 		position: fixed;
@@ -172,53 +214,77 @@
 		border-color: color-mix(in srgb, var(--removed) 60%, var(--line));
 	}
 
-	@media (max-width: 1240px) {
-		.board {
-			--sb: 264px;
-			--ins: 360px;
-		}
+	.drawer {
+		position: fixed;
+		z-index: 40;
+		inset: 0 auto 0 0;
+		width: min(340px, 88vw);
+		background: var(--surface);
+		translate: -102% 0;
+		transition: translate 220ms var(--ease);
+		box-shadow: var(--shadow-pop);
+		overflow: hidden;
 	}
-
-	@media (max-width: 900px) {
-		.body {
-			grid-template-columns: minmax(0, 1fr);
-		}
-		.sidebar {
-			position: fixed;
-			z-index: 40;
-			inset: 0 auto 0 0;
-			width: min(340px, 88vw);
-			translate: -102% 0;
-			transition: translate 220ms var(--ease);
-			box-shadow: var(--shadow-pop);
-		}
-		.sidebar.open {
-			translate: 0 0;
-		}
-		.scrim {
-			display: block;
-			position: fixed;
-			inset: 0;
-			z-index: 39;
-			border: 0;
-			background: rgb(0 0 0 / 0.38);
-		}
-		.inspector {
-			position: fixed;
-			z-index: 30;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			height: min(64dvh, 640px);
-			border-left: 0;
-			border-top: 1px solid var(--line);
-			border-radius: 16px 16px 0 0;
-			box-shadow: 0 -12px 32px -16px rgb(0 0 0 / 0.5);
-			translate: 0 calc(100% - 56px);
-			transition: translate 240ms var(--ease);
-		}
-		.inspector.open {
-			translate: 0 0;
-		}
+	.drawer.open {
+		translate: 0 0;
+	}
+	.scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 39;
+		border: 0;
+		background: rgb(0 0 0 / 0.38);
+	}
+	.sheet {
+		position: fixed;
+		z-index: 30;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: min(64dvh, 640px);
+		display: flex;
+		flex-direction: column;
+		background: var(--surface);
+		border-top: 1px solid var(--line);
+		border-radius: 16px 16px 0 0;
+		box-shadow: 0 -12px 32px -16px rgb(0 0 0 / 0.5);
+		overflow: hidden;
+		translate: 0 calc(100% - 56px);
+		transition: translate 240ms var(--ease);
+	}
+	.sheet.open {
+		translate: 0 0;
+	}
+	.handle {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.35rem;
+		flex: none;
+		height: 56px;
+		padding: 0.4rem 1rem 0;
+		border: 0;
+		border-bottom: 1px solid var(--line);
+		background: none;
+		color: var(--ink);
+		font: inherit;
+		cursor: pointer;
+	}
+	.grip {
+		width: 36px;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--line);
+	}
+	.handle-title {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		max-width: 100%;
+		font-size: 0.9rem;
+		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 </style>

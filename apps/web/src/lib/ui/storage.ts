@@ -21,6 +21,7 @@ export const keys = {
 	noteKey: (projectId: string) => `beryl:nk:${projectId}`,
 	seen: (topicId: string) => `beryl:seen:${topicId}`,
 	sidebar: 'beryl:sidebar',
+	layout: 'beryl:layout',
 	include: 'beryl:include',
 	author: 'beryl:author',
 	theme: 'beryl:theme'

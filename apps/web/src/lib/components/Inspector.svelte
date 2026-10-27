@@ -18,9 +18,10 @@
 	import Mark from './Mark.svelte';
 	import NoteThread from './NoteThread.svelte';
 
+	let { part }: { part: 'details' | 'notes' | 'history' } = $props();
+
 	const board = useBoard();
 
-	let tab: 'details' | 'history' = $state('details');
 	let composer: Composer | undefined = $state();
 	let scroller: HTMLElement | undefined = $state();
 
@@ -53,13 +54,17 @@
 
 	$effect(() => {
 		void board.selected;
-		tab = 'details';
 		scroller?.scrollTo({ top: 0 });
+	});
+
+	$effect(() => {
+		if (board.composerFocus > 0 && part === 'notes') composer?.focus();
 	});
 
 	function pickElement(widget: string, element: string) {
 		board.anchor = { widget, element };
-		composer?.focus();
+		board.reveal('notes');
+		board.composerFocus++;
 	}
 
 	function sourceHref(file: string, line?: number): string | null {
@@ -91,79 +96,44 @@
 {/snippet}
 
 <div class="inspector-wrap">
-	<button
-		type="button"
-		class="handle"
-		aria-expanded={board.sheetOpen}
-		onclick={() => (board.sheetOpen = !board.sheetOpen)}
-	>
-		<span class="grip"></span>
-		<span class="handle-title">
-			{#if node}
-				<Mark kind={node.kind} status={node.status} size={14} current={isCurrent} />
-				{node.title}
-			{:else}
-				{board.topic.title}
-			{/if}
-		</span>
-	</button>
-
 	<div class="scroll" bind:this={scroller}>
-		{#if node}
-			<nav class="crumbs" aria-label="Ancestors">
-				<button type="button" onclick={() => board.select(null)}>{board.topic.title}</button>
-				{#each crumbs as c (c.path)}
-					<span class="slash">/</span>
-					<button type="button" onclick={() => board.jump(c.path)}>{c.title}</button>
-				{/each}
-			</nav>
+		{#if part === 'details'}
+			{#if node}
+				<nav class="crumbs" aria-label="Ancestors">
+					<button type="button" onclick={() => board.select(null)}>{board.topic.title}</button>
+					{#each crumbs as c (c.path)}
+						<span class="slash">/</span>
+						<button type="button" onclick={() => board.jump(c.path)}>{c.title}</button>
+					{/each}
+				</nav>
 
-			<div class="kindline">
-				<Mark kind={node.kind} status={node.status} size={18} current={isCurrent} />
-				<span class="kind">{KIND_LABEL[node.kind]}</span>
-				<span class="pill s-{node.status}">{STATUS_LABEL[node.status]}</span>
-				{#if isCurrent}<span class="pill now">Now asking</span>{/if}
-				{#if node.rank !== null && node.status === 'open'}<span class="rank tabular"
-						>#{node.rank}</span
-					>{/if}
-				<span class="path mono" title={node.path}>{node.path}</span>
-			</div>
+				<div class="kindline">
+					<Mark kind={node.kind} status={node.status} size={18} current={isCurrent} />
+					<span class="kind">{KIND_LABEL[node.kind]}</span>
+					<span class="pill s-{node.status}">{STATUS_LABEL[node.status]}</span>
+					{#if isCurrent}<span class="pill now">Now asking</span>{/if}
+					{#if node.rank !== null && node.status === 'open'}<span class="rank tabular"
+							>#{node.rank}</span
+						>{/if}
+					<span class="path mono" title={node.path}>{node.path}</span>
+				</div>
 
-			<h2 class="title" class:dropped={node.status === 'dropped'}>{node.title}</h2>
+				<h2 class="title" class:dropped={node.status === 'dropped'}>{node.title}</h2>
 
-			{#if node.gist || node.gistStale}
-				<p class="gist">
-					{node.gist}
-					{#if node.gistStale}
-						<span
-							class="stale"
-							data-testid="stale-gist"
-							title="What is inside changed since this summary was written; the agent will rewrite it"
-							>Stale gist</span
-						>
-					{/if}
-				</p>
-			{/if}
+				{#if node.gist || node.gistStale}
+					<p class="gist">
+						{node.gist}
+						{#if node.gistStale}
+							<span
+								class="stale"
+								data-testid="stale-gist"
+								title="What is inside changed since this summary was written; the agent will rewrite it"
+								>Stale gist</span
+							>
+						{/if}
+					</p>
+				{/if}
 
-			<div class="tabs" role="tablist">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={tab === 'details'}
-					onclick={() => (tab = 'details')}>Details</button
-				>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={tab === 'history'}
-					data-testid="tab-history"
-					onclick={() => (tab = 'history')}>History</button
-				>
-			</div>
-
-			{#if tab === 'history'}
-				<History path={node.path} version={node.updatedAt} />
-			{:else}
 				{#if pending}
 					<div class="pending" data-testid="pending-answer">
 						<span class="pending-head">Answered on the board, waiting on the agent</span>
@@ -290,79 +260,81 @@
 						</ul>
 					</section>
 				{/if}
-
-				<section class="section notes">
-					<h3>Notes <span class="counts tabular">{notes.length || ''}</span></h3>
-					<NoteThread {notes} {node} />
-					<Composer bind:this={composer} {node} />
-				</section>
+			{:else}
+				<div class="overview" data-testid="topic-overview">
+					<span class="kind">Topic</span>
+					<h2 class="title">{board.topic.title}</h2>
+					{#if board.topic.destination}
+						<section class="dest block">
+							<h3>Destination</h3>
+							<p>{board.topic.destination}</p>
+						</section>
+					{/if}
+					{#if summary}
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -- markdown-it with html disabled -->
+						<div class="pw-prose body">{@html summary}</div>
+					{/if}
+					<dl class="facts">
+						<div>
+							<dt>Open questions</dt>
+							<dd class="tabular">{counts.questions}</dd>
+						</div>
+						<div>
+							<dt>Assumptions</dt>
+							<dd class="tabular">{counts.assumptions}</dd>
+						</div>
+						<div>
+							<dt>Fog</dt>
+							<dd class="tabular">{counts.fog}</dd>
+						</div>
+						<div>
+							<dt>Risks</dt>
+							<dd class="tabular">{counts.risks}</dd>
+						</div>
+						<div>
+							<dt>Settled</dt>
+							<dd class="tabular">{counts.settled} of {counts.total}</dd>
+						</div>
+						{#if board.topic.repo}<div class="wide">
+								<dt>Repo</dt>
+								<dd class="mono">
+									{board.topic.repo}{board.topic.branch ? ` @ ${board.topic.branch}` : ''}
+								</dd>
+							</div>{/if}
+						{#if board.topic.agent?.model}<div class="wide">
+								<dt>Agent</dt>
+								<dd>
+									{[board.topic.agent.tool, board.topic.agent.model, board.topic.agent.effort]
+										.filter(Boolean)
+										.join(', ')}
+								</dd>
+							</div>{/if}
+					</dl>
+					{#if board.topic.current && board.byPath.get(board.topic.current)}
+						{@const cur = board.byPath.get(board.topic.current)!}
+						<button type="button" class="now-asking" onclick={() => board.jump(cur.path)}>
+							<span class="pill now">Now asking</span>
+							<span class="now-title">{cur.title}</span>
+							{#if cur.recommendation}<span class="now-rec">{firstLine(cur.recommendation)}</span
+								>{/if}
+						</button>
+					{/if}
+					<p class="tip">Select a node in any view, or a question on the left, to see it here.</p>
+				</div>
 			{/if}
+		{:else if part === 'notes'}
+			<section class="section notes">
+				<h3>
+					{node ? 'Notes' : 'Notes on the whole topic'}
+					<span class="counts tabular">{notes.length || ''}</span>
+				</h3>
+				<NoteThread {notes} {node} />
+				<Composer bind:this={composer} {node} />
+			</section>
+		{:else if node}
+			<History path={node.path} version={node.updatedAt} />
 		{:else}
-			<div class="overview" data-testid="topic-overview">
-				<span class="kind">Topic</span>
-				<h2 class="title">{board.topic.title}</h2>
-				{#if board.topic.destination}
-					<section class="dest block">
-						<h3>Destination</h3>
-						<p>{board.topic.destination}</p>
-					</section>
-				{/if}
-				{#if summary}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -- markdown-it with html disabled -->
-					<div class="pw-prose body">{@html summary}</div>
-				{/if}
-				<dl class="facts">
-					<div>
-						<dt>Open questions</dt>
-						<dd class="tabular">{counts.questions}</dd>
-					</div>
-					<div>
-						<dt>Assumptions</dt>
-						<dd class="tabular">{counts.assumptions}</dd>
-					</div>
-					<div>
-						<dt>Fog</dt>
-						<dd class="tabular">{counts.fog}</dd>
-					</div>
-					<div>
-						<dt>Risks</dt>
-						<dd class="tabular">{counts.risks}</dd>
-					</div>
-					<div>
-						<dt>Settled</dt>
-						<dd class="tabular">{counts.settled} of {counts.total}</dd>
-					</div>
-					{#if board.topic.repo}<div class="wide">
-							<dt>Repo</dt>
-							<dd class="mono">
-								{board.topic.repo}{board.topic.branch ? ` @ ${board.topic.branch}` : ''}
-							</dd>
-						</div>{/if}
-					{#if board.topic.agent?.model}<div class="wide">
-							<dt>Agent</dt>
-							<dd>
-								{[board.topic.agent.tool, board.topic.agent.model, board.topic.agent.effort]
-									.filter(Boolean)
-									.join(', ')}
-							</dd>
-						</div>{/if}
-				</dl>
-				{#if board.topic.current && board.byPath.get(board.topic.current)}
-					{@const cur = board.byPath.get(board.topic.current)!}
-					<button type="button" class="now-asking" onclick={() => board.jump(cur.path)}>
-						<span class="pill now">Now asking</span>
-						<span class="now-title">{cur.title}</span>
-						{#if cur.recommendation}<span class="now-rec">{firstLine(cur.recommendation)}</span
-							>{/if}
-					</button>
-				{/if}
-				<p class="tip">Select a node in any view, or a question on the left, to see it here.</p>
-				<section class="section notes">
-					<h3>Notes on the whole topic <span class="counts tabular">{notes.length || ''}</span></h3>
-					<NoteThread {notes} node={null} />
-					<Composer node={null} />
-				</section>
-			</div>
+			<p class="tip">Select a node to see its history.</p>
 		{/if}
 	</div>
 </div>
@@ -373,9 +345,6 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-	}
-	.handle {
-		display: none;
 	}
 	.scroll {
 		flex: 1;
@@ -483,28 +452,6 @@
 		font-weight: 600;
 		vertical-align: 0.1em;
 		cursor: help;
-	}
-	.tabs {
-		display: flex;
-		gap: 1rem;
-		margin: 0.4rem 0 0.9rem;
-		border-bottom: 1px solid var(--line);
-	}
-	.tabs button {
-		padding: 0.35rem 0;
-		margin-bottom: -1px;
-		border: 0;
-		border-bottom: 2px solid transparent;
-		background: none;
-		color: var(--muted);
-		font: inherit;
-		font-size: 0.84rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-	.tabs button[aria-selected='true'] {
-		color: var(--ink);
-		border-bottom-color: var(--accent);
 	}
 	.pending {
 		display: flex;
@@ -750,38 +697,6 @@
 	}
 
 	@media (max-width: 900px) {
-		.handle {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			gap: 0.35rem;
-			flex: none;
-			height: 56px;
-			padding: 0.4rem 1rem 0;
-			border: 0;
-			border-bottom: 1px solid var(--line);
-			background: none;
-			color: var(--ink);
-			font: inherit;
-			cursor: pointer;
-		}
-		.grip {
-			width: 36px;
-			height: 4px;
-			border-radius: 2px;
-			background: var(--line);
-		}
-		.handle-title {
-			display: flex;
-			align-items: center;
-			gap: 0.45rem;
-			max-width: 100%;
-			font-size: 0.9rem;
-			font-weight: 600;
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-		}
 		.scroll {
 			padding: 0.8rem 1rem 2rem;
 		}

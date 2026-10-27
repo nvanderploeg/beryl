@@ -97,191 +97,163 @@
 	});
 </script>
 
-{#if !board.sidebarOpen && !board.drawerOpen}
-	<div class="rail">
-		<button
-			type="button"
-			class="rail-btn"
-			title="Show questions"
-			aria-label="Show questions"
-			onclick={() => board.setSidebar(true)}
-		>
-			<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-				<path
-					d="M6 3.5 10.5 8 6 12.5"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				/>
-			</svg>
-		</button>
-		<span class="rail-count tabular" title="{counts.questions} open questions">
-			<Mark kind="decision" status="open" size={14} />
-			{counts.questions}
-		</span>
-		<span class="rail-label">Questions</span>
-	</div>
-{:else}
-	<div class="side">
-		<div class="top">
-			<div class="heading">
-				<h2>Questions</h2>
-				<span class="total tabular">{total}</span>
+<div class="side">
+	<div class="top">
+		<div class="heading">
+			<h2>Questions</h2>
+			<span class="total tabular">{total}</span>
+			<button
+				type="button"
+				class="hide-btn"
+				title="Hide questions"
+				aria-label="Hide questions"
+				onclick={() => {
+					board.setSidebar(false);
+					board.drawerOpen = false;
+				}}
+			>
+				<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+					<path
+						d="M10 3.5 5.5 8l4.5 4.5"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+			</button>
+		</div>
+		<input
+			class="search"
+			type="search"
+			placeholder="Filter by title or gist"
+			aria-label="Filter questions"
+			data-testid="question-search"
+			bind:value={board.query}
+			onkeydown={searchKeydown}
+		/>
+		<div class="filters" role="group" aria-label="Also list">
+			{#each EXTRA_KINDS as kind (kind)}
+				{@const on = board.include.includes(kind)}
 				<button
 					type="button"
-					class="hide-btn"
-					title="Hide questions"
-					aria-label="Hide questions"
-					onclick={() => {
-						board.setSidebar(false);
-						board.drawerOpen = false;
-					}}
+					class="filter"
+					class:on
+					aria-pressed={on}
+					data-testid="include-{kind}"
+					onclick={() => board.toggleInclude(kind)}
 				>
-					<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-						<path
-							d="M10 3.5 5.5 8l4.5 4.5"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+					<Mark {kind} status="open" size={12} />
+					{extraLabel[kind].label}
+					<span class="tabular n">{extraLabel[kind].count}</span>
 				</button>
-			</div>
-			<input
-				class="search"
-				type="search"
-				placeholder="Filter by title or gist"
-				aria-label="Filter questions"
-				data-testid="question-search"
-				bind:value={board.query}
-				onkeydown={searchKeydown}
-			/>
-			<div class="filters" role="group" aria-label="Also list">
-				{#each EXTRA_KINDS as kind (kind)}
-					{@const on = board.include.includes(kind)}
-					<button
-						type="button"
-						class="filter"
-						class:on
-						aria-pressed={on}
-						data-testid="include-{kind}"
-						onclick={() => board.toggleInclude(kind)}
-					>
-						<Mark {kind} status="open" size={12} />
-						{extraLabel[kind].label}
-						<span class="tabular n">{extraLabel[kind].count}</span>
-					</button>
-				{/each}
-			</div>
-		</div>
-
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="list" bind:this={list} onkeydown={keydown} data-testid="question-list">
-			{#each shown as group (group.key)}
-				<section class="group g-{group.key}">
-					<button
-						type="button"
-						class="group-head"
-						aria-expanded={!folded[group.key]}
-						onclick={() => (folded[group.key] = !folded[group.key])}
-					>
-						<span>{group.label}</span>
-						<span class="tabular gcount">{group.nodes.length}</span>
-						<svg
-							class="chev"
-							class:shut={folded[group.key]}
-							viewBox="0 0 12 12"
-							width="10"
-							height="10"
-							aria-hidden="true"
-						>
-							<path
-								d="M3 4.5 6 7.5 9 4.5"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.4"
-								stroke-linecap="round"
-							/>
-						</svg>
-					</button>
-					{#if !folded[group.key]}
-						<ul>
-							{#each group.nodes as n (n.path)}
-								{@const pending = pendingAnswer(board.notes, n.path)}
-								{@const notes = openNotes.get(n.path) ?? 0}
-								{@const area = areaOf(n)}
-								<li>
-									<button
-										type="button"
-										class="row s-{n.status} k-{n.kind}"
-										class:selected={board.selected === n.path}
-										class:fresh={board.fresh.has(n.path)}
-										data-path={n.path}
-										data-testid="question-row"
-										aria-current={board.selected === n.path ? 'true' : undefined}
-										onclick={() => board.jump(n.path)}
-									>
-										<span class="mark-col">
-											<Mark
-												kind={n.kind}
-												status={n.status}
-												size={15}
-												current={group.key === 'current'}
-											/>
-										</span>
-										<span class="main">
-											<span class="title">
-												{#if group.key === 'ready' && n.rank !== null}<span class="rank tabular"
-														>#{n.rank}</span
-													>{/if}
-												{n.title}
-											</span>
-											{#if group.key === 'leaning'}
-												<span class="sub waits">
-													waits on {(waiting.get(n.path) ?? []).map(titleOf).join(', ')}
-												</span>
-											{:else if group.key === 'settled' && n.answer}
-												<span class="sub answer">{firstLine(n.answer)}</span>
-											{:else if group.key === 'open'}
-												<span class="sub">{KIND_LABEL[n.kind]}</span>
-											{/if}
-											{#if area}<span class="area">{area}</span>{/if}
-										</span>
-										<span class="badges">
-											{#if pending}
-												<span
-													class="badge pending"
-													title="Answered on the board, waiting on the agent">{pending.intent}</span
-												>
-											{:else if notes}
-												<span
-													class="badge notes tabular"
-													title="{notes} open note{notes === 1 ? '' : 's'}">{notes}</span
-												>
-											{/if}
-										</span>
-									</button>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</section>
-			{:else}
-				<p class="empty">
-					{#if needle}
-						Nothing matches “{board.query}”.
-					{:else}
-						No questions yet. They appear as the agent writes them.
-					{/if}
-				</p>
 			{/each}
 		</div>
 	</div>
-{/if}
+
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="list" bind:this={list} onkeydown={keydown} data-testid="question-list">
+		{#each shown as group (group.key)}
+			<section class="group g-{group.key}">
+				<button
+					type="button"
+					class="group-head"
+					aria-expanded={!folded[group.key]}
+					onclick={() => (folded[group.key] = !folded[group.key])}
+				>
+					<span>{group.label}</span>
+					<span class="tabular gcount">{group.nodes.length}</span>
+					<svg
+						class="chev"
+						class:shut={folded[group.key]}
+						viewBox="0 0 12 12"
+						width="10"
+						height="10"
+						aria-hidden="true"
+					>
+						<path
+							d="M3 4.5 6 7.5 9 4.5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.4"
+							stroke-linecap="round"
+						/>
+					</svg>
+				</button>
+				{#if !folded[group.key]}
+					<ul>
+						{#each group.nodes as n (n.path)}
+							{@const pending = pendingAnswer(board.notes, n.path)}
+							{@const notes = openNotes.get(n.path) ?? 0}
+							{@const area = areaOf(n)}
+							<li>
+								<button
+									type="button"
+									class="row s-{n.status} k-{n.kind}"
+									class:selected={board.selected === n.path}
+									class:fresh={board.fresh.has(n.path)}
+									data-path={n.path}
+									data-testid="question-row"
+									aria-current={board.selected === n.path ? 'true' : undefined}
+									onclick={() => board.jump(n.path)}
+								>
+									<span class="mark-col">
+										<Mark
+											kind={n.kind}
+											status={n.status}
+											size={15}
+											current={group.key === 'current'}
+										/>
+									</span>
+									<span class="main">
+										<span class="title">
+											{#if group.key === 'ready' && n.rank !== null}<span class="rank tabular"
+													>#{n.rank}</span
+												>{/if}
+											{n.title}
+										</span>
+										{#if group.key === 'leaning'}
+											<span class="sub waits">
+												waits on {(waiting.get(n.path) ?? []).map(titleOf).join(', ')}
+											</span>
+										{:else if group.key === 'settled' && n.answer}
+											<span class="sub answer">{firstLine(n.answer)}</span>
+										{:else if group.key === 'open'}
+											<span class="sub">{KIND_LABEL[n.kind]}</span>
+										{/if}
+										{#if area}<span class="area">{area}</span>{/if}
+									</span>
+									<span class="badges">
+										{#if pending}
+											<span
+												class="badge pending"
+												title="Answered on the board, waiting on the agent">{pending.intent}</span
+											>
+										{:else if notes}
+											<span
+												class="badge notes tabular"
+												title="{notes} open note{notes === 1 ? '' : 's'}">{notes}</span
+											>
+										{/if}
+									</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+		{:else}
+			<p class="empty">
+				{#if needle}
+					Nothing matches “{board.query}”.
+				{:else}
+					No questions yet. They appear as the agent writes them.
+				{/if}
+			</p>
+		{/each}
+	</div>
+</div>
 
 <style>
 	.side {
@@ -524,43 +496,5 @@
 		margin: 1.5rem 0.8rem;
 		color: var(--muted);
 		font-size: 0.85rem;
-	}
-	.rail {
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.75rem;
-		padding-top: 0.6rem;
-	}
-	.rail-btn {
-		display: grid;
-		place-items: center;
-		width: 32px;
-		height: 32px;
-		border: 0;
-		border-radius: 8px;
-		background: none;
-		color: var(--muted);
-		cursor: pointer;
-	}
-	.rail-btn:hover {
-		background: var(--surface-2);
-		color: var(--ink);
-	}
-	.rail-count {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.2rem;
-		font-size: 0.78rem;
-		font-weight: 650;
-	}
-	.rail-label {
-		writing-mode: vertical-rl;
-		rotate: 180deg;
-		font-size: 0.78rem;
-		color: var(--muted);
-		letter-spacing: 0.02em;
 	}
 </style>
