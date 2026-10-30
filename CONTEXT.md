@@ -5,19 +5,22 @@ A live, zoomable view of a grilling agent's model of a design. The agent writes 
 ## Language
 
 **Project**:
-One repo's beryl space: its Topics, a Write key and a Note key. Its UUID is also its URL (`/p/<id>`).
+One repo's beryl space: its Topics and a Write key. Its UUID is also its URL (`/p/<id>`).
 
 **Write key**:
 The secret that writes the model. Returned once at Project creation, kept on the agent's machine; the server stores only its sha256.
 
-**Note key**:
-The secret that writes Notes. Returned once at Project creation beside the Write key. It travels in the Private link's URL fragment and is kept per browser.
+**Pairing code**:
+A single-use secret the agent mints with the Write key. It travels in the Private link's URL fragment and is redeemed for a Session within five minutes.
+
+**Session**:
+A browser's bearer for writing Notes, issued for a redeemed Pairing code. It lapses ten minutes after its last renewal; a visible tab renews it, but never more than thirty minutes after the person's last action. A lapsed Session leaves the board locked, read-only, until the agent mints a new Private link.
 
 **Share link**:
 A Topic URL without the Note key: read-only.
 
 **Private link**:
-A Topic URL with `#nk=<Note key>`: lets that browser add Notes and press Send. Opened for the user by the agent; not for sharing, because Notes enter the agent's context.
+A Topic URL with `#pc=<Pairing code>`: lets the browser that redeems it add Notes and press Send. Opened for the user by the agent; not for sharing, because Notes enter the agent's context.
 
 **Topic**:
 One subject being grilled, with its own page. Holds the Destination, the Nodes and the Notes. Open until the grill concludes, then closed.

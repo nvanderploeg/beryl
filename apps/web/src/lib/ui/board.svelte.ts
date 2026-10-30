@@ -13,7 +13,14 @@ import type {
 } from '../types.ts';
 import { indexByPath, parentPaths, without } from './index.ts';
 import { LiveTopic } from './live.svelte.ts';
-import { captureNoteKey } from './notekey.ts';
+import {
+	HEARTBEAT_MS,
+	redeemCode,
+	renewToken,
+	storeToken,
+	storedToken,
+	takePairingCode
+} from './session.ts';
 import { keys, readStored, writeStored } from './storage.ts';
 import * as dock from './layout.ts';
 import type { Dock, Layout, PanelId } from './layout.ts';
@@ -57,6 +64,8 @@ export interface BoardInit {
 
 const BOARD = Symbol('board');
 
+const RETRY_MS = 5000;
+
 export function provideBoard(board: Board): void {
 	setContext(BOARD, board);
 }
@@ -83,7 +92,8 @@ export class Board {
 	include: NodeKind[] = $state([]);
 	query = $state('');
 	since: string | null = $state(null);
-	noteKey: string | null = $state(null);
+	token: string | null = $state(null);
+	locked = $state(false);
 	author = $state('');
 	toast: Toast | null = $state(null);
 	busy = $state(false);
@@ -104,6 +114,7 @@ export class Board {
 
 	private toastTimer: ReturnType<typeof setTimeout> | null = null;
 	private flights = 0;
+	private pendingCode: string | null = null;
 
 	constructor(init: BoardInit) {
 		this.mode = init.mode;
@@ -119,7 +130,7 @@ export class Board {
 		this.parents = $derived(parentPaths(this.nodes));
 		this.fresh = $derived(without(freshSince(this.nodes, this.since), this.acked));
 		this.unsent = $derived(this.notes.filter((n) => n.status === 'queued' && !n.sentAt).length);
-		this.canWrite = $derived(this.mode === 'live' && this.noteKey !== null);
+		this.canWrite = $derived(this.mode === 'live' && this.token !== null);
 		this.demoHistory = init.history;
 		this.view = init.view ?? 'graph';
 		this.selected = init.node ?? null;
@@ -145,7 +156,7 @@ export class Board {
 		this.author = readStored(keys.author) ?? '';
 		if (this.mode === 'demo') return stopNarrow;
 
-		this.noteKey = captureNoteKey(this.project.id);
+		void this.authenticate(takePairingCode());
 		this.since = readStored(keys.seen(this.topic.id));
 		const saveVisit = () => writeStored(keys.seen(this.topic.id), this.latestWrite());
 		const onVisibility = () => {
@@ -153,13 +164,62 @@ export class Board {
 		};
 		document.addEventListener('visibilitychange', onVisibility);
 		window.addEventListener('pagehide', saveVisit);
+		// Only a visible tab renews: a background tab lets the session lapse.
+		const beat = () => {
+			if (document.visibilityState === 'visible') void this.renew();
+		};
+		document.addEventListener('visibilitychange', beat);
+		const heartbeat = setInterval(beat, HEARTBEAT_MS);
 		const stopLive = this.live.start();
 		return () => {
 			stopNarrow();
 			stopLive();
 			document.removeEventListener('visibilitychange', onVisibility);
+			document.removeEventListener('visibilitychange', beat);
+			clearInterval(heartbeat);
 			window.removeEventListener('pagehide', saveVisit);
 		};
+	}
+
+	private async authenticate(code: string | null): Promise<void> {
+		const redeemed = code === null ? null : await redeemCode(code);
+		if (redeemed !== null && typeof redeemed === 'object') {
+			this.pendingCode = null;
+			this.adopt(redeemed.token);
+			return;
+		}
+		// The URL no longer holds the code, so an unreached server keeps it here for the next beat.
+		this.pendingCode = redeemed === 'unreachable' ? code : null;
+		if (this.pendingCode !== null) setTimeout(() => void this.renew(), RETRY_MS);
+		const stored = storedToken(this.project.id);
+		if (stored === null) {
+			if (redeemed === 'refused') this.locked = true;
+			return;
+		}
+		this.token = stored;
+		await this.renewToken();
+	}
+
+	private adopt(token: string): void {
+		this.token = token;
+		this.locked = false;
+		storeToken(this.project.id, token);
+	}
+
+	private lock(): void {
+		this.token = null;
+		this.locked = true;
+		storeToken(this.project.id, null);
+	}
+
+	private async renew(): Promise<void> {
+		if (this.pendingCode !== null) return this.authenticate(this.pendingCode);
+		await this.renewToken();
+	}
+
+	private async renewToken(): Promise<void> {
+		if (this.token === null) return;
+		if ((await renewToken(this.token)) === 'lapsed') this.lock();
 	}
 
 	// Stamp visits with the server's clock, never the browser's: skew would hide or invent changes.
@@ -290,12 +350,13 @@ export class Board {
 		const res = await fetch(url, {
 			method,
 			headers: {
-				authorization: `Bearer ${this.noteKey}`,
+				authorization: `Bearer ${this.token}`,
 				...(body === undefined ? {} : { 'content-type': 'application/json' })
 			},
 			body: body === undefined ? undefined : JSON.stringify(body)
 		});
 		const json = (await res.json().catch(() => ({}))) as { error?: string };
+		if (res.status === 401 && this.token !== null) this.lock();
 		if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
 		return json as T;
 	}

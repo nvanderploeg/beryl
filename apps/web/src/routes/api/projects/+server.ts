@@ -9,20 +9,18 @@ import { insertProject } from '#lib/server/store.ts';
 export const POST: RequestHandler = route(async ({ request, url, getClientAddress }) => {
 	const { name } = parseProjectCreate(await readBody(request));
 	const id = crypto.randomUUID();
-	const writeKey = generateKey('write');
-	const noteKey = generateKey('note');
+	const writeKey = generateKey();
 	const now = new Date();
 	await insertProject({
 		id,
 		name,
 		writeKeyHash: hashKey(writeKey),
-		noteKeyHash: hashKey(noteKey),
 		createdAt: now,
 		lastWriteAt: now
 	});
 	log('project.create', { id, name, ip: getClientAddress() });
 	return Response.json(
-		{ id, name, writeKey, noteKey, url: `${publicOrigin(url)}/p/${id}` },
+		{ id, name, writeKey, url: `${publicOrigin(url)}/p/${id}` },
 		{ status: 201 }
 	);
 });

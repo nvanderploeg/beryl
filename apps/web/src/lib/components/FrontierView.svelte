@@ -86,8 +86,9 @@
 	<div class="col">
 		{#if board.mode === 'live' && !board.canWrite}
 			<p class="readonly">
-				This board is read-only. Answering ahead needs the private link, which the agent prints in
-				the terminal.
+				{board.locked
+					? 'This session timed out. Ask the agent for a new private link to answer ahead.'
+					: 'This board is read-only. Answering ahead needs the private link, which the agent prints in the terminal.'}
 			</p>
 		{:else if board.mode === 'demo'}
 			<p class="readonly">

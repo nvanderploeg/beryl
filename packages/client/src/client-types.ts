@@ -46,6 +46,7 @@ export interface OpenedTopic {
 	projectId: string;
 	createdProject: boolean;
 	resumed: boolean;
+	warning?: string; // set when `noteUrl` is the read-only link
 }
 
 export interface UpdateTopicInput {
@@ -67,9 +68,7 @@ export interface ResolveInput {
 export interface BerylClient {
 	discover(): Promise<string | null>;
 	openTopic(input: OpenTopicInput): Promise<Result<OpenedTopic>>;
-	getTopic(input: {
-		topicId: string;
-	}): Promise<Result<{ snapshot: Snapshot; url: string; noteUrl: string }>>;
+	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string }>>;
 	putNodes(input: { topicId: string; nodes: NodeInput[] }): Promise<Result<{ nodes: Node[] }>>;
 	removeNodes(input: { topicId: string; paths: string[] }): Promise<Result<{ removed: string[] }>>;
 	moveNode(input: {

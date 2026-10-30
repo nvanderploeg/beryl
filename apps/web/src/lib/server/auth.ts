@@ -1,5 +1,7 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { ApiError } from '#lib/server/api.ts';
+import { hashKey } from '#lib/server/hash.ts';
+import { actOnSession, SESSION_PREFIX } from '#lib/server/sessions.ts';
 import {
 	getNoteRow,
 	getProjectRow,
@@ -9,26 +11,34 @@ import {
 	type TopicRow
 } from '#lib/server/store.ts';
 
+export { hashKey };
+
+// 'note' is the person's reach: a session token, or the Write key.
 export type KeyKind = 'write' | 'note';
 
-const PREFIX: Record<KeyKind, string> = { write: 'bw_', note: 'bn_' };
-
-export function generateKey(kind: KeyKind): string {
-	return `${PREFIX[kind]}${randomBytes(32).toString('base64url')}`;
+export function generateKey(): string {
+	return `bw_${randomBytes(32).toString('base64url')}`;
 }
 
-export function hashKey(key: string): string {
-	return createHash('sha256').update(key).digest('hex');
-}
-
-function checkKey(request: Request, project: ProjectRow, kind: KeyKind): void {
+export function bearer(request: Request): string {
 	const match = /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '');
 	if (!match) throw new ApiError(401, 'missing key');
-	const given = Buffer.from(hashKey(match[1]), 'hex');
-	const stored = Buffer.from(kind === 'write' ? project.writeKeyHash : project.noteKeyHash, 'hex');
-	if (given.length !== stored.length || !timingSafeEqual(given, stored)) {
-		throw new ApiError(403, 'invalid key');
+	return match[1];
+}
+
+function isWriteKey(key: string, project: ProjectRow): boolean {
+	const given = Buffer.from(hashKey(key), 'hex');
+	const stored = Buffer.from(project.writeKeyHash, 'hex');
+	return given.length === stored.length && timingSafeEqual(given, stored);
+}
+
+async function checkKey(request: Request, project: ProjectRow, kind: KeyKind): Promise<void> {
+	const key = bearer(request);
+	if (kind === 'note' && key.startsWith(SESSION_PREFIX)) {
+		await actOnSession(key, project.id);
+		return;
 	}
+	if (!isWriteKey(key, project)) throw new ApiError(403, 'invalid key');
 }
 
 export async function authorizeProject(
@@ -38,7 +48,7 @@ export async function authorizeProject(
 ): Promise<ProjectRow> {
 	const project = await getProjectRow(projectId);
 	if (!project) throw new ApiError(404, 'project not found');
-	checkKey(request, project, kind);
+	await checkKey(request, project, kind);
 	return project;
 }
 

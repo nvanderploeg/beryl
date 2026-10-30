@@ -53,9 +53,10 @@ const created = await call('POST', `/api/projects/${project.id}/topics`, project
 });
 const topicId = created.topicId;
 const w = project.writeKey;
-const n = project.noteKey;
+const n = w;
+const pairing = await call('POST', `/api/projects/${project.id}/pairings`, w);
 
-console.log(`board (private): ${created.url}#nk=${n}`);
+console.log(`board (private): ${created.url}#pc=${pairing.code}`);
 console.log(`board (share):   ${created.url}`);
 
 const noteIds = [];

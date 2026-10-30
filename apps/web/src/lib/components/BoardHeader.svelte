@@ -283,8 +283,10 @@
 				<span
 					class="readonly"
 					data-testid="read-only"
-					title="Notes and Send need the private link, which the agent prints in the terminal"
-					>Read-only</span
+					title={board.locked
+						? 'This session timed out. Ask the agent for a new private link'
+						: 'Notes and Send need the private link, which the agent prints in the terminal'}
+					>{board.locked ? 'Locked' : 'Read-only'}</span
 				>
 			{:else}
 				<button

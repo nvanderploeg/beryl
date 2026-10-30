@@ -55,7 +55,7 @@
 	}
 </script>
 
-{#if board.mode === 'live' && !board.canWrite}
+{#if board.mode === 'live' && !board.canWrite && !board.locked}
 	<p class="readonly" data-testid="composer-readonly">
 		This board is read-only. Notes need the private link, which the agent prints in the terminal.
 	</p>
@@ -69,6 +69,11 @@
 			void submit();
 		}}
 	>
+		{#if board.locked}
+			<p class="readonly" data-testid="composer-locked">
+				This session timed out. Your draft is kept; ask the agent for a new private link.
+			</p>
+		{/if}
 		<div class="intents" role="radiogroup" aria-label="Intent">
 			{#each NOTE_INTENTS as i (i)}
 				<label class="intent" class:on={intent === i} title={INTENT_HINT[i]}>

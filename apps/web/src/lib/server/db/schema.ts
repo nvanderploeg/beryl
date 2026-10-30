@@ -23,9 +23,25 @@ export const projects = mysqlTable('projects', {
 	id: varchar('id', { length: 36 }).primaryKey(),
 	name: varchar('name', { length: 200 }).notNull(),
 	writeKeyHash: char('write_key_hash', { length: 64 }).notNull(),
-	noteKeyHash: char('note_key_hash', { length: 64 }).notNull(),
 	createdAt: now('created_at'),
 	lastWriteAt: now('last_write_at')
+});
+
+export const pairings = mysqlTable('pairings', {
+	codeHash: char('code_hash', { length: 64 }).primaryKey(),
+	projectId: varchar('project_id', { length: 36 })
+		.notNull()
+		.references(() => projects.id, { onDelete: 'cascade' }),
+	expiresAt: timestamp('expires_at', { fsp: 3 }).notNull()
+});
+
+export const sessions = mysqlTable('sessions', {
+	tokenHash: char('token_hash', { length: 64 }).primaryKey(),
+	projectId: varchar('project_id', { length: 36 })
+		.notNull()
+		.references(() => projects.id, { onDelete: 'cascade' }),
+	lastActionAt: timestamp('last_action_at', { fsp: 3 }).notNull(),
+	expiresAt: timestamp('expires_at', { fsp: 3 }).notNull()
 });
 
 // Paths are case-sensitive: give every path column `CHARACTER SET ascii COLLATE ascii_bin` by

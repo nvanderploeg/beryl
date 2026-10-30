@@ -112,7 +112,7 @@ export function createServer(
 		'open_topic',
 		{
 			description:
-				"Call this when a grill starts, to open its Topic on this repo's beryl board (or pass `topicId` to resume one), then print the returned `noteUrl` to the user as their private link.",
+				"Call this when a grill starts, to open its Topic on this repo's beryl board (or pass `topicId` to resume one), then print the returned `noteUrl` to the user as their one-use private link, and call again with `topicId` for a fresh link when their board locks.",
 			inputSchema: {
 				title: z.string().optional().describe('Required unless `topicId` is given.'),
 				destination: z

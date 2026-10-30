@@ -18,7 +18,7 @@ export function writeStored(key: string, value: string | null): void {
 }
 
 export const keys = {
-	noteKey: (projectId: string) => `beryl:nk:${projectId}`,
+	session: (projectId: string) => `beryl:session:${projectId}`,
 	seen: (topicId: string) => `beryl:seen:${topicId}`,
 	sidebar: 'beryl:sidebar',
 	layout: 'beryl:layout',

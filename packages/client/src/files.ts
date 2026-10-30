@@ -6,7 +6,6 @@ import { dirname, join } from 'node:path';
 export interface ProjectEntry {
 	projectId: string;
 	writeKey: string;
-	noteKey: string;
 	name: string;
 	projectUrl: string;
 }

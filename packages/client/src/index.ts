@@ -49,7 +49,6 @@ interface Target {
 	projectId: string;
 	projectUrl: string;
 	writeKey?: string;
-	noteKey?: string;
 }
 
 export function defaultConfigDir(env: Record<string, string | undefined> = process.env): string {
@@ -61,8 +60,6 @@ function projectUrlFrom(topicUrl: string, topicId: string, fallback: string): st
 	const suffix = `/t/${topicId}`;
 	return topicUrl.endsWith(suffix) ? topicUrl.slice(0, -suffix.length) : fallback;
 }
-
-const privateLink = (url: string, noteKey: string) => `${url}#nk=${noteKey}`;
 
 const topicPath = (topicId: string) => `/api/topics/${encodeURIComponent(topicId)}`;
 
@@ -127,17 +124,15 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			id: string;
 			name?: string;
 			writeKey: string;
-			noteKey: string;
 			url?: string;
 		}>(server, '/api/projects', { method: 'POST', body: { name } });
 		if (!reply.ok) return reply;
-		const { id, writeKey, noteKey, url } = reply.body;
+		const { id, writeKey, url } = reply.body;
 		return {
 			ok: true,
 			entry: {
 				projectId: id,
 				writeKey,
-				noteKey,
 				name: reply.body.name ?? name,
 				projectUrl: url || `${server}/p/${id}`
 			}
@@ -161,6 +156,34 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		return renamed;
 	}
 
+	// Each link carries its own single-use code.
+	async function privateLink(
+		server: string,
+		projectId: string,
+		writeKey: string,
+		url: string
+	): Promise<Result<string>> {
+		const reply = await call<{ code: string }>(
+			server,
+			`/api/projects/${encodeURIComponent(projectId)}/pairings`,
+			{ method: 'POST', key: writeKey }
+		);
+		return reply.ok ? { ok: true, value: `${url}#pc=${reply.body.code}` } : reply;
+	}
+
+	// The topic exists either way: a failed mint hands back the read-only link with the reason.
+	async function links(
+		server: string,
+		projectId: string,
+		writeKey: string,
+		url: string
+	): Promise<Pick<OpenedTopic, 'noteUrl' | 'warning'>> {
+		const link = await privateLink(server, projectId, writeKey, url);
+		return link.ok
+			? { noteUrl: link.value }
+			: { noteUrl: url, warning: `no private link: ${link.warning}; noteUrl is read-only` };
+	}
+
 	async function targetFor(topicId: string): Promise<Result<Target>> {
 		const handle = own(await store.readTopics(), topicId);
 		if (!handle) return unknownTopic(topicId);
@@ -173,15 +196,14 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				projectId: handle.projectId,
 				projectUrl:
 					handle.projectUrl ?? entry?.projectUrl ?? `${handle.server}/p/${handle.projectId}`,
-				writeKey: entry?.writeKey,
-				noteKey: entry?.noteKey
+				writeKey: entry?.writeKey
 			}
 		};
 	}
 
 	async function keyedTarget(
 		topicId: string,
-		which: 'writeKey' | 'noteKey'
+		which: 'writeKey'
 	): Promise<Result<Target & { key: string }>> {
 		const target = await targetFor(topicId);
 		if (!target.ok) return target;
@@ -193,8 +215,8 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 	async function resume(topicId: string): Promise<Result<OpenedTopic>> {
 		const target = await targetFor(topicId);
 		if (!target.ok) return target;
-		const { server, projectId, projectUrl, writeKey, noteKey } = target.value;
-		if (!writeKey || !noteKey) return unknownTopic(topicId);
+		const { server, projectId, projectUrl, writeKey } = target.value;
+		if (!writeKey) return unknownTopic(topicId);
 		const reply = await call<Snapshot>(server, topicPath(topicId), { method: 'GET' });
 		if (!reply.ok) return reply;
 		const url = `${projectUrl}/t/${topicId}`;
@@ -203,7 +225,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			value: {
 				topicId,
 				url,
-				noteUrl: privateLink(url, noteKey),
+				...(await links(server, projectId, writeKey, url)),
 				projectUrl,
 				server,
 				projectId,
@@ -280,7 +302,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 					value: {
 						topicId,
 						url,
-						noteUrl: privateLink(url, entry.noteKey),
+						...(await links(server, entry.projectId, entry.writeKey, url)),
 						projectUrl,
 						server,
 						projectId: entry.projectId,
@@ -294,17 +316,12 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			guard(async () => {
 				const target = await targetFor(input.topicId);
 				if (!target.ok) return target;
-				const { server, projectUrl, noteKey } = target.value;
+				const { server, projectUrl } = target.value;
 				const reply = await call<Snapshot>(server, topicPath(input.topicId), { method: 'GET' });
 				if (!reply.ok) return reply;
-				const url = `${projectUrl}/t/${input.topicId}`;
 				return {
 					ok: true,
-					value: {
-						snapshot: reply.body,
-						url,
-						noteUrl: noteKey ? privateLink(url, noteKey) : url
-					}
+					value: { snapshot: reply.body, url: `${projectUrl}/t/${input.topicId}` }
 				};
 			}),
 
@@ -430,7 +447,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 
 		addNote: (input) =>
 			guard(async () => {
-				const target = await keyedTarget(input.topicId, 'noteKey');
+				const target = await keyedTarget(input.topicId, 'writeKey');
 				if (!target.ok) return target;
 				const { server, key } = target.value;
 				const reply = await call<{ note: Note }>(server, `${topicPath(input.topicId)}/notes`, {
@@ -448,7 +465,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 
 		send: (input) =>
 			guard(async () => {
-				const target = await keyedTarget(input.topicId, 'noteKey');
+				const target = await keyedTarget(input.topicId, 'writeKey');
 				if (!target.ok) return target;
 				const { server, key } = target.value;
 				const reply = await call<{ sent: number }>(server, `${topicPath(input.topicId)}/send`, {
@@ -464,9 +481,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				if (!target.ok) return target;
 				const url = `${target.value.projectUrl}/t/${input.topicId}`;
 				if (!input.private) return { ok: true, value: { url } };
-				const { noteKey } = target.value;
-				if (!noteKey) return unknownTopic(input.topicId);
-				return { ok: true, value: { url: privateLink(url, noteKey) } };
+				const { server, projectId, writeKey } = target.value;
+				if (!writeKey) return unknownTopic(input.topicId);
+				const link = await privateLink(server, projectId, writeKey, url);
+				return link.ok ? { ok: true, value: { url: link.value } } : link;
 			}),
 
 		async doctor(input = {}): Promise<DoctorReport> {

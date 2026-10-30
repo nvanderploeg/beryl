@@ -59,7 +59,7 @@ describe('GET /api/health', () => {
 });
 
 describe('POST /api/projects', () => {
-	it('creates a project with a Write key and a Note key and a url on the request origin', async () => {
+	it('creates a project with a Write key and a url on the request origin', async () => {
 		const res = await api.createProject({ name: 'Tracker' });
 
 		expect(res.status).toBe(201);
@@ -67,7 +67,6 @@ describe('POST /api/projects', () => {
 			id: expect.stringMatching(UUID_V4),
 			name: 'Tracker',
 			writeKey: expect.stringMatching(/^bw_[A-Za-z0-9_-]{43}$/),
-			noteKey: expect.stringMatching(/^bn_[A-Za-z0-9_-]{43}$/),
 			url: `${ORIGIN}/p/${res.body.id}`
 		});
 	});
@@ -77,20 +76,17 @@ describe('POST /api/projects', () => {
 		expect(res.body.name).toBe('Untitled');
 	});
 
-	it('stores only the sha256 of each key', async () => {
+	it('stores only the sha256 of the Write key', async () => {
 		const res = await api.createProject({ name: 'hashes' });
 		const [row] = await db.select().from(projects).where(eq(projects.id, res.body.id));
 
 		expect(row.writeKeyHash).toBe(sha256(res.body.writeKey));
-		expect(row.noteKeyHash).toBe(sha256(res.body.noteKey));
 		expect(JSON.stringify(row)).not.toContain(res.body.writeKey);
-		expect(JSON.stringify(row)).not.toContain(res.body.noteKey);
 	});
 
 	it('mints fresh keys for every project', async () => {
 		const other = await seedProject();
 		expect(other.writeKey).not.toBe(project.writeKey);
-		expect(other.noteKey).not.toBe(project.noteKey);
 	});
 
 	it.each([
@@ -1532,13 +1528,11 @@ describe('auth', () => {
 		expect((await call(other.writeKey)).status).toBe(403);
 	});
 
-	it.each(noteRoutes)('%s needs the Note key', async (_label, call) => {
+	it.each(noteRoutes)('%s needs a session or the Write key', async (_label, call) => {
 		expect(await call()).toMatchObject({ status: 401, body: { error: 'missing key' } });
-		expect(await call(project.writeKey)).toMatchObject({
-			status: 403,
-			body: { error: 'invalid key' }
-		});
+		expect(await call('bw_garbage')).toMatchObject({ status: 403, body: { error: 'invalid key' } });
 		expect((await call(other.noteKey)).status).toBe(403);
+		expect((await call(other.writeKey)).status).toBe(403);
 		expect((await call(project.noteKey)).status).toBeLessThan(300);
 	});
 

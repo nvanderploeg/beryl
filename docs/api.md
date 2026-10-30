@@ -181,15 +181,18 @@ interface BerylEvent {
 
 ## HTTP
 
-JSON in and out. Errors are `{ error: string }`. 🔑 needs `Authorization: Bearer <Write key>`; ✎ needs `Authorization: Bearer <Note key>`, both of the Project that owns the target.
+JSON in and out. Errors are `{ error: string }`. 🔑 needs `Authorization: Bearer <Write key>`; ✎ needs `Authorization: Bearer <Session token>` or the Write key, both of the Project that owns the target.
 
 | Method | Path | Body | Success |
 | --- | --- | --- | --- |
 | GET | `/api/health` | — | 200 `{ service: 'beryl', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }` |
-| POST | `/api/projects` | `{ name? }` | 201 `{ id, name, writeKey, noteKey, url }` |
+| POST | `/api/projects` | `{ name? }` | 201 `{ id, name, writeKey, url }` |
 | GET | `/api/projects/:id` | — | 200 `{ project, topics: TopicSummary[] }` (updatedAt desc) |
 | PATCH 🔑 | `/api/projects/:id` | `{ name }` | 200 `{ project }` |
 | POST 🔑 | `/api/projects/:id/topics` | `{ title, destination?, summary?, agent?, repo?, branch?, nodes?: NodeInput[] }` | 201 `{ topicId, url, topic, nodes }` |
+| POST 🔑 | `/api/projects/:id/pairings` | — | 201 `{ code, expiresAt }` |
+| POST | `/api/pairings/redeem` | `{ code }` | 200 `{ token, projectId, expiresAt }` |
+| POST | `/api/session` | — (header `Authorization: Bearer <Session token>`) | 200 `{ expiresAt }` |
 | GET | `/api/topics/:id` | — | 200 `Snapshot` |
 | PATCH 🔑 | `/api/topics/:id` | `{ title?, destination?, summary?, status?, current?, agent? }` | 200 `{ topic }` |
 | PUT 🔑 | `/api/topics/:id/nodes` | `{ nodes: NodeInput[] }` | 200 `{ nodes }` (the written Nodes, in input order) |
@@ -214,9 +217,17 @@ interface Pulled {
 }
 ```
 
-- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<id>`. Keys are `bw_` and `bn_` followed by 43 base64url characters.
+- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<id>`. The Write key is `bw_` followed by 43 base64url characters.
 - `POST /api/projects/:id/topics`: `url` = `<origin>/p/<projectId>/t/<topicId>`. `nodes` are written as one batch after the Topic.
 - `PATCH /api/topics/:id`: `current` must be `null` or the Path of an open Node (400). `status: 'closed'` sets `closedAt`; `'open'` clears it.
+- **Pairing and Sessions.** A code is `bp_` and a token `bs_`, each followed by 43 base64url characters; only their sha256 is stored.
+  - A code expires five minutes after it is minted and redeems once (403 `invalid or used code`, also for an unknown or expired code).
+  - A token expires ten minutes after its last renewal. Every ✎ request made with it counts as an action and sets expiry to ten minutes from now.
+  - `POST /api/session` renews without counting as an action: expiry becomes the sooner of ten minutes from now and thirty minutes after the last action.
+  - A lapsed token answers 401 `session expired`. A renewal more than thirty minutes after the last action answers 401 `session idle`. Neither revives the token; the agent mints a new code.
+  - A token is accepted only on ✎ routes of its own Project. It is refused (403 `invalid key`) on 🔑 routes and for another Project.
+  - Lapsed Sessions and codes are deleted whenever a code is minted or redeemed, and hourly.
+  - Renewal never shortens an expiry.
 - `GET /api/topics/:id/wait`: `timeoutMs` defaults to 25 000, clamped to 1 000–60 000. Answers at once when any `queued` Note has `sentAt` set, with their count; otherwise on the next `send` event for the Topic, or `{ sent: 0 }` at the timeout.
 - `TopicSummary.counts` and `queuedNotes` are computed from the Topic's Nodes and Notes on read.
 - Every `POST`, `PUT`, `PATCH` and `DELETE` under `/api` draws from a token bucket per client address: `BERYL_WRITES_PER_WINDOW` (default 300) at once, refilled at that many per `BERYL_WRITE_WINDOW_MS` (default 300 000); `0` disables it. An empty bucket → 429 `{ error: 'too many writes from this address; retry later' }` with `Retry-After: <whole seconds>`. `GET /wait` is not a write.
@@ -234,4 +245,4 @@ interface Pulled {
 
 ## Storage
 
-MySQL through drizzle, migrations in `apps/web/drizzle`, run at server start. Tables: `projects` (key hashes, never keys), `topics`, `nodes` (primary key `topic_id, path`; path columns ascii, case-sensitive), `notes`, `events` (serial `seq`). `edges`, `widgets`, `sources`, `agent`, `anchor` and `changed` are JSON columns.
+MySQL through drizzle, migrations in `apps/web/drizzle`, run at server start. Tables: `projects` (key hash, never keys), `pairings`, `sessions` (hashes, never secrets), `topics`, `nodes` (primary key `topic_id, path`; path columns ascii, case-sensitive), `notes`, `events` (serial `seq`). `edges`, `widgets`, `sources`, `agent`, `anchor` and `changed` are JSON columns.

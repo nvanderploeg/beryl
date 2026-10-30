@@ -30,7 +30,7 @@ This builds the packages, links the `beryl` skill and CLI (`~/.local/bin/beryl`)
 4. Press **Send**. The agent's background listener (`beryl wait`) wakes it with your notes. Typing in the terminal brings them in too.
 5. The agent folds each note into the model, resolves it with a one-line reply, and moves on to the next unanswered Question.
 
-The private link (`#nk=…`) is for you: notes from it go straight into the agent's context. Share the plain link; it is read-only.
+The private link (`#pc=…`) is for you: notes from it go straight into the agent's context. It works once; the board it opens stays writable while you use it, and locks after ten minutes in a background tab or thirty minutes of no action. Ask the agent for a new private link to unlock it. Share the plain link; it is read-only.
 
 ## Views
 

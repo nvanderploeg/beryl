@@ -1,6 +1,14 @@
 import { DATABASE_URL } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
-import { events, nodes, notes, projects, topics } from '#lib/server/db/schema.ts';
+import {
+	events,
+	nodes,
+	notes,
+	pairings,
+	projects,
+	sessions,
+	topics
+} from '#lib/server/db/schema.ts';
 
 export async function resetDb(): Promise<void> {
 	const database = new URL(DATABASE_URL).pathname.slice(1);
@@ -11,5 +19,7 @@ export async function resetDb(): Promise<void> {
 	await db.delete(notes);
 	await db.delete(nodes);
 	await db.delete(topics);
+	await db.delete(pairings);
+	await db.delete(sessions);
 	await db.delete(projects);
 }

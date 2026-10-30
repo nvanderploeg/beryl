@@ -15,7 +15,7 @@ beryl is a live, zoomable board of a grilling agent's model of a design. While a
 - **Eleven widgets** with addressable elements: schema, migration, files, classes, options, sequence, states, api, table, code, markdown. Proposals mark what they add, remove or change.
 - **Notes flow back.** Answer, accept a recommendation, correct, comment, ask the agent to explore, defer or drop. Press Send to wake the agent, or just keep talking in the terminal: the next turn picks them up.
 - **Live.** Server-sent events; a reconnecting page replays what it missed.
-- **Safe to share.** The plain link is read-only. Your private link carries a note key in its fragment, because notes go straight into the agent's context.
+- **Safe to share.** The plain link is read-only. Your private link works once and its board locks after idle, because notes go straight into the agent's context.
 
 ![The Frontier: answer ahead in your own order](docs/captures/frontier-light.png)
 

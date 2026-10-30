@@ -4,6 +4,9 @@ import {
 	DELETE as deleteNoteRoute,
 	PATCH as patchNoteRoute
 } from '../../../routes/api/notes/[noteId]/+server.ts';
+import { POST as redeemRoute } from '../../../routes/api/pairings/redeem/+server.ts';
+import { POST as postPairingRoute } from '../../../routes/api/projects/[id]/pairings/+server.ts';
+import { POST as refreshRoute } from '../../../routes/api/session/+server.ts';
 import { POST as postProjectRoute } from '../../../routes/api/projects/+server.ts';
 import {
 	GET as getProjectRoute,
@@ -89,6 +92,16 @@ export const api = {
 		reply(postProjectRoute(event({ method: 'POST', path: '/api/projects', body }))),
 	rawCreateProject: (rawBody: string) =>
 		reply(postProjectRoute(event({ method: 'POST', path: '/api/projects', rawBody }))),
+	createPairing: (id: string, key?: string) =>
+		reply(
+			postPairingRoute(
+				event({ method: 'POST', path: `/api/projects/${id}/pairings`, key, params: { id } })
+			)
+		),
+	redeem: (body: unknown) =>
+		reply(redeemRoute(event({ method: 'POST', path: '/api/pairings/redeem', body }))),
+	refresh: (key?: string) =>
+		reply(refreshRoute(event({ method: 'POST', path: '/api/session', key }))),
 	getProject: (id: string) =>
 		reply(getProjectRoute(event({ path: `/api/projects/${id}`, params: { id } }))),
 	patchProject: (id: string, body: unknown, key?: string) =>
@@ -157,13 +170,18 @@ export const api = {
 export interface Seeded {
 	id: string;
 	writeKey: string;
+	// A session token: the bearer the board holds.
 	noteKey: string;
 }
 
 export async function seedProject(name = 'spec'): Promise<Seeded> {
 	const res = await api.createProject({ name });
 	expect(res.status).toBe(201);
-	return res.body as Seeded;
+	const { id, writeKey } = res.body as { id: string; writeKey: string };
+	const pairing = await api.createPairing(id, writeKey);
+	const session = await api.redeem({ code: pairing.body.code });
+	expect(session.status).toBe(200);
+	return { id, writeKey, noteKey: session.body.token };
 }
 
 export async function seedTopic(

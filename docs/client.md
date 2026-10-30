@@ -54,7 +54,7 @@ export interface BerylClient {
 		Result<{
 			topicId: string;
 			url: string; // Share link
-			noteUrl: string; // Private link: url + '#nk=' + Note key
+			noteUrl: string; // Private link: url + '#pc=' + a Pairing code minted for this call
 			projectUrl: string;
 			server: string;
 			projectId: string;
@@ -62,7 +62,7 @@ export interface BerylClient {
 			resumed: boolean;
 		}>
 	>;
-	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string; noteUrl: string }>>;
+	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string }>>;
 	putNodes(input: { topicId: string; nodes: NodeInput[] }): Promise<Result<{ nodes: Node[] }>>;
 	removeNodes(input: { topicId: string; paths: string[] }): Promise<Result<{ removed: string[] }>>;
 	moveNode(input: { topicId: string; from: string; to: string }): Promise<Result<{ moved: { from: string; to: string }[] }>>;
@@ -114,9 +114,9 @@ Also export the types of `docs/api.md` exactly.
 Behaviour:
 
 - **discover** — as chronicle's: servers normalised (trim, strip trailing `/`). `BERYL_URL` set and non-empty → probe it alone. Otherwise the first healthy candidate. Healthy = `GET <server>/api/health` answers 2xx with JSON `service === 'beryl'` within the probe timeout for its host.
-- **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, noteKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `beryl failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
+- **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `beryl failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
 - **openTopic** — with `topicId`: needs its `topics.json` handle (else `unknown topic <id> on this machine`), `GET /api/topics/:id` to confirm it exists, `resumed: true`, nothing created. Without: `title` required; `discover()` (`null` → `UNREACHABLE_WARNING`); find or create the Project for `(server, repoKey)` as chronicle's `startTask` does (name = `project`, else the repo name from `repoIdentity`; rename when `project` differs; a 401/403/404 on topic create → create a fresh Project, overwrite the entry, retry once). `POST /api/projects/:id/topics`; `repo` and `branch` default from `gitRefs(cwd)`; `agent.tool` defaults to `'claude-code'` when `env.CLAUDECODE === '1'`. Save the handle.
-- **Topic-scoped calls** need the `topics.json` handle and use its server only, never Discovery. Write calls use the Project's Write key; `addNote` and `send` its Note key.
+- **Topic-scoped calls** need the `topics.json` handle and use its server only, never Discovery. Every call uses the Project's Write key. A Private link costs one `POST /api/projects/:id/pairings`; if that fails, `openTopic` returns the Share link as `noteUrl` with a `warning`, and `topicUrl` with `private` fails.
 - **waitForSent** — loops `GET /api/topics/:id/wait?timeoutMs=<pollMs>`. `sent > 0` → return it. Network error, timeout or 5xx → sleep with backoff starting at 1 s, doubling to 30 s, reset after any good answer. A 4xx → return the warning. Stops with `{ sent: 0 }` at the overall timeout or when `signal` aborts.
 - **Rate limit** — a 429 with `Retry-After` ≤ 5 s is waited out and the request sent once more; otherwise reported.
 - **Failures** — network error, timeout or 5xx → `UNREACHABLE_WARNING`; other non-2xx → `beryl rejected the write: <error>`. Methods never throw.

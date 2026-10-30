@@ -110,12 +110,13 @@ const healthy = (version = '0.1.0'): Reply => ({
 
 const notFound: Reply = { status: 404, body: { error: 'not found' } };
 
-// A beryl server that hands out proj-<n> with bw_<n> and bn_<n>, and topic-<n> in it.
+// A beryl server that hands out proj-<n> with bw_<n>, pairing codes bp_<n>, and topic-<n> in it.
 function berylServer(
 	opts: { origin?: string; route?: (req: Recorded) => Reply | undefined } = {}
 ): Handler {
 	let projects = 0;
 	let topics = 0;
+	let pairings = 0;
 	const keys = new Map<string, string>();
 	return async (req) => {
 		const origin = opts.origin ?? req.server;
@@ -132,7 +133,6 @@ function berylServer(
 					id,
 					name: (req.body as { name?: string }).name ?? 'Untitled',
 					writeKey: `bw_${projects}`,
-					noteKey: `bn_${projects}`,
 					url: `${origin}/p/${id}`
 				}
 			};
@@ -147,6 +147,14 @@ function berylServer(
 				status: 200,
 				body: { project: { id: rename[1], name, createdAt: T, lastWriteAt: T } }
 			};
+		}
+		const pairing = /^\/api\/projects\/([^/]+)\/pairings$/.exec(req.path);
+		if (req.method === 'POST' && pairing) {
+			if (req.headers.authorization !== `Bearer ${keys.get(pairing[1])}`) {
+				return { status: 403, body: { error: 'invalid key' } };
+			}
+			pairings += 1;
+			return { status: 201, body: { code: `bp_${pairings}`, expiresAt: T } };
 		}
 		const topic = /^\/api\/projects\/([^/]+)\/topics$/.exec(req.path);
 		if (req.method === 'POST' && topic) {
@@ -211,14 +219,12 @@ function seedHandle(opts: { server?: string; topicId?: string } = {}) {
 			'/elsewhere/.git': {
 				projectId: 'proj-0',
 				writeKey: 'bw_other',
-				noteKey: 'bn_other',
 				name: 'other',
 				projectUrl: `${server}/p/proj-0`
 			},
 			'/work/repo/.git': {
 				projectId: 'proj-1',
 				writeKey: 'bw_1',
-				noteKey: 'bn_1',
 				name: 'repo',
 				projectUrl: `${server}/p/proj-1`
 			}
@@ -364,7 +370,7 @@ describe('openTopic creating a topic', () => {
 			value: {
 				topicId: 'topic-1',
 				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=bn_1`,
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1`,
 				projectUrl: `${SERVER}/p/proj-1`,
 				server: SERVER,
 				projectId: 'proj-1',
@@ -375,7 +381,8 @@ describe('openTopic creating a topic', () => {
 		const writes = fake.writes();
 		expect(writes.map((r) => `${r.method} ${r.path}`)).toEqual([
 			'POST /api/projects',
-			'POST /api/projects/proj-1/topics'
+			'POST /api/projects/proj-1/topics',
+			'POST /api/projects/proj-1/pairings'
 		]);
 		expect(writes[0].body).toEqual({ name: path.basename(cwd) });
 		expect(writes[1].headers.authorization).toBe('Bearer bw_1');
@@ -391,7 +398,6 @@ describe('openTopic creating a topic', () => {
 				[cwd]: {
 					projectId: 'proj-1',
 					writeKey: 'bw_1',
-					noteKey: 'bn_1',
 					name: path.basename(cwd),
 					projectUrl: `${SERVER}/p/proj-1`
 				}
@@ -484,7 +490,6 @@ describe('openTopic creating a topic', () => {
 					[cwd]: {
 						projectId: 'proj-gone',
 						writeKey: 'bw_gone',
-						noteKey: 'bn_gone',
 						name: 'stale',
 						projectUrl: `${SERVER}/p/proj-gone`
 					}
@@ -517,7 +522,6 @@ describe('openTopic creating a topic', () => {
 					[cwd]: {
 						projectId: 'proj-1',
 						writeKey: 'bw_1',
-						noteKey: 'bn_1',
 						name: path.basename(cwd),
 						projectUrl: `${SERVER}/p/proj-1`
 					}
@@ -628,7 +632,7 @@ describe('openTopic creating a topic', () => {
 			ok: true,
 			value: {
 				url: `${PUBLIC}/p/proj-1/t/topic-1`,
-				noteUrl: `${PUBLIC}/p/proj-1/t/topic-1#nk=bn_1`,
+				noteUrl: `${PUBLIC}/p/proj-1/t/topic-1#pc=bp_1`,
 				projectUrl: `${PUBLIC}/p/proj-1`,
 				server: SERVER
 			}
@@ -702,11 +706,15 @@ describe('openTopic creating a topic', () => {
 describe('openTopic resuming a topic', () => {
 	it('confirms the Topic on its handle server and returns its links without creating anything', async () => {
 		seedHandle();
-		const fake = fakeFetch((req) =>
-			req.method === 'GET' && req.path === '/api/topics/topic-1'
-				? { status: 200, body: SNAPSHOT }
-				: notFound
-		);
+		const fake = fakeFetch((req) => {
+			if (req.method === 'GET' && req.path === '/api/topics/topic-1') {
+				return { status: 200, body: SNAPSHOT };
+			}
+			if (req.method === 'POST' && req.path === '/api/projects/proj-1/pairings') {
+				return { status: 201, body: { code: 'bp_1', expiresAt: T } };
+			}
+			return notFound;
+		});
 
 		const result = await makeClient(fake, { candidates: ['http://elsewhere.test'] }).openTopic({
 			topicId: 'topic-1',
@@ -718,7 +726,7 @@ describe('openTopic resuming a topic', () => {
 			value: {
 				topicId: 'topic-1',
 				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=bn_1`,
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1`,
 				projectUrl: `${SERVER}/p/proj-1`,
 				server: SERVER,
 				projectId: 'proj-1',
@@ -727,7 +735,8 @@ describe('openTopic resuming a topic', () => {
 			}
 		});
 		expect(fake.requests.map((r) => `${r.method} ${r.server}${r.path}`)).toEqual([
-			`GET ${SERVER}/api/topics/topic-1`
+			`GET ${SERVER}/api/topics/topic-1`,
+			`POST ${SERVER}/api/projects/proj-1/pairings`
 		]);
 	});
 
@@ -823,7 +832,7 @@ describe('topic-scoped calls', () => {
 			'POST /api/topics/topic-1/notes',
 			{ anchor: { path: 'a', widget: 'w', element: 'e' }, intent: 'comment', text: 'hi' },
 			{ note: { id: 'n1' } },
-			'bn_1'
+			'bw_1'
 		],
 		[
 			'send',
@@ -831,7 +840,7 @@ describe('topic-scoped calls', () => {
 			'POST /api/topics/topic-1/send',
 			undefined,
 			{ sent: 2 },
-			'bn_1'
+			'bw_1'
 		]
 	] as const)(
 		'%s sends %s… to the handle server with the right key',
@@ -861,7 +870,7 @@ describe('topic-scoped calls', () => {
 		expect(fake.requests[0].headers['content-type']).toBe('application/json');
 	});
 
-	it('getTopic reads the Snapshot without a key and returns both links', async () => {
+	it('getTopic reads the Snapshot without a key and returns the Share link', async () => {
 		seedHandle();
 		const fake = fakeFetch(ok(SNAPSHOT));
 
@@ -869,8 +878,7 @@ describe('topic-scoped calls', () => {
 			ok: true,
 			value: {
 				snapshot: SNAPSHOT,
-				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#nk=bn_1`
+				url: `${SERVER}/p/proj-1/t/topic-1`
 			}
 		});
 		expect(fake.requests[0].headers.authorization).toBeUndefined();
@@ -878,15 +886,61 @@ describe('topic-scoped calls', () => {
 
 	it('topicUrl gives the Share link, or the Private link when asked', async () => {
 		seedHandle();
-		const client = makeClient(fakeFetch(() => 'refuse'));
+		const fake = fakeFetch(() => ({ status: 201, body: { code: 'bp_1', expiresAt: T } }));
+		const client = makeClient(fake);
 
 		expect(await client.topicUrl({ topicId: 'topic-1' })).toEqual({
 			ok: true,
 			value: { url: `${SERVER}/p/proj-1/t/topic-1` }
 		});
+		expect(fake.requests).toHaveLength(0);
 		expect(await client.topicUrl({ topicId: 'topic-1', private: true })).toEqual({
 			ok: true,
-			value: { url: `${SERVER}/p/proj-1/t/topic-1#nk=bn_1` }
+			value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1` }
+		});
+		expect(fake.requests[0].headers.authorization).toBe('Bearer bw_1');
+	});
+
+	it('mints a fresh code for every Private link', async () => {
+		seedHandle();
+		let n = 0;
+		const client = makeClient(
+			fakeFetch(() => ({ status: 201, body: { code: `bp_${++n}`, expiresAt: T } }))
+		);
+
+		const first = await client.topicUrl({ topicId: 'topic-1', private: true });
+		const second = await client.topicUrl({ topicId: 'topic-1', private: true });
+
+		expect(first).toEqual({ ok: true, value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1` } });
+		expect(second).toEqual({ ok: true, value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_2` } });
+	});
+
+	it('fails topicUrl when the server refuses to mint a code', async () => {
+		seedHandle();
+		const client = makeClient(fakeFetch(() => 'refuse'));
+
+		expect(await client.topicUrl({ topicId: 'topic-1', private: true })).toEqual({
+			ok: false,
+			warning: UNREACHABLE_WARNING
+		});
+	});
+
+	it('resumes with the read-only link and says so when the server refuses to mint a code', async () => {
+		seedHandle();
+		const fake = fakeFetch((req) =>
+			req.method === 'GET' ? { status: 200, body: SNAPSHOT } : { status: 503 }
+		);
+
+		const result = await makeClient(fake, { candidates: ['http://elsewhere.test'] }).openTopic({
+			topicId: 'topic-1'
+		});
+
+		expect(result).toMatchObject({
+			ok: true,
+			value: {
+				noteUrl: `${SERVER}/p/proj-1/t/topic-1`,
+				warning: expect.stringContaining('read-only')
+			}
 		});
 	});
 
@@ -1171,7 +1225,6 @@ describe('doctor', () => {
 				[cwd]: {
 					projectId: 'proj-1',
 					writeKey: 'bw_1',
-					noteKey: 'bn_1',
 					name: 'repo',
 					projectUrl: 'http://pinned.test/p/proj-1'
 				}

@@ -24,7 +24,7 @@ Before the first question, call `open_topic` with:
 - `summary`: why the work exists, one or two lines.
 - `nodes`: your first sketch of the model (see Model). Chart breadth first: the areas you can see, the Questions you can already phrase, the facts you looked up, the assumptions you are making, and fog where you can tell something matters but can't yet phrase it.
 
-Print the returned `noteUrl` to the user once, saying it is their private link: they can answer any open question there, in any order, add notes, and press Send. Notes from that link enter your context, so the `url` (read-only) is the one to share. To continue an earlier grill, call `open_topic` with its `topicId`.
+Print the returned `noteUrl` to the user once, saying it is their private link and is already open in their browser (it works once, so a second browser needs a fresh one): they can answer any open question there, in any order, add notes, and press Send. Notes from that link enter your context, so the `url` (read-only) is the one to share. The link works once and the board locks after the user is idle: when they say it is locked, call `open_topic` with the `topicId` and print the new `noteUrl`. A `warning` in the answer means `noteUrl` is read-only: say so and retry. To continue an earlier grill, call `open_topic` with its `topicId`.
 
 ## Model
 
