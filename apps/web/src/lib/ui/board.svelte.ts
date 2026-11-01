@@ -157,6 +157,12 @@ export class Board {
 		if (this.mode === 'demo') return stopNarrow;
 
 		void this.authenticate(takePairingCode());
+		// A Private link opened in a tab already showing this board only changes the hash.
+		const onHash = () => {
+			const code = takePairingCode();
+			if (code !== null) void this.authenticate(code);
+		};
+		window.addEventListener('hashchange', onHash);
 		this.since = readStored(keys.seen(this.topic.id));
 		const saveVisit = () => writeStored(keys.seen(this.topic.id), this.latestWrite());
 		const onVisibility = () => {
@@ -178,6 +184,7 @@ export class Board {
 			document.removeEventListener('visibilitychange', beat);
 			clearInterval(heartbeat);
 			window.removeEventListener('pagehide', saveVisit);
+			window.removeEventListener('hashchange', onHash);
 		};
 	}
 
