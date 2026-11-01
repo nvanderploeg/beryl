@@ -33,7 +33,7 @@
 				<a
 					class="topic"
 					class:closed={t.status === 'closed'}
-					href={resolve('/p/[id]/t/[topicId]', { id: data.project.id, topicId: t.id })}
+					href={resolve('/p/[id]/t/[topicId]', { id: data.project.slug, topicId: t.slug })}
 					data-testid="topic-row"
 				>
 					<div class="t-main">

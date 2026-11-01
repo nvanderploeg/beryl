@@ -14,6 +14,7 @@ export interface TopicHandle {
 	server: string;
 	projectId: string;
 	projectUrl: string;
+	slug?: string;
 }
 
 export type ProjectsFile = Record<string, Record<string, ProjectEntry>>;

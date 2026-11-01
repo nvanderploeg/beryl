@@ -186,7 +186,7 @@ JSON in and out. Errors are `{ error: string }`. 🔑 needs `Authorization: Bear
 | Method | Path | Body | Success |
 | --- | --- | --- | --- |
 | GET | `/api/health` | — | 200 `{ service: 'beryl', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }` |
-| POST | `/api/projects` | `{ name? }` | 201 `{ id, name, writeKey, url }` |
+| POST | `/api/projects` | `{ name? }` | 201 `{ id, slug, name, writeKey, url }` |
 | GET | `/api/projects/:id` | — | 200 `{ project, topics: TopicSummary[] }` (updatedAt desc) |
 | PATCH 🔑 | `/api/projects/:id` | `{ name }` | 200 `{ project }` |
 | POST 🔑 | `/api/projects/:id/topics` | `{ title, destination?, summary?, agent?, repo?, branch?, nodes?: NodeInput[] }` | 201 `{ topicId, url, topic, nodes }` |
@@ -217,9 +217,10 @@ interface Pulled {
 }
 ```
 
-- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<id>`. The Write key is `bw_` followed by 43 base64url characters.
-- `POST /api/projects/:id/topics`: `url` = `<origin>/p/<projectId>/t/<topicId>`. `nodes` are written as one batch after the Topic.
+- `POST /api/projects`: `name` defaults to `'Untitled'`. `url` = `<origin>/p/<slug>`. The Write key is `bw_` followed by 43 base64url characters.
+- `POST /api/projects/:id/topics`: `url` = `<origin>/p/<projectSlug>/t/<topicSlug>`. `nodes` are written as one batch after the Topic.
 - `PATCH /api/topics/:id`: `current` must be `null` or the Path of an open Node (400). `status: 'closed'` sets `closedAt`; `'open'` clears it.
+- **Slugs.** `/api` routes take ids only; the `/p/...` pages take an id or a slug. A Project's slug is unique across the server, a Topic's within its Project; the first to claim one keeps it and later claims take `-2`, `-3`, … Slugs derive from the name or title at creation and never change.
 - **Pairing and Sessions.** A code is `bp_` and a token `bs_`, each followed by 43 base64url characters; only their sha256 is stored.
   - A code expires five minutes after it is minted and redeems once (403 `invalid or used code`, also for an unknown or expired code).
   - A token expires ten minutes after its last renewal. Every ✎ request made with it counts as an action and sets expiry to ten minutes from now.

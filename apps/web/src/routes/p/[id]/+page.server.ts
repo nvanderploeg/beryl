@@ -1,11 +1,10 @@
 import { error } from '@sveltejs/kit';
-import { getProjectPage } from '#lib/server/store.ts';
-import { isUuid } from '#lib/ui/ids.ts';
+import { getProjectPage, resolveProjectId } from '#lib/server/store.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
-	if (!isUuid(params.id)) error(404, 'Project not found');
-	const page = await getProjectPage(params.id);
+	const projectId = await resolveProjectId(params.id);
+	const page = projectId && (await getProjectPage(projectId));
 	if (!page) error(404, 'Project not found');
 	return page;
 };

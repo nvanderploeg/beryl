@@ -85,8 +85,8 @@ export interface QuestionGroup {
 ## Routes
 
 - `/` — what beryl is, install in three lines, a link to `/demo`.
-- `/p/[id]` — the Project: its Topics (`TopicSummary`) with progress, counts, status and last update.
-- `/p/[id]/t/[topicId]` — the board.
+- `/p/[id]` — `[id]` is a Project id or slug. The Project: its Topics (`TopicSummary`) with progress, counts, status and last update.
+- `/p/[id]/t/[topicId]` — the board; `[topicId]` is a Topic id or slug.
 - `/demo` — the board over `fixtures/demo-grill.json` folded by `foldTurns`, read-only with a banner; `?turn=N` shows the state after N turns, and a turn scrubber steps through them.
 - `/demo/widgets` — every widget type from the fixture at `preview` and `full`.
 

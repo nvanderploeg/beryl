@@ -22,6 +22,9 @@ A Topic URL without the Note key: read-only.
 **Private link**:
 A Topic URL with `#pc=<Pairing code>`: lets the browser that redeems it add Notes and press Send. Opened for the user by the agent; not for sharing, because Notes enter the agent's context.
 
+**Slug**:
+The friendly address of a Project (unique on the server) or a Topic (unique within its Project), derived from its name or title at creation, fixed afterwards. First to claim wins; later claims get `-2`, `-3`. Resolves to the same row as its id.
+
 **Topic**:
 One subject being grilled, with its own page. Holds the Destination, the Nodes and the Notes. Open until the grill concludes, then closed.
 

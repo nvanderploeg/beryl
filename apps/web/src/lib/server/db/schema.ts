@@ -11,6 +11,7 @@ import {
 	serial,
 	text,
 	timestamp,
+	uniqueIndex,
 	varchar
 } from 'drizzle-orm/mysql-core';
 
@@ -19,13 +20,20 @@ const now = (name: string) =>
 		.notNull()
 		.default(sql`CURRENT_TIMESTAMP(3)`);
 
-export const projects = mysqlTable('projects', {
-	id: varchar('id', { length: 36 }).primaryKey(),
-	name: varchar('name', { length: 200 }).notNull(),
-	writeKeyHash: char('write_key_hash', { length: 64 }).notNull(),
-	createdAt: now('created_at'),
-	lastWriteAt: now('last_write_at')
-});
+// `slug` is the friendly address of the row: unique across Projects, and across one Project's
+// Topics. NULL only until the boot backfill assigns one.
+export const projects = mysqlTable(
+	'projects',
+	{
+		id: varchar('id', { length: 36 }).primaryKey(),
+		slug: varchar('slug', { length: 48 }),
+		name: varchar('name', { length: 200 }).notNull(),
+		writeKeyHash: char('write_key_hash', { length: 64 }).notNull(),
+		createdAt: now('created_at'),
+		lastWriteAt: now('last_write_at')
+	},
+	(table) => [uniqueIndex('projects_slug_idx').on(table.slug)]
+);
 
 export const pairings = mysqlTable('pairings', {
 	codeHash: char('code_hash', { length: 64 }).primaryKey(),
@@ -53,6 +61,7 @@ export const topics = mysqlTable(
 		projectId: varchar('project_id', { length: 36 })
 			.notNull()
 			.references(() => projects.id, { onDelete: 'cascade' }),
+		slug: varchar('slug', { length: 48 }),
 		title: varchar('title', { length: 200 }).notNull(),
 		destination: text('destination').notNull(),
 		summary: text('summary').notNull(),
@@ -65,7 +74,10 @@ export const topics = mysqlTable(
 		updatedAt: now('updated_at'),
 		closedAt: timestamp('closed_at', { fsp: 3 })
 	},
-	(table) => [index('topics_project_updated_idx').on(table.projectId, table.updatedAt)]
+	(table) => [
+		index('topics_project_updated_idx').on(table.projectId, table.updatedAt),
+		uniqueIndex('topics_project_slug_idx').on(table.projectId, table.slug)
+	]
 );
 
 export const nodes = mysqlTable(

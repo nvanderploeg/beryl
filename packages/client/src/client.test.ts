@@ -22,6 +22,7 @@ const T = '2026-10-24T00:00:00.000Z';
 
 const TOPIC: Topic = {
 	id: 'topic-1',
+	slug: 'retry-design',
 	projectId: 'proj-1',
 	title: 'Payments retry design',
 	destination: '',
@@ -37,7 +38,7 @@ const TOPIC: Topic = {
 };
 
 const SNAPSHOT: Snapshot = {
-	project: { id: 'proj-1', name: 'repo', createdAt: T, lastWriteAt: T },
+	project: { id: 'proj-1', slug: 'repo', name: 'repo', createdAt: T, lastWriteAt: T },
 	topic: TOPIC,
 	nodes: [],
 	notes: [],
@@ -156,6 +157,13 @@ function berylServer(
 			pairings += 1;
 			return { status: 201, body: { code: `bp_${pairings}`, expiresAt: T } };
 		}
+		const topicRead = /^\/api\/topics\/([^/]+)$/.exec(req.path);
+		if (req.method === 'GET' && topicRead) {
+			return {
+				status: 200,
+				body: { ...SNAPSHOT, topic: { ...TOPIC, id: topicRead[1], slug: topicRead[1] } }
+			};
+		}
 		const topic = /^\/api\/projects\/([^/]+)\/topics$/.exec(req.path);
 		if (req.method === 'POST' && topic) {
 			const projectId = topic[1];
@@ -169,7 +177,7 @@ function berylServer(
 				body: {
 					topicId,
 					url: `${origin}/p/${projectId}/t/${topicId}`,
-					topic: { ...TOPIC, id: topicId, projectId },
+					topic: { ...TOPIC, id: topicId, slug: topicId, projectId },
 					nodes: []
 				}
 			};
@@ -404,7 +412,12 @@ describe('openTopic creating a topic', () => {
 			}
 		});
 		expect(readFile('topics.json')).toEqual({
-			'topic-1': { server: SERVER, projectId: 'proj-1', projectUrl: `${SERVER}/p/proj-1` }
+			'topic-1': {
+				server: SERVER,
+				projectId: 'proj-1',
+				projectUrl: `${SERVER}/p/proj-1`,
+				slug: 'topic-1'
+			}
 		});
 		expect(modeOf('projects.json')).toBe(0o600);
 		expect(modeOf('topics.json')).toBe(0o600);
@@ -445,7 +458,10 @@ describe('openTopic creating a topic', () => {
 		});
 		expect(fake.writes().filter((r) => r.path === '/api/projects')).toHaveLength(1);
 		const handle = { server: SERVER, projectId: 'proj-1', projectUrl: `${SERVER}/p/proj-1` };
-		expect(readFile('topics.json')).toEqual({ 'topic-1': handle, 'topic-2': handle });
+		expect(readFile('topics.json')).toEqual({
+			'topic-1': { ...handle, slug: 'topic-1' },
+			'topic-2': { ...handle, slug: 'topic-2' }
+		});
 	});
 
 	it('renames the registered Project once when a later open names it differently', async () => {
@@ -725,8 +741,8 @@ describe('openTopic resuming a topic', () => {
 			ok: true,
 			value: {
 				topicId: 'topic-1',
-				url: `${SERVER}/p/proj-1/t/topic-1`,
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1`,
+				url: `${SERVER}/p/proj-1/t/retry-design`,
+				noteUrl: `${SERVER}/p/proj-1/t/retry-design#pc=bp_1`,
 				projectUrl: `${SERVER}/p/proj-1`,
 				server: SERVER,
 				projectId: 'proj-1',
@@ -878,7 +894,7 @@ describe('topic-scoped calls', () => {
 			ok: true,
 			value: {
 				snapshot: SNAPSHOT,
-				url: `${SERVER}/p/proj-1/t/topic-1`
+				url: `${SERVER}/p/proj-1/t/retry-design`
 			}
 		});
 		expect(fake.requests[0].headers.authorization).toBeUndefined();
@@ -911,8 +927,14 @@ describe('topic-scoped calls', () => {
 		const first = await client.topicUrl({ topicId: 'topic-1', private: true });
 		const second = await client.topicUrl({ topicId: 'topic-1', private: true });
 
-		expect(first).toEqual({ ok: true, value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1` } });
-		expect(second).toEqual({ ok: true, value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_2` } });
+		expect(first).toEqual({
+			ok: true,
+			value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_1` }
+		});
+		expect(second).toEqual({
+			ok: true,
+			value: { url: `${SERVER}/p/proj-1/t/topic-1#pc=bp_2` }
+		});
 	});
 
 	it('fails topicUrl when the server refuses to mint a code', async () => {
@@ -938,7 +960,7 @@ describe('topic-scoped calls', () => {
 		expect(result).toMatchObject({
 			ok: true,
 			value: {
-				noteUrl: `${SERVER}/p/proj-1/t/topic-1`,
+				noteUrl: `${SERVER}/p/proj-1/t/retry-design`,
 				warning: expect.stringContaining('read-only')
 			}
 		});

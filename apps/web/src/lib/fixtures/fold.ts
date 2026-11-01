@@ -58,12 +58,14 @@ class Folder {
 		const now = this.stamp();
 		this.project = {
 			id: DEMO_PROJECT_ID,
+			slug: DEMO_PROJECT_ID,
 			name: fixture.project.name,
 			createdAt: now,
 			lastWriteAt: now
 		};
 		this.topic = {
 			id: DEMO_TOPIC_ID,
+			slug: DEMO_TOPIC_ID,
 			projectId: DEMO_PROJECT_ID,
 			title: fixture.topic.title,
 			destination: fixture.topic.destination ?? '',

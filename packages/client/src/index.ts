@@ -48,6 +48,7 @@ interface Target {
 	server: string;
 	projectId: string;
 	projectUrl: string;
+	topicSlug?: string;
 	writeKey?: string;
 }
 
@@ -56,8 +57,8 @@ export function defaultConfigDir(env: Record<string, string | undefined> = proce
 }
 
 // Build links from the server's replies, never from `server`: the address we reach it on may not be its public origin.
-function projectUrlFrom(topicUrl: string, topicId: string, fallback: string): string {
-	const suffix = `/t/${topicId}`;
+function projectUrlFrom(topicUrl: string, topicSlug: string, fallback: string): string {
+	const suffix = `/t/${topicSlug}`;
 	return topicUrl.endsWith(suffix) ? topicUrl.slice(0, -suffix.length) : fallback;
 }
 
@@ -196,6 +197,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				projectId: handle.projectId,
 				projectUrl:
 					handle.projectUrl ?? entry?.projectUrl ?? `${handle.server}/p/${handle.projectId}`,
+				topicSlug: handle.slug,
 				writeKey: entry?.writeKey
 			}
 		};
@@ -219,7 +221,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		if (!writeKey) return unknownTopic(topicId);
 		const reply = await call<Snapshot>(server, topicPath(topicId), { method: 'GET' });
 		if (!reply.ok) return reply;
-		const url = `${projectUrl}/t/${topicId}`;
+		const url = `${projectUrl}/t/${reply.body.topic.slug ?? topicId}`;
 		return {
 			ok: true,
 			value: {
@@ -292,10 +294,15 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				}
 				if (!reply.ok) return reply;
 
-				const { topicId, url } = reply.body;
-				const projectUrl = projectUrlFrom(url, topicId, entry.projectUrl);
+				const { topicId, url, topic } = reply.body;
+				const projectUrl = projectUrlFrom(url, topic.slug ?? topicId, entry.projectUrl);
 				await store
-					.saveTopic(topicId, { server, projectId: entry.projectId, projectUrl })
+					.saveTopic(topicId, {
+						server,
+						projectId: entry.projectId,
+						projectUrl,
+						...(topic.slug && { slug: topic.slug })
+					})
 					.catch(() => {});
 				return {
 					ok: true,
@@ -321,7 +328,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				if (!reply.ok) return reply;
 				return {
 					ok: true,
-					value: { snapshot: reply.body, url: `${projectUrl}/t/${input.topicId}` }
+					value: {
+						snapshot: reply.body,
+						url: `${projectUrl}/t/${reply.body.topic.slug ?? input.topicId}`
+					}
 				};
 			}),
 
@@ -479,7 +489,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			guard(async () => {
 				const target = await targetFor(input.topicId);
 				if (!target.ok) return target;
-				const url = `${target.value.projectUrl}/t/${input.topicId}`;
+				const url = `${target.value.projectUrl}/t/${target.value.topicSlug ?? input.topicId}`;
 				if (!input.private) return { ok: true, value: { url } };
 				const { server, projectId, writeKey } = target.value;
 				if (!writeKey) return unknownTopic(input.topicId);

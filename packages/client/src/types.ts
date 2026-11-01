@@ -83,6 +83,7 @@ export interface Widget {
 
 export interface Project {
 	id: string;
+	slug: string;
 	name: string;
 	createdAt: string;
 	lastWriteAt: string;
@@ -90,6 +91,7 @@ export interface Project {
 
 export interface Topic {
 	id: string;
+	slug: string;
 	projectId: string;
 	title: string;
 	destination: string;

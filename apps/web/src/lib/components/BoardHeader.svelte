@@ -65,7 +65,7 @@
 	}
 
 	const home = $derived(
-		board.mode === 'demo' ? resolve('/') : resolve('/p/[id]', { id: board.project.id })
+		board.mode === 'demo' ? resolve('/') : resolve('/p/[id]', { id: board.project.slug })
 	);
 </script>
 

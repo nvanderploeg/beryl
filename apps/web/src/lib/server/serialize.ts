@@ -29,6 +29,7 @@ const isoOrNull = (date: Date | null) => (date ? iso(date) : null);
 export function toProject(row: ProjectRow): Project {
 	return {
 		id: row.id,
+		slug: row.slug ?? row.id,
 		name: row.name,
 		createdAt: iso(row.createdAt),
 		lastWriteAt: iso(row.lastWriteAt)
@@ -38,6 +39,7 @@ export function toProject(row: ProjectRow): Project {
 export function toTopic(row: TopicRow): Topic {
 	return {
 		id: row.id,
+		slug: row.slug ?? row.id,
 		projectId: row.projectId,
 		title: row.title,
 		destination: row.destination,

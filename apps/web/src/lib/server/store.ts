@@ -1,5 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, max, ne } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gt,
+	inArray,
+	isNotNull,
+	isNull,
+	like,
+	max,
+	ne
+} from 'drizzle-orm';
 import { ApiError } from '#lib/server/api.ts';
 import { publish } from '#lib/server/bus.ts';
 import { db } from '#lib/server/db/index.ts';
@@ -22,6 +35,8 @@ import {
 	type ProjectRow,
 	type TopicRow
 } from '#lib/server/serialize.ts';
+import { isUuid } from '#lib/ui/ids.ts';
+import { claimSlug, SLUG_MAX, slugify } from '#lib/server/slug.ts';
 import { sameJson, Tree, type TreeResult } from '#lib/server/tree.ts';
 import type {
 	Anchor,
@@ -57,8 +72,118 @@ export async function getNoteRow(id: string): Promise<NoteRow | undefined> {
 	return row;
 }
 
-export async function insertProject(row: typeof projects.$inferInsert): Promise<void> {
-	await db.insert(projects).values(row);
+const DUP_ENTRY = 1062;
+const CLAIM_ATTEMPTS = 8;
+
+function isDuplicateKey(error: unknown): boolean {
+	for (let e = error as { errno?: number; cause?: unknown } | undefined; e;) {
+		if (e.errno === DUP_ENTRY) return true;
+		e = e.cause as typeof e;
+	}
+	return false;
+}
+
+// Numbered candidates truncate `base` to fit, so match on a prefix short enough to cover them.
+async function takenProjectSlugs(base: string): Promise<Set<string>> {
+	const prefix = base.slice(0, SLUG_MAX - 6);
+	const rows = await db
+		.select({ slug: projects.slug })
+		.from(projects)
+		.where(like(projects.slug, `${prefix}%`));
+	return new Set(rows.map((r) => r.slug).filter((s): s is string => s !== null));
+}
+
+// First to claim a slug keeps it; the unique index settles a race, and the loser takes the next.
+export async function insertProject(
+	row: Omit<typeof projects.$inferInsert, 'slug'>
+): Promise<string> {
+	const base = slugify(row.name);
+	for (let attempt = 1; ; attempt++) {
+		const slug = claimSlug(base, await takenProjectSlugs(base));
+		try {
+			await db.insert(projects).values({ ...row, slug });
+			return slug;
+		} catch (error) {
+			if (!isDuplicateKey(error) || attempt >= CLAIM_ATTEMPTS) throw error;
+		}
+	}
+}
+
+// Assigns a slug to every Project and Topic whose slug is NULL, oldest first.
+export async function backfillSlugs(): Promise<void> {
+	const unslugged = await db
+		.select()
+		.from(projects)
+		.where(isNull(projects.slug))
+		.orderBy(asc(projects.createdAt), asc(projects.id));
+	for (const project of unslugged) {
+		const base = slugify(project.name);
+		for (let attempt = 1; attempt <= CLAIM_ATTEMPTS; attempt++) {
+			try {
+				await db
+					.update(projects)
+					.set({ slug: claimSlug(base, await takenProjectSlugs(base)) })
+					.where(eq(projects.id, project.id));
+				break;
+			} catch (error) {
+				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+			}
+		}
+	}
+	const topicRows = await db
+		.select()
+		.from(topics)
+		.where(isNull(topics.slug))
+		.orderBy(asc(topics.createdAt), asc(topics.id));
+	const takenIn = async (projectId: string) => {
+		const rows = await db
+			.select({ slug: topics.slug })
+			.from(topics)
+			.where(eq(topics.projectId, projectId));
+		return new Set(rows.map((r) => r.slug).filter((s): s is string => s !== null));
+	};
+	const taken = new Map<string, Set<string>>();
+	for (const topic of topicRows) {
+		for (let attempt = 1; attempt <= CLAIM_ATTEMPTS; attempt++) {
+			let claimed = taken.get(topic.projectId);
+			if (!claimed) {
+				claimed = await takenIn(topic.projectId);
+				taken.set(topic.projectId, claimed);
+			}
+			const slug = claimSlug(slugify(topic.title), claimed);
+			try {
+				await db.update(topics).set({ slug }).where(eq(topics.id, topic.id));
+				claimed.add(slug);
+				break;
+			} catch (error) {
+				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+				taken.delete(topic.projectId);
+			}
+		}
+	}
+}
+
+// A Project is addressed by id or slug.
+export async function resolveProjectId(ref: string): Promise<string | undefined> {
+	const [row] = await db
+		.select({ id: projects.id })
+		.from(projects)
+		.where(isUuid(ref) ? eq(projects.id, ref.toLowerCase()) : eq(projects.slug, ref));
+	return row?.id;
+}
+
+// A Topic is addressed by id or by slug within its Project.
+export async function resolveTopicId(projectId: string, ref: string): Promise<string | undefined> {
+	const [row] = await db
+		.select({ id: topics.id })
+		.from(topics)
+		.where(
+			and(
+				eq(topics.projectId, projectId),
+				isUuid(ref) ? eq(topics.id, ref.toLowerCase()) : eq(topics.slug, ref)
+			)
+		);
+	return row?.id;
 }
 
 export async function renameProject(id: string, name: string): Promise<Project> {
@@ -228,6 +353,15 @@ async function mutate<T>(
 					.from(projects)
 					.where(eq(projects.id, create.projectId))
 					.for('update');
+				const rows = await tx
+					.select({ slug: topics.slug })
+					.from(topics)
+					.where(eq(topics.projectId, create.projectId));
+				const base = slugify(create.title);
+				create.slug = claimSlug(
+					base,
+					new Set(rows.map((r) => r.slug).filter((slug): slug is string => slug !== null))
+				);
 				await tx.insert(topics).values(create);
 			} else {
 				[topic] = await tx.select().from(topics).where(eq(topics.id, topicId)).for('update');
@@ -336,6 +470,7 @@ export async function createTopic(
 	const now = new Date();
 	const row: TopicRow = {
 		id: randomUUID(),
+		slug: null,
 		projectId,
 		title: input.title,
 		destination: input.destination,

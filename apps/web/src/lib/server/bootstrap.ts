@@ -3,6 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { db } from '#lib/server/db/index.ts';
+import { backfillSlugs } from '#lib/server/store.ts';
 import { pruneExpired } from '#lib/server/sessions.ts';
 
 const CONNECT_ATTEMPTS = 30;
@@ -12,6 +13,7 @@ const PRUNE_EVERY_MS = 3_600_000;
 export async function bootstrap(): Promise<void> {
 	await waitForDatabase();
 	await migrate(db, { migrationsFolder: resolve('drizzle') });
+	await backfillSlugs();
 	setInterval(() => void pruneExpired().catch(() => {}), PRUNE_EVERY_MS).unref();
 }
 

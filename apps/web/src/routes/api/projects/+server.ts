@@ -11,7 +11,7 @@ export const POST: RequestHandler = route(async ({ request, url, getClientAddres
 	const id = crypto.randomUUID();
 	const writeKey = generateKey();
 	const now = new Date();
-	await insertProject({
+	const slug = await insertProject({
 		id,
 		name,
 		writeKeyHash: hashKey(writeKey),
@@ -20,7 +20,7 @@ export const POST: RequestHandler = route(async ({ request, url, getClientAddres
 	});
 	log('project.create', { id, name, ip: getClientAddress() });
 	return Response.json(
-		{ id, name, writeKey, url: `${publicOrigin(url)}/p/${id}` },
+		{ id, slug, name, writeKey, url: `${publicOrigin(url)}/p/${slug}` },
 		{ status: 201 }
 	);
 });

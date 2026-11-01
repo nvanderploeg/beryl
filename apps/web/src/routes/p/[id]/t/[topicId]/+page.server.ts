@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { getSnapshot } from '#lib/server/store.ts';
-import { isUuid } from '#lib/ui/ids.ts';
+import { getSnapshot, resolveProjectId, resolveTopicId } from '#lib/server/store.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
-	if (!isUuid(params.id) || !isUuid(params.topicId)) error(404, 'Topic not found');
-	const snapshot = await getSnapshot(params.topicId);
-	if (!snapshot || snapshot.project.id !== params.id) error(404, 'Topic not found');
+	const projectId = await resolveProjectId(params.id);
+	const topicId = projectId && (await resolveTopicId(projectId, params.topicId));
+	const snapshot = topicId && (await getSnapshot(topicId));
+	if (!snapshot) error(404, 'Topic not found');
 	return { snapshot };
 };

@@ -65,9 +65,10 @@ describe('POST /api/projects', () => {
 		expect(res.status).toBe(201);
 		expect(res.body).toEqual({
 			id: expect.stringMatching(UUID_V4),
+			slug: 'tracker',
 			name: 'Tracker',
 			writeKey: expect.stringMatching(/^bw_[A-Za-z0-9_-]{43}$/),
-			url: `${ORIGIN}/p/${res.body.id}`
+			url: `${ORIGIN}/p/tracker`
 		});
 	});
 
@@ -120,6 +121,7 @@ describe('GET and PATCH /api/projects/:id', () => {
 		expect(res.status).toBe(200);
 		expect(res.body.project).toEqual({
 			id: project.id,
+			slug: 'spec',
 			name: 'spec',
 			createdAt: expect.stringMatching(ISO),
 			lastWriteAt: expect.stringMatching(ISO)
@@ -199,9 +201,10 @@ describe('POST /api/projects/:id/topics', () => {
 		expect(res.status).toBe(201);
 		const { topicId } = res.body;
 		expect(topicId).toMatch(UUID_V4);
-		expect(res.body.url).toBe(`${ORIGIN}/p/${project.id}/t/${topicId}`);
+		expect(res.body.url).toBe(`${ORIGIN}/p/spec/t/team-workspaces`);
 		expect(res.body.topic).toEqual({
 			id: topicId,
+			slug: 'team-workspaces',
 			projectId: project.id,
 			title: 'Team workspaces',
 			destination: 'A spec',
