@@ -17,4 +17,13 @@ docker compose -p beryl --env-file deploy/beryl.env -f deploy/compose.prod.yml u
 Pin a build with `BERYL_TAG=sha-<short>` to roll back. `GET /api/health` answers
 `{"service":"beryl",...,"db":"ok"}` when the app and database are up.
 
+## Moving to another host
+
+Set `ADMIN_TOKEN` in `beryl.env`, open `/admin`, and download a bundle. Bring up the new host
+the same way, open its `/admin`, and import the bundle. Write keys keep working because the
+bundle carries their hashes; browser Sessions and Pairing codes are not carried, so the agent
+mints a new Private link. To import more than `BERYL_BODY_LIMIT` (8M by default), raise
+`BERYL_BODY_LIMIT` for the import and lower it again. Pre-import backups land in the `backups`
+volume (`ADMIN_BACKUP_DIR`), the newest five kept. See `docs/admin.md`.
+
 Point agents at the server with `BERYL_URL=https://beryl.example.com` (see `docs/usage.md`).

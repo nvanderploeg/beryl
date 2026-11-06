@@ -28,6 +28,9 @@ services:
       ORIGIN: ${ORIGIN:?set ORIGIN in deploy/beryl.env}
       # Keep in step with client_max_body_size in deploy/nginx.
       BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
+      # Empty: the admin portal and /api/admin answer 404. openssl rand -hex 24
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      ADMIN_BACKUP_DIR: /backups
       BERYL_IDLE_MS: ${BERYL_IDLE_MS:-}
       BERYL_HEARTBEAT_MS: ${BERYL_HEARTBEAT_MS:-}
       BERYL_WRITES_PER_WINDOW: ${BERYL_WRITES_PER_WINDOW:-}
@@ -36,6 +39,9 @@ services:
       ADDRESS_HEADER: x-real-ip
     ports:
       - '127.0.0.1:3270:3000'
+    volumes:
+      - backups:/backups
 
 volumes:
   mysqldata:
+  backups:

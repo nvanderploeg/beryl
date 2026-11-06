@@ -243,6 +243,7 @@ interface Pulled {
 - Opening: `: ok\n\n` as soon as the stream opens, before any replay.
 - Heartbeat: `: ping\n\n` every `BERYL_HEARTBEAT_MS` (default 25 000).
 - Idle: deadline = max(Topic `updatedAt`, stream open time) + `BERYL_IDLE_MS` (default 14 400 000); each published event resets it. At the deadline send `event: idle\ndata: {}\n\n` and close.
+- Reset: when an admin import replaces the database, or deletes the Topic, send `event: reset\ndata: {}\n\n` and close. The board reloads.
 
 ## Storage
 

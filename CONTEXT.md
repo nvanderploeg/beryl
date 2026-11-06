@@ -124,5 +124,11 @@ The event counter. A page that remembers the last `seq` it saw resumes its Strea
 **Stream**:
 `GET /api/topics/:id/stream`: server-sent Events for one Topic, with replay from a `seq`.
 
+**Admin token**:
+The server owner's secret, set as `ADMIN_TOKEN`. It opens the admin portal and `/api/admin`; unset, both answer 404. It is not a Write key and reaches no agent.
+
+**Bundle**:
+A zip the admin portal exports and imports: `db.ndjson`, a logical snapshot of every Project, Topic, Node and Note, and `manifest.json` naming the format, schema level and each file's sha256. Importing one replaces everything.
+
 **Registry**:
 `projects.json` and `topics.json` in the client config dir: which Project a repo writes to, with its keys, and which server and Project each Topic belongs to.

@@ -13,6 +13,16 @@ export interface StreamOptions {
 
 const encoder = new TextEncoder();
 
+const open = new Map<string, Set<() => void>>();
+
+// Sends `reset` and closes the Topic's open streams (all of them when no ids are given), so a
+// page reloads instead of resuming a `seq` the database no longer agrees with.
+export function endStreams(topicIds?: string[]): void {
+	for (const id of topicIds ?? [...open.keys()]) {
+		for (const end of [...(open.get(id) ?? [])]) end();
+	}
+}
+
 function frame(event: BerylEvent): string {
 	return `id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;
 }
@@ -55,8 +65,21 @@ export async function createTopicStream(
 		closed = true;
 		unsubscribe?.();
 		unsubscribe = undefined;
+		open.get(topicId)?.delete(end);
+		if (open.get(topicId)?.size === 0) open.delete(topicId);
 		clearTimeout(idleTimer);
 		clearInterval(heartbeatTimer);
+	}
+
+	function end(): void {
+		if (closed) return;
+		send('event: reset\ndata: {}\n\n');
+		cleanup();
+		try {
+			controller.close();
+		} catch {
+			// already errored or cancelled
+		}
 	}
 
 	function armIdle(): void {
@@ -94,6 +117,8 @@ export async function createTopicStream(
 		async start(c) {
 			controller = c;
 			unsubscribe = subscribe(topicId, onLive);
+			if (!open.has(topicId)) open.set(topicId, new Set());
+			open.get(topicId)!.add(end);
 			armIdle();
 			send(': ok\n\n');
 			try {

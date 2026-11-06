@@ -79,6 +79,7 @@ export class LiveTopic {
 		for (const type of FRAME_TYPES) {
 			source.addEventListener(type, (e) => this.frame(type, e as MessageEvent));
 		}
+		source.addEventListener('reset', () => location.reload());
 		source.addEventListener('idle', () => {
 			this.stop();
 			this.connection = 'idle';

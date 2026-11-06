@@ -34,8 +34,30 @@ export function parseId(value: string | undefined, what: string): string {
 	return value.toLowerCase();
 }
 
+export const BODY_MAX = 8 << 20;
+
+// Counts bytes as they arrive, so a chunked body without Content-Length stops at the cap
+// whatever BODY_SIZE_LIMIT is set to.
+export async function readCapped(request: Request, max: number): Promise<string> {
+	if (!request.body) return '';
+	const reader = request.body.getReader();
+	const parts: Uint8Array[] = [];
+	let total = 0;
+	for (;;) {
+		const { value, done } = await reader.read();
+		if (done) break;
+		total += value.length;
+		if (total > max) {
+			await reader.cancel().catch(() => {});
+			throw new ApiError(413, 'request body too large');
+		}
+		parts.push(value);
+	}
+	return Buffer.concat(parts).toString('utf8');
+}
+
 export async function readBody(request: Request): Promise<Record<string, unknown>> {
-	const text = await request.text();
+	const text = await readCapped(request, BODY_MAX);
 	if (text.trim() === '') return {};
 	let parsed: unknown;
 	try {

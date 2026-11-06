@@ -20,6 +20,7 @@ WORKDIR /app
 COPY --from=build /app/apps/web/package.json ./
 COPY --from=build /app/apps/web/build ./build
 COPY --from=build /app/apps/web/drizzle ./drizzle
+RUN mkdir /backups && chown node /backups
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

@@ -76,7 +76,7 @@ beryl doctor
 | `BERYL_OPEN` | `1` | `0` stops the MCP server opening the board link |
 | `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl` |
 
-Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS` (see `apps/web/src/env.ts`).
+Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS`, and for the admin portal `ADMIN_TOKEN`, `ADMIN_BACKUP_DIR`, `ADMIN_MAX_BUNDLE_MB`, `ADMIN_MAX_UNPACKED_MB` (see `apps/web/src/env.ts` and `docs/admin.md`).
 
 ## Deploy
 

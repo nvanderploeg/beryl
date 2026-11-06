@@ -39,5 +39,7 @@ services:
       DATABASE_URL: mysql://beryl:${MYSQL_PASSWORD:-beryl}@db:3306/beryl
       ORIGIN: ${BERYL_ORIGIN:-http://localhost:3270}
       BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
+      # Unset: the admin portal and /api/admin answer 404. At least 16 characters.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
 volumes:
   mysqldata:
