@@ -86,7 +86,7 @@ The image is published as `ghcr.io/nvanderploeg/beryl`. [`deploy/`](../deploy/RE
 
 ```sh
 pnpm install
-pnpm db:start                 # MySQL on 127.0.0.1:3326
+pnpm db:start                 # Postgres on 127.0.0.1:5446
 pnpm dev                      # the web app on http://localhost:3271
 pnpm test                     # packages and server specs
 node scripts/simulate.mjs --server http://localhost:3271   # play the demo grill into a live board
