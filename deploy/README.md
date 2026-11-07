@@ -29,6 +29,12 @@ the key outside the repository and outside images, and set in `beryl.env`:
 - `FIREBASE_WEB_API_KEY` (and optionally `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`): the web app
   config the login page loads from `/api/auth/config`.
 
+- `AUTH_COOKIE_DOMAIN`: the `Domain` of the `runestone_session` cookie, e.g. `.nanzero.com`. Sagas,
+  chronicle and beryl use the same cookie name, so a shared parent domain signs in to all three.
+  Unset, the cookie is host-only (local development). Every parent domain you serve from, and
+  every host that shows the login page, must be listed under Firebase Authentication > Settings >
+  Authorized domains.
+
 Sign-in sets a `Secure` cookie, so serve beryl over https.
 
 ## Moving to another host

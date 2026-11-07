@@ -65,7 +65,11 @@ export interface BerylClient {
 	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string }>>;
 	putNodes(input: { topicId: string; nodes: NodeInput[] }): Promise<Result<{ nodes: Node[] }>>;
 	removeNodes(input: { topicId: string; paths: string[] }): Promise<Result<{ removed: string[] }>>;
-	moveNode(input: { topicId: string; from: string; to: string }): Promise<Result<{ moved: { from: string; to: string }[] }>>;
+	moveNode(input: {
+		topicId: string;
+		from: string;
+		to: string;
+	}): Promise<Result<{ moved: { from: string; to: string }[] }>>;
 	updateTopic(input: {
 		topicId: string;
 		title?: string;
@@ -86,7 +90,13 @@ export interface BerylClient {
 		pollMs?: number; // per request; default 25 000
 		signal?: AbortSignal;
 	}): Promise<Result<{ sent: number }>>; // sent 0 = the overall timeout passed or the signal aborted
-	addNote(input: { topicId: string; anchor: Anchor; intent: NoteIntent; text?: string; author?: string }): Promise<Result<{ note: Note }>>;
+	addNote(input: {
+		topicId: string;
+		anchor: Anchor;
+		intent: NoteIntent;
+		text?: string;
+		author?: string;
+	}): Promise<Result<{ note: Note }>>;
 	send(input: { topicId: string }): Promise<Result<{ sent: number }>>;
 	topicUrl(input: { topicId: string; private?: boolean }): Promise<Result<{ url: string }>>;
 	doctor(input?: { cwd?: string }): Promise<DoctorReport>;
@@ -104,7 +114,10 @@ export interface DoctorReport {
 
 export function createClient(options?: ClientOptions): BerylClient;
 export function formatPulled(pulled: Pulled, topic: { id: string; title?: string }): string;
-export function formatOutline(snapshot: Snapshot, options?: { path?: string; detail?: 'outline' | 'full' }): string;
+export function formatOutline(
+	snapshot: Snapshot,
+	options?: { path?: string; detail?: 'outline' | 'full' }
+): string;
 export function repoIdentity(cwd: string): Promise<{ repoKey: string; name: string }>;
 export function gitRefs(cwd: string): Promise<{ repo?: string; branch?: string }>;
 ```
@@ -195,12 +208,12 @@ beryl hook
 
 `beryl hook` reads one Claude Code hook event on stdin and prints hook JSON or nothing; it always exits 0. `src/hook.ts` exports `handleHook(raw: string, deps: { dir: string; client: BerylClient; isListening(topicId: string): boolean; timeoutMs?: number }): Promise<string>`. Per-session state lives in `<configDir>/sessions/<session_id>.json`: `{ topicId?, url?, closed: boolean }`, pruned after two weeks.
 
-| Event | Does |
-| --- | --- |
-| `PostToolUse` of `mcp__beryl__open_topic` or `mcp__beryl__get_topic` | Records the `topicId` from the response (`"topicId":"…"`) or the input; `closed: false`. |
-| `PostToolUse` of `mcp__beryl__update_topic` with `status` | `closed` follows it for that Topic. |
-| `UserPromptSubmit`, Topic open | Pulls within `timeoutMs` (default 1500) and returns `formatPulled` as `additionalContext`. Without a live listener it adds: `beryl: no board listener is running. Before you end this turn, run \`beryl wait <id>\` in the background so Send on the board reaches you.` A failed pull returns `beryl: could not reach the board for topic <id>; call pull_notes before you answer.` |
-| `SessionStart` with source `compact` or `resume`, Topic open | `beryl: this session grills topic <id> (<url>). Call get_topic before writing to it again.` |
+| Event                                                                | Does                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PostToolUse` of `mcp__beryl__open_topic` or `mcp__beryl__get_topic` | Records the `topicId` from the response (`"topicId":"…"`) or the input; `closed: false`.                                                                                                                                                                                                                                                                                           |
+| `PostToolUse` of `mcp__beryl__update_topic` with `status`            | `closed` follows it for that Topic.                                                                                                                                                                                                                                                                                                                                                |
+| `UserPromptSubmit`, Topic open                                       | Pulls within `timeoutMs` (default 1500) and returns `formatPulled` as `additionalContext`. Without a live listener it adds: `beryl: no board listener is running. Before you end this turn, run \`beryl wait <id>\` in the background so Send on the board reaches you.`A failed pull returns`beryl: could not reach the board for topic <id>; call pull_notes before you answer.` |
+| `SessionStart` with source `compact` or `resume`, Topic open         | `beryl: this session grills topic <id> (<url>). Call get_topic before writing to it again.`                                                                                                                                                                                                                                                                                        |
 
 Anything else, unparseable input, a missing `session_id` or any failure → no output.
 
@@ -208,16 +221,16 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 
 `src/server.ts` exports `createServer(client?: BerylClient, open?: Opener): McpServer`, server name `beryl`; `src/index.ts` connects it over stdio.
 
-| Tool | Input | Answer |
-| --- | --- | --- |
-| `open_topic` | `{ title?, destination?, summary?, nodes?, agent?, repo?, branch?, project?, topicId?, cwd? }` | JSON of the `openTopic` value |
-| `get_topic` | `{ topicId, path?, detail?: 'outline' \| 'full' \| 'json' }` | `formatOutline`, or the Snapshot JSON for `json` |
-| `put_nodes` | `{ topicId, nodes: NodeInput[] }` | JSON `{ written: { path, kind, status, gistStale }[] }` |
-| `remove_nodes` | `{ topicId, paths }` | JSON `{ removed }` |
-| `move_node` | `{ topicId, from, to }` | JSON `{ moved }` |
-| `update_topic` | `{ topicId, title?, destination?, summary?, status?, current?, agent? }` | JSON `{ topic }` |
-| `pull_notes` | `{ topicId }` | `formatPulled` |
-| `resolve_notes` | `{ topicId, notes: { id, reply?, changed? }[] }` | JSON `{ resolved: id[] }` |
+| Tool            | Input                                                                                          | Answer                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `open_topic`    | `{ title?, destination?, summary?, nodes?, agent?, repo?, branch?, project?, topicId?, cwd? }` | JSON of the `openTopic` value                           |
+| `get_topic`     | `{ topicId, path?, detail?: 'outline' \| 'full' \| 'json' }`                                   | `formatOutline`, or the Snapshot JSON for `json`        |
+| `put_nodes`     | `{ topicId, nodes: NodeInput[] }`                                                              | JSON `{ written: { path, kind, status, gistStale }[] }` |
+| `remove_nodes`  | `{ topicId, paths }`                                                                           | JSON `{ removed }`                                      |
+| `move_node`     | `{ topicId, from, to }`                                                                        | JSON `{ moved }`                                        |
+| `update_topic`  | `{ topicId, title?, destination?, summary?, status?, current?, agent? }`                       | JSON `{ topic }`                                        |
+| `pull_notes`    | `{ topicId }`                                                                                  | `formatPulled`                                          |
+| `resolve_notes` | `{ topicId, notes: { id, reply?, changed? }[] }`                                               | JSON `{ resolved: id[] }`                               |
 
 - Failures → one text item `beryl: <warning>`, never `isError`.
 - `widgets[].data` is passed through unchecked; the server validates it.

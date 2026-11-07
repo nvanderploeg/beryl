@@ -7,6 +7,9 @@ import {
 import { GET as meRoute } from '../../routes/api/me/+server.ts';
 import { GET as getEventsRoute } from '../../routes/api/topics/[id]/events/+server.ts';
 import { GET as streamRoute } from '../../routes/api/topics/[id]/stream/+server.ts';
+import { db } from '#lib/server/db/index.ts';
+import { users } from '#lib/server/db/schema.ts';
+import { sessionCookie } from '#lib/server/login.ts';
 import { setVerifier, type LoginUser } from '#lib/server/firebase.ts';
 import { listOwnedPages } from '#lib/server/store.ts';
 import { resetDb } from '#lib/server/test/db.ts';
@@ -46,7 +49,7 @@ beforeEach(async () => {
 afterEach(() => setVerifier(undefined));
 
 const as = (uid?: string): Record<string, string> =>
-	uid ? { cookie: `beryl_session=cookie-${uid}` } : {};
+	uid ? { cookie: `runestone_session=cookie-${uid}` } : {};
 
 async function reply(response: Response | Promise<Response>) {
 	const res = await response;
@@ -163,7 +166,7 @@ describe('sign-in', () => {
 		expect(res.status).toBe(200);
 		expect(res.body.user).toEqual(fakeUser('alice'));
 		const cookie = res.headers.get('set-cookie')!;
-		expect(cookie).toMatch(/^beryl_session=cookie-alice;/);
+		expect(cookie).toMatch(/^runestone_session=cookie-alice;/);
 		expect(cookie).toMatch(/HttpOnly/);
 		expect(cookie).toMatch(/SameSite=Strict/);
 		expect(cookie).not.toMatch(/Secure/);
@@ -205,7 +208,7 @@ describe('sign-in', () => {
 
 	it('treats a forged cookie as signed out and sign-out expires the cookie', async () => {
 		const me = await reply(
-			meRoute(event({ path: '/api/me', headers: { cookie: 'beryl_session=forged' } }))
+			meRoute(event({ path: '/api/me', headers: { cookie: 'runestone_session=forged' } }))
 		);
 		expect(me.body.user).toBeNull();
 		const out = await reply(signOutRoute(event({ method: 'DELETE', path: '/api/auth/session' })));
@@ -355,5 +358,40 @@ describe('anonymous Projects', () => {
 			project.writeKey
 		);
 		expect(create.status).toBe(400);
+	});
+});
+
+describe('shared cookie', () => {
+	const signIn = (url = 'http://beryl.test/api/auth/session') => {
+		const request = event({
+			method: 'POST',
+			path: '/api/auth/session',
+			body: { idToken: 'id-alice' }
+		});
+		return reply(signInRoute({ ...request, url: new URL(url) } as never));
+	};
+
+	it('is named runestone_session and host-only when AUTH_COOKIE_DOMAIN is unset', async () => {
+		const cookie = (await signIn()).headers.get('set-cookie')!;
+		expect(cookie).toMatch(/^runestone_session=/);
+		expect(cookie).not.toMatch(/Domain=/);
+	});
+
+	it('records the user on the first verified request, once', async () => {
+		await reply(meRoute(event({ path: '/api/me', headers: as('alice') })));
+		await reply(meRoute(event({ path: '/api/me', headers: as('alice') })));
+		const rows = await db.select().from(users);
+		expect(rows.map((r) => r.uid)).toEqual(['alice']);
+		expect(rows[0].email).toBe('alice@example.com');
+	});
+});
+
+describe('sessionCookie', () => {
+	it('sets and clears with the same Domain', () => {
+		const set = sessionCookie('v', true, 1000, '.nanzero.com');
+		const clear = sessionCookie('', true, 0, '.nanzero.com');
+		expect(set).toMatch(/Domain=\.nanzero\.com/);
+		expect(clear).toMatch(/Domain=\.nanzero\.com/);
+		expect(clear).toMatch(/Max-Age=0/);
 	});
 });

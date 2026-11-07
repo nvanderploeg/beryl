@@ -30,6 +30,7 @@ services:
       ADMIN_BACKUP_DIR: /backups
       # Empty: sign-in is off. The key file is mounted read-only below.
       FIREBASE_SERVICE_ACCOUNT_FILE: ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:+/run/secrets/firebase.json}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}
       FIREBASE_WEB_API_KEY: ${FIREBASE_WEB_API_KEY:-}
       FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
       FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}

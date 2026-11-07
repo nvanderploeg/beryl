@@ -17,7 +17,9 @@ A Widget is `{ key, type, title?, data }` on a Node (`docs/api.md`). This file f
 ### markdown
 
 ```ts
-{ text: string } // ≤ 20 000 chars
+{
+	text: string;
+} // ≤ 20 000 chars
 ```
 
 No Elements.
@@ -256,7 +258,9 @@ Every Element of the widget in render order; `label` is the human name (`users.e
 `src/lib/widgets/validate.ts`:
 
 ```ts
-export function validateWidget(widget: unknown): { ok: true; widget: Widget } | { ok: false; reason: string };
+export function validateWidget(
+	widget: unknown
+): { ok: true; widget: Widget } | { ok: false; reason: string };
 ```
 
 Checks `key`, `type`, `title` and `data` against this file. The server calls it for every Widget it stores; the views call it before rendering.

@@ -11,7 +11,7 @@ One repo's beryl space: its Topics and a Write key. Its UUID is also its URL (`/
 The signed-in user (a Firebase uid) a Project belongs to. An owned Project has no Write key and no anonymous reach: its Owner writes with their login, and mints Pairing codes with it. A Project with no Owner is anonymous.
 
 **Login**:
-A browser's proof of who is signed in: a Firebase session cookie, verified on every request.
+A browser's proof of who is signed in: the Firebase session cookie `runestone_session`, shared with sagas and chronicle and verified on every request.
 
 **Public**:
 A Topic flag. A private Topic of an owned Project is readable only by its Owner's login; anonymous Projects' Topics are always public.

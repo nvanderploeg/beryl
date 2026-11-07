@@ -19,16 +19,16 @@ Set `ADMIN_TOKEN` (at least 16 characters; `openssl rand -hex 24`). Unset, `/adm
 
 All JSON unless noted. 401 without credentials, 403 on a CSRF failure.
 
-| Method | Path | Does |
-| --- | --- | --- |
-| POST | `/api/admin/login` | `{token}`; sets the cookie, returns `{ok, csrf}` |
-| POST | `/api/admin/logout` | clears the cookie |
-| GET | `/api/admin/stats` | `{service, appVersion, build, database:{name,bytes}, counts, schema, migrations:[{tag,applied}]}` |
-| GET | `/api/admin/projects` | Projects with their Topics: node, note and event counts, `bytes` (payload held, not disk size), `lastActivityAt` |
-| DELETE | `/api/admin/projects/:id` | body `{confirm: <exact Project name>, confirmId: <the id>}`; cascades |
-| DELETE | `/api/admin/topics/:id` | body `{confirm: <exact Topic title>, confirmId: <the id>}` |
-| GET | `/api/admin/export` | streams a Bundle (`application/zip`) |
-| POST | `/api/admin/import?confirm=replace-everything` | body is the zip; replaces everything. A Bundle with no Projects is refused unless `&allowEmpty=1` |
+| Method | Path                                           | Does                                                                                                             |
+| ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/admin/login`                             | `{token}`; sets the cookie, returns `{ok, csrf}`                                                                 |
+| POST   | `/api/admin/logout`                            | clears the cookie                                                                                                |
+| GET    | `/api/admin/stats`                             | `{service, appVersion, build, database:{name,bytes}, counts, schema, migrations:[{tag,applied}]}`                |
+| GET    | `/api/admin/projects`                          | Projects with their Topics: node, note and event counts, `bytes` (payload held, not disk size), `lastActivityAt` |
+| DELETE | `/api/admin/projects/:id`                      | body `{confirm: <exact Project name>, confirmId: <the id>}`; cascades                                            |
+| DELETE | `/api/admin/topics/:id`                        | body `{confirm: <exact Topic title>, confirmId: <the id>}`                                                       |
+| GET    | `/api/admin/export`                            | streams a Bundle (`application/zip`)                                                                             |
+| POST   | `/api/admin/import?confirm=replace-everything` | body is the zip; replaces everything. A Bundle with no Projects is refused unless `&allowEmpty=1`                |
 
 ```sh
 curl -H "Authorization: Bearer $ADMIN_TOKEN" -o beryl.zip https://old.example.com/api/admin/export
@@ -43,12 +43,12 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" --data-binary @beryl.zip \
 
 ```json
 {
-  "format": 1,
-  "service": "beryl",
-  "appVersion": "0.1.0",
-  "schema": "0001_firebase_owner",
-  "createdAt": "2026-11-06T17:00:00.000Z",
-  "files": [{ "path": "db.ndjson", "size": 123, "sha256": "…" }]
+	"format": 1,
+	"service": "beryl",
+	"appVersion": "0.1.0",
+	"schema": "0001_firebase_owner",
+	"createdAt": "2026-11-06T17:00:00.000Z",
+	"files": [{ "path": "db.ndjson", "size": 123, "sha256": "…" }]
 }
 ```
 
@@ -56,7 +56,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" --data-binary @beryl.zip \
 
 **The database file is `db.ndjson`, not `db.sqlite`.** Beryl runs on Postgres, so there is no file to snapshot. The export opens one `REPEATABLE READ` read-only transaction and streams every table through it, so the dump is a single point in time while writes continue. Each table is a header line `{"table","columns"}` followed by one JSON array per row. Timestamps travel as UTC text (`2026-01-01 12:00:00.000`), JSON columns as their stored text and booleans as `0` or `1`, so a round trip is byte-identical. Bundles exported by MySQL-era builds import unchanged.
 
-Carried: Projects (with the sha256 of each Write key, so every agent's key keeps working, and each owned Project's `owner_uid`), Topics (with their `public` flag), Nodes, Notes, and the event log (so `seq`, and a stream's replay, stay meaningful). Bundles from before sign-in lack `owner_uid` and `public`: those Projects import anonymous and those Topics public. Not carried: **Sessions** and **Pairing codes**. They are short-lived browser credentials (ten-minute Sessions, five-minute codes); an imported server starts with none, and an import clears the ones it had. The agent mints a new Private link to re-open a board for writing; Share links keep working.
+Carried: Projects (with the sha256 of each Write key, so every agent's key keeps working, and each owned Project's `owner_uid`), Topics (with their `public` flag), Nodes, Notes, and the event log (so `seq`, and a stream's replay, stay meaningful). Bundles from before sign-in lack `owner_uid` and `public`: those Projects import anonymous and those Topics public. Not carried: **login tokens**, **device codes** and the **users** table (they are untouched by an import), **Sessions** and **Pairing codes**. They are short-lived browser credentials (ten-minute Sessions, five-minute codes); an imported server starts with none, and an import clears the ones it had. The agent mints a new Private link to re-open a board for writing; Share links keep working.
 
 ## Import
 

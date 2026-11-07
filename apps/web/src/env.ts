@@ -68,6 +68,11 @@ export const variables = defineEnvVars({
 			'The Firebase service account JSON itself, when a file is awkward. Wins over `FIREBASE_SERVICE_ACCOUNT_FILE`.',
 		schema: optional
 	},
+	AUTH_COOKIE_DOMAIN: {
+		description:
+			'Domain attribute of the shared `runestone_session` cookie, e.g. `.nanzero.com`. Unset: a host-only cookie.',
+		schema: optional
+	},
 	FIREBASE_WEB_API_KEY: {
 		description: 'The Firebase web app API key the sign-in page loads. Unset: sign-in is off.',
 		schema: optional

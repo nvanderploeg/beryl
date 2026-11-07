@@ -58,6 +58,14 @@ export const sessions = pgTable('sessions', {
 	expiresAt: instant('expires_at').notNull()
 });
 
+// This app's record of a Firebase user, created on the first verified request.
+export const users = pgTable('users', {
+	uid: varchar('uid', { length: 128 }).primaryKey(),
+	email: varchar('email', { length: 320 }),
+	name: varchar('name', { length: 200 }),
+	createdAt: now('created_at')
+});
+
 // A pending device login: the agent holds `deviceCode`, the person approves `userCode` while
 // signed in, which sets `uid`. Redeeming the device code deletes the row.
 export const deviceCodes = pgTable(

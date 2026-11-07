@@ -11,14 +11,14 @@ beryl doctor
 
 This builds the packages, links the `beryl` skill and CLI (`~/.local/bin/beryl`), registers the MCP server with Claude Code (and Codex if present), starts the board server on <http://localhost:3270>, and adds the hooks that bring board notes into each turn. It is safe to re-run.
 
-| Flag | Does |
-| --- | --- |
-| `--with-server` | `docker compose up -d` and wait for the server to answer |
+| Flag              | Does                                                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--with-server`   | `docker compose up -d` and wait for the server to answer                                                                                                             |
 | `--without-hooks` | skip adding `beryl hook` to `~/.claude/settings.json`, which otherwise runs on `SessionStart` (compact, resume), `UserPromptSubmit` and `PostToolUse` of beryl tools |
-| `--allow-tools` | add `mcp__beryl__*` to `permissions.allow` |
-| `--replace` | move conflicting paths aside and re-register |
-| `--skip-mcp` | do not register the MCP server |
-| `--dry-run` | print what would happen |
+| `--allow-tools`   | add `mcp__beryl__*` to `permissions.allow`                                                                                                                           |
+| `--replace`       | move conflicting paths aside and re-register                                                                                                                         |
+| `--skip-mcp`      | do not register the MCP server                                                                                                                                       |
+| `--dry-run`       | print what would happen                                                                                                                                              |
 
 `scripts/uninstall.sh` removes exactly what the installer recorded; `--purge` also deletes the registry (`projects.json`, `topics.json`), which holds the keys.
 
@@ -43,16 +43,16 @@ The Questions sidebar lists every Question the agent knows about; click one to f
 
 ## MCP tools
 
-| Tool | Does |
-| --- | --- |
-| `open_topic` | start a grill's board (or resume one by `topicId`) and open the private link |
-| `get_topic` | the model as an outline, a subtree in full, or JSON |
-| `put_nodes` | create or update nodes in one batch |
-| `remove_nodes` | delete nodes and their subtrees |
-| `move_node` | move a subtree to a new path; edges and notes follow |
-| `update_topic` | title, destination, summary, the Current Question, open or closed |
-| `pull_notes` | take the notes waiting on the board |
-| `resolve_notes` | close notes with a reply and the paths changed |
+| Tool            | Does                                                                         |
+| --------------- | ---------------------------------------------------------------------------- |
+| `open_topic`    | start a grill's board (or resume one by `topicId`) and open the private link |
+| `get_topic`     | the model as an outline, a subtree in full, or JSON                          |
+| `put_nodes`     | create or update nodes in one batch                                          |
+| `remove_nodes`  | delete nodes and their subtrees                                              |
+| `move_node`     | move a subtree to a new path; edges and notes follow                         |
+| `update_topic`  | title, destination, summary, the Current Question, open or closed            |
+| `pull_notes`    | take the notes waiting on the board                                          |
+| `resolve_notes` | close notes with a reply and the paths changed                               |
 
 ## CLI
 
@@ -70,13 +70,13 @@ beryl doctor
 
 ## Configuration
 
-| Variable | Default | Does |
-| --- | --- | --- |
-| `BERYL_URL` | unset | pin the client to one server (no fallback) |
-| `BERYL_OPEN` | `1` | `0` stops the MCP server opening the board link |
-| `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl` |
+| Variable          | Default     | Does                                            |
+| ----------------- | ----------- | ----------------------------------------------- |
+| `BERYL_URL`       | unset       | pin the client to one server (no fallback)      |
+| `BERYL_OPEN`      | `1`         | `0` stops the MCP server opening the board link |
+| `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl`  |
 
-Sign-in (off unless a service account and `FIREBASE_WEB_API_KEY` are set): `FIREBASE_SERVICE_ACCOUNT_FILE` (path) or `FIREBASE_SERVICE_ACCOUNT` (the JSON), `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`. See `deploy/README.md`. Never commit the service account.
+Sign-in (off unless a service account and `FIREBASE_WEB_API_KEY` are set): `FIREBASE_SERVICE_ACCOUNT_FILE` (path) or `FIREBASE_SERVICE_ACCOUNT` (the JSON), `AUTH_COOKIE_DOMAIN`, `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`. See `deploy/README.md`. Never commit the service account.
 
 Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS`, and for the admin portal `ADMIN_TOKEN`, `ADMIN_BACKUP_DIR`, `ADMIN_MAX_BUNDLE_MB`, `ADMIN_MAX_UNPACKED_MB` (see `apps/web/src/env.ts` and `docs/admin.md`).
 

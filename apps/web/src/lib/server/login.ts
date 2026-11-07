@@ -1,11 +1,13 @@
+import { AUTH_COOKIE_DOMAIN } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { verifier, type LoginUser } from '#lib/server/firebase.ts';
+import { ensureUser } from '#lib/server/users.ts';
 import { LOGIN_PREFIX, uidOfLoginToken } from '#lib/server/logins.ts';
 import { log } from '#lib/server/log.ts';
 
 export type { LoginUser };
 
-export const COOKIE = 'beryl_session';
+export const COOKIE = 'runestone_session';
 export const COOKIE_TTL_MS = 5 * 24 * 60 * 60 * 1000;
 
 function cookieValue(request: Request, name: string): string | undefined {
@@ -20,11 +22,14 @@ function cookieValue(request: Request, name: string): string | undefined {
 export async function verifyCookie(cookie: string | undefined): Promise<LoginUser | null> {
 	const check = verifier();
 	if (!cookie || !check) return null;
+	let user: LoginUser;
 	try {
-		return await check.verifySessionCookie(cookie);
+		user = await check.verifySessionCookie(cookie);
 	} catch {
 		return null;
 	}
+	await ensureUser(user);
+	return user;
 }
 
 export const cookieUser = (request: Request) => verifyCookie(cookieValue(request, COOKIE));
@@ -47,8 +52,14 @@ export async function requireCookie(request: Request): Promise<LoginUser> {
 }
 
 // Strict, so a cross-site request never carries the cookie.
-export function sessionCookie(value: string, secure: boolean, maxAgeMs: number): string {
+export function sessionCookie(
+	value: string,
+	secure: boolean,
+	maxAgeMs: number,
+	domain = AUTH_COOKIE_DOMAIN
+): string {
 	const attrs = ['Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${Math.floor(maxAgeMs / 1000)}`];
+	if (domain) attrs.push(`Domain=${domain}`);
 	if (secure) attrs.push('Secure');
 	return `${COOKIE}=${value}; ${attrs.join('; ')}`;
 }

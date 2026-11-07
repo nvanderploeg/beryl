@@ -24,12 +24,20 @@ export function isUnknown(node: Node): boolean;
 export function countsOf(nodes: Node[], path?: string | null): Counts;
 export function progressOf(nodes: Node[]): { settled: number; total: number };
 export function frontier(nodes: Node[], current: string | null): Frontier;
-export function questionList(nodes: Node[], current: string | null, include?: NodeKind[]): QuestionGroup[];
+export function questionList(
+	nodes: Node[],
+	current: string | null,
+	include?: NodeKind[]
+): QuestionGroup[];
 export type Lod = 'far' | 'mid' | 'near';
 export const LOD_MID = 0.5;
 export const LOD_NEAR = 1.0;
 export function lodFor(zoom: number): Lod;
-export function notesOn(notes: Note[], path: string | null, options?: { subtree?: boolean; nodes?: Node[] }): Note[];
+export function notesOn(
+	notes: Note[],
+	path: string | null,
+	options?: { subtree?: boolean; nodes?: Node[] }
+): Note[];
 export function marksOf(notes: Note[], path: string, widget: string): Record<string, number>;
 export function pendingAnswer(notes: Note[], path: string): Note | undefined;
 export function queuedCount(notes: Note[]): number;
@@ -97,11 +105,12 @@ export interface QuestionGroup {
 **Layout.** Four panels — Questions, Details, Notes, History — sit in three docks around the view: left, right and bottom. Each dock holds one or more groups; a group tabs its panels. Drag a tab onto another group's tab strip or centre to tab it, onto a group's leading or trailing edge to stack it beside, or onto a dock edge shown while dragging to dock it there. The `⋯` menu on a group moves its active panel to a dock by keyboard, collapses the dock to a rail, or resets the layout. Dock sizes and the dividers between groups are draggable splitters (arrow keys nudge, double-click resets a dock). The layout is one JSON value in localStorage `beryl:layout`; malformed or incomplete values fall back to the default (Questions left; Details and History tabbed over Notes on the right). Pure operations are in `apps/web/src/lib/ui/layout.ts`. Under 900px the layout is fixed: a Questions drawer and one bottom sheet tabbing Details, Notes and History.
 
 **Questions sidebar.** The Questions panel (left by default), collapsible. It lists every Question the agent knows about, grouped by `questionList`: Now asking, Ready (with `#rank`), Waiting (with what each waits on), Parked, Settled (with the answer's first line), Dropped. Filter chips add assumptions, fog and risks; a search box filters by title and gist. Each row shows its status mark, title, its area (the depth-1 ancestor's title) and a badge for open notes or a pending answer. Clicking a row selects the Node and brings it into view in the active view:
+
 - Graph: expands any collapsed ancestor, then pans and zooms to fit the Node at `near` LOD with a short animation.
 - Map: zooms into the Node's parent cell and pulses the Node's cell.
 - Outline: expands its ancestors and scrolls its row into view.
 - Frontier: scrolls its card into view, or shows it in the Settled section.
-The selected row stays highlighted and scrolls into view when selection changes elsewhere. `↑`/`↓` move through the list while it has focus; `Enter` jumps.
+  The selected row stays highlighted and scrolls into view when selection changes elsewhere. `↑`/`↓` move through the list while it has focus; `Enter` jumps.
 
 **Inspector.** The Details, Notes and History panels (right by default), for the selected Node: ancestors as a breadcrumb, kind and status, title, gist with a Stale gist marker, body (rendered markdown), recommendation, answer, sources (`url`, or `file:line`), outgoing and incoming Edges grouped by rel (each a link that selects that Node), widgets at `full` with Element selection, the Notes thread for this Node (anchors, status, replies) and the composer. A History tab lists the Node's events from `GET /api/topics/:id/events?path=`. On narrow screens it is a bottom sheet, and the sidebar a drawer.
 
@@ -122,6 +131,7 @@ The selected row stays highlighted and scrolls into view when selection changes 
 Svelte Flow canvas with pan, zoom, controls and a minimap. ELK lays out a compound graph: a Node with children is a container holding them; `relies_on` Edges guide layering; Edges render by rel — `relies_on` solid arrow, `relates` thin dotted, `conflicts` red, `supersedes` dashed with a hollow arrow; dangling Edges end in a small "missing" stub.
 
 Layout runs on structural change only (Nodes added, removed or moved; a container collapsed or expanded). Content updates and zoom never move a box. LOD swaps what a box shows:
+
 - `far`: depth-1 containers are opaque tiles with title, gist, counts and progress; their contents are hidden.
 - `mid`: depth-2 content shows as cards with kind, status, title and a clipped gist; deeper containers are opaque tiles.
 - `near`: everything expanded shows; cards add gist, the recommendation for Questions and the first widget's `preview`.

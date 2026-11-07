@@ -7,15 +7,25 @@ Every package builds against this file. When behaviour and this file disagree, t
 `apps/web/src/lib/types.ts` holds these types exactly; `packages/client/src/types.ts` mirrors them.
 
 ```ts
-type NodeKind = 'area' | 'decision' | 'assumption' | 'fact' | 'term' | 'fog' | 'constraint' | 'risk';
+type NodeKind =
+	'area' | 'decision' | 'assumption' | 'fact' | 'term' | 'fog' | 'constraint' | 'risk';
 type NodeStatus = 'open' | 'settled' | 'parked' | 'dropped';
 type EdgeRel = 'relies_on' | 'relates' | 'conflicts' | 'supersedes';
 type TopicStatus = 'open' | 'closed';
 type NoteIntent = 'answer' | 'accept' | 'correct' | 'comment' | 'explore' | 'defer' | 'drop';
 type NoteStatus = 'queued' | 'delivered' | 'resolved';
 type WidgetType =
-	| 'markdown' | 'code' | 'schema' | 'migration' | 'files' | 'classes'
-	| 'options' | 'sequence' | 'states' | 'api' | 'table';
+	| 'markdown'
+	| 'code'
+	| 'schema'
+	| 'migration'
+	| 'files'
+	| 'classes'
+	| 'options'
+	| 'sequence'
+	| 'states'
+	| 'api'
+	| 'table';
 
 interface AgentInfo {
 	tool?: string; // ≤ 64 chars
@@ -185,34 +195,34 @@ interface BerylEvent {
 
 JSON in and out. Errors are `{ error: string }`. 🔑 needs the Project's Write key (`Authorization: Bearer <Write key>`) or, for an owned Project, its owner's login; ✎ needs `Authorization: Bearer <Session token>` or whatever 🔑 accepts, both of the Project that owns the target. See [Login](#login).
 
-| Method | Path | Body | Success |
-| --- | --- | --- | --- |
-| GET | `/api/health` | — | 200 `{ service: 'beryl', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }` |
-| POST | `/api/projects` | `{ name? }` | 201 `{ id, slug, name, owned, writeKey?, url }` (`writeKey` only when anonymous) |
-| GET | `/api/projects/:id` | — | 200 `{ project, topics: TopicSummary[] }` (updatedAt desc) |
-| PATCH 🔑 | `/api/projects/:id` | `{ name }` | 200 `{ project }` |
-| POST 🔑 | `/api/projects/:id/topics` | `{ title, destination?, summary?, agent?, repo?, branch?, public?, nodes?: NodeInput[] }` | 201 `{ topicId, url, topic, nodes }` |
-| POST 🔑 | `/api/projects/:id/pairings` | — | 201 `{ code, expiresAt }` |
-| POST | `/api/pairings/redeem` | `{ code }` | 200 `{ token, projectId, expiresAt }` |
-| POST | `/api/session` | — (header `Authorization: Bearer <Session token>`) | 200 `{ expiresAt }` |
-| GET | `/api/topics/:id` | — | 200 `Snapshot` |
-| PATCH 🔑 | `/api/topics/:id` | `{ title?, destination?, summary?, status?, current?, agent?, public? }` | 200 `{ topic }` |
-| PUT 🔑 | `/api/topics/:id/nodes` | `{ nodes: NodeInput[] }` | 200 `{ nodes }` (the written Nodes, in input order) |
-| DELETE 🔑 | `/api/topics/:id/nodes` | `{ paths: string[] }` | 200 `{ removed: string[] }` |
-| POST 🔑 | `/api/topics/:id/move` | `{ from, to }` | 200 `{ moved: { from, to }[] }` |
-| GET | `/api/topics/:id/events` | query `path?` | 200 `{ events: BerylEvent[] }` (seq asc; `path` filters to that Node) |
-| GET | `/api/topics/:id/stream` | header `Last-Event-ID` or query `since` | 200 `text/event-stream` |
-| POST ✎ | `/api/topics/:id/notes` | `{ anchor, intent, text?, author? }` | 201 `{ note }` |
-| PATCH ✎ | `/api/notes/:noteId` | `{ intent?, text? }` | 200 `{ note }` |
-| DELETE ✎ | `/api/notes/:noteId` | — | 200 `{ removed: id }` |
-| POST ✎ | `/api/topics/:id/send` | — | 200 `{ sent: number }` |
-| POST 🔑 | `/api/topics/:id/pull` | — | 200 `Pulled` |
-| POST 🔑 | `/api/topics/:id/resolve` | `{ notes: { id, reply?, changed? }[] }` | 200 `{ notes }` |
-| GET 🔑 | `/api/topics/:id/wait` | query `timeoutMs?` | 200 `{ sent: number }` |
-| GET | `/api/auth/config` | — | 200 `{ enabled: false }` or `{ enabled: true, config: { apiKey, authDomain, projectId, appId? } }` |
-| POST | `/api/auth/session` | `{ idToken }` | 200 `{ user }` and a `Set-Cookie` session cookie |
-| DELETE | `/api/auth/session` | — | 200 `{ ok: true }` and an expired cookie |
-| GET | `/api/me` | — | 200 `{ user: LoginUser \| null }` |
+| Method    | Path                         | Body                                                                                      | Success                                                                                            |
+| --------- | ---------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| GET       | `/api/health`                | —                                                                                         | 200 `{ service: 'beryl', version, db: 'ok' }`; 503 `{ service, version, db: 'unavailable' }`       |
+| POST      | `/api/projects`              | `{ name? }`                                                                               | 201 `{ id, slug, name, owned, writeKey?, url }` (`writeKey` only when anonymous)                   |
+| GET       | `/api/projects/:id`          | —                                                                                         | 200 `{ project, topics: TopicSummary[] }` (updatedAt desc)                                         |
+| PATCH 🔑  | `/api/projects/:id`          | `{ name }`                                                                                | 200 `{ project }`                                                                                  |
+| POST 🔑   | `/api/projects/:id/topics`   | `{ title, destination?, summary?, agent?, repo?, branch?, public?, nodes?: NodeInput[] }` | 201 `{ topicId, url, topic, nodes }`                                                               |
+| POST 🔑   | `/api/projects/:id/pairings` | —                                                                                         | 201 `{ code, expiresAt }`                                                                          |
+| POST      | `/api/pairings/redeem`       | `{ code }`                                                                                | 200 `{ token, projectId, expiresAt }`                                                              |
+| POST      | `/api/session`               | — (header `Authorization: Bearer <Session token>`)                                        | 200 `{ expiresAt }`                                                                                |
+| GET       | `/api/topics/:id`            | —                                                                                         | 200 `Snapshot`                                                                                     |
+| PATCH 🔑  | `/api/topics/:id`            | `{ title?, destination?, summary?, status?, current?, agent?, public? }`                  | 200 `{ topic }`                                                                                    |
+| PUT 🔑    | `/api/topics/:id/nodes`      | `{ nodes: NodeInput[] }`                                                                  | 200 `{ nodes }` (the written Nodes, in input order)                                                |
+| DELETE 🔑 | `/api/topics/:id/nodes`      | `{ paths: string[] }`                                                                     | 200 `{ removed: string[] }`                                                                        |
+| POST 🔑   | `/api/topics/:id/move`       | `{ from, to }`                                                                            | 200 `{ moved: { from, to }[] }`                                                                    |
+| GET       | `/api/topics/:id/events`     | query `path?`                                                                             | 200 `{ events: BerylEvent[] }` (seq asc; `path` filters to that Node)                              |
+| GET       | `/api/topics/:id/stream`     | header `Last-Event-ID` or query `since`                                                   | 200 `text/event-stream`                                                                            |
+| POST ✎    | `/api/topics/:id/notes`      | `{ anchor, intent, text?, author? }`                                                      | 201 `{ note }`                                                                                     |
+| PATCH ✎   | `/api/notes/:noteId`         | `{ intent?, text? }`                                                                      | 200 `{ note }`                                                                                     |
+| DELETE ✎  | `/api/notes/:noteId`         | —                                                                                         | 200 `{ removed: id }`                                                                              |
+| POST ✎    | `/api/topics/:id/send`       | —                                                                                         | 200 `{ sent: number }`                                                                             |
+| POST 🔑   | `/api/topics/:id/pull`       | —                                                                                         | 200 `Pulled`                                                                                       |
+| POST 🔑   | `/api/topics/:id/resolve`    | `{ notes: { id, reply?, changed? }[] }`                                                   | 200 `{ notes }`                                                                                    |
+| GET 🔑    | `/api/topics/:id/wait`       | query `timeoutMs?`                                                                        | 200 `{ sent: number }`                                                                             |
+| GET       | `/api/auth/config`           | —                                                                                         | 200 `{ enabled: false }` or `{ enabled: true, config: { apiKey, authDomain, projectId, appId? } }` |
+| POST      | `/api/auth/session`          | `{ idToken }`                                                                             | 200 `{ user }` and a `Set-Cookie` session cookie                                                   |
+| DELETE    | `/api/auth/session`          | —                                                                                         | 200 `{ ok: true }` and an expired cookie                                                           |
+| GET       | `/api/me`                    | —                                                                                         | 200 `{ user: LoginUser \| null }`                                                                  |
 
 ```ts
 interface Pulled {
@@ -228,7 +238,7 @@ interface Pulled {
 - `PATCH /api/topics/:id`: `current` must be `null` or the Path of an open Node (400). `status: 'closed'` sets `closedAt`; `'open'` clears it.
 - **Slugs.** `/api` routes take ids only; the `/p/...` pages take an id or a slug. A Project's slug is unique across the server, a Topic's within its Project; the first to claim one keeps it and later claims take `-2`, `-3`, … Slugs derive from the name or title at creation and never change.
 - `public` on a Topic: an owned Project's Topics are created private unless the body says `public: true`; an anonymous Project's are always public, and `public: false` is refused (400). `PATCH` flips it with the owner's login.
-- **Login.** Sign-in is Firebase Auth (Google popup or email link) in the browser. The page POSTs the Firebase ID token to `/api/auth/session`, which must have been issued within five minutes, and the server exchanges it for a Firebase session cookie (Admin SDK `createSessionCookie`, five days): `beryl_session`, `HttpOnly`, `SameSite=Strict`, `Secure` over https, path `/`. Every request verifies the cookie; a missing, forged or expired one is signed out, not an error. 503 `sign-in is not configured` when the server has no service account; `/api/auth/config` then answers `{ enabled: false }`. `LoginUser` is `{ uid, email: string | null, name: string | null }`.
+- **Login.** Sign-in is Firebase Auth (Google popup or email link) in the browser. The page POSTs the Firebase ID token to `/api/auth/session`, which must have been issued within five minutes, and the server exchanges it for a Firebase session cookie (Admin SDK `createSessionCookie`, five days): `runestone_session`, the same name in sagas, chronicle and beryl so one sign-in serves all, with `Domain=$AUTH_COOKIE_DOMAIN` when set (host-only otherwise), `HttpOnly`, `SameSite=Strict`, `Secure` over https, path `/`. Every request verifies the cookie; a missing, forged or expired one is signed out, not an error. 503 `sign-in is not configured` when the server has no service account; `/api/auth/config` then answers `{ enabled: false }`. The first verified request of a uid inserts this app's `users` row. `LoginUser` is `{ uid, email: string | null, name: string | null }`.
   - An owned Project answers only to its owner's login on 🔑 and ✎ routes: 401 `sign in required` with no login and no bearer, 403 `invalid key` for another user or any Write key. A Pairing code for it is minted with the login and redeems to a Session as for an anonymous Project; the Session carries Notes only.
   - **Visibility.** An anonymous Project and its Topics are readable by anyone. A private Topic (`public: false`) is readable (`GET /api/topics/:id`, `/events`, `/stream`, the board page) only by its owner's login; everyone else gets 404 `topic not found`, as if it did not exist. `GET /api/projects/:id` and the Project page list a private Topic only to the owner. A Session does not grant reading.
 - **Pairing and Sessions.** A code is `bp_` and a token `bs_`, each followed by 43 base64url characters; only their sha256 is stored.

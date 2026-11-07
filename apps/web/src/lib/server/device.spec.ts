@@ -29,7 +29,7 @@ beforeEach(async () => {
 });
 afterEach(() => setVerifier(undefined));
 
-const as = (uid: string) => ({ cookie: `beryl_session=cookie-${uid}` });
+const as = (uid: string) => ({ cookie: `runestone_session=cookie-${uid}` });
 
 async function reply(response: Response | Promise<Response>) {
 	const res = await response;
