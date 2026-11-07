@@ -1,10 +1,14 @@
 const UNIQUE_VIOLATION = '23505';
+const NUL_IN_TEXT = '22021';
 
-// drizzle wraps the driver error in `cause`; the SQLSTATE sits on whichever link carries `code`.
-export function isUniqueViolation(error: unknown): boolean {
+// Check `code` on every link of the `cause` chain.
+function hasSqlState(error: unknown, state: string): boolean {
 	for (let e = error as { code?: unknown; cause?: unknown } | undefined; e;) {
-		if (e.code === UNIQUE_VIOLATION) return true;
+		if (e.code === state) return true;
 		e = e.cause as typeof e;
 	}
 	return false;
 }
+
+export const isUniqueViolation = (error: unknown) => hasSqlState(error, UNIQUE_VIOLATION);
+export const isNulInText = (error: unknown) => hasSqlState(error, NUL_IN_TEXT);
