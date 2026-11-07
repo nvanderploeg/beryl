@@ -76,6 +76,8 @@ beryl doctor
 | `BERYL_OPEN` | `1` | `0` stops the MCP server opening the board link |
 | `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl` |
 
+Sign-in (off unless a service account and `FIREBASE_WEB_API_KEY` are set): `FIREBASE_SERVICE_ACCOUNT_FILE` (path) or `FIREBASE_SERVICE_ACCOUNT` (the JSON), `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`. See `deploy/README.md`. Never commit the service account.
+
 Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS`, and for the admin portal `ADMIN_TOKEN`, `ADMIN_BACKUP_DIR`, `ADMIN_MAX_BUNDLE_MB`, `ADMIN_MAX_UNPACKED_MB` (see `apps/web/src/env.ts` and `docs/admin.md`).
 
 ## Deploy

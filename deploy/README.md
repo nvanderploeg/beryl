@@ -17,6 +17,20 @@ docker compose -p beryl --env-file deploy/beryl.env -f deploy/compose.prod.yml u
 Pin a build with `BERYL_TAG=sha-<short>` to roll back. `GET /api/health` answers
 `{"service":"beryl",...,"db":"ok"}` when the app and database are up.
 
+## Sign-in (Firebase Auth)
+
+Off by default. To turn it on, create a Firebase project, enable the Google and Email link
+providers, add your domain to the authorized domains, and download a service account key. Keep
+the key outside the repository and outside images, and set in `beryl.env`:
+
+- `FIREBASE_SERVICE_ACCOUNT_HOST_PATH`: the key's path on the host; compose mounts it read-only
+  and points `FIREBASE_SERVICE_ACCOUNT_FILE` at it. Outside compose, set
+  `FIREBASE_SERVICE_ACCOUNT_FILE` to a path, or `FIREBASE_SERVICE_ACCOUNT` to the JSON itself.
+- `FIREBASE_WEB_API_KEY` (and optionally `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`): the web app
+  config the login page loads from `/api/auth/config`.
+
+Sign-in sets a `Secure` cookie, so serve beryl over https.
+
 ## Moving to another host
 
 Set `ADMIN_TOKEN` in `beryl.env`, open `/admin`, and download a bundle. Bring up the new host
