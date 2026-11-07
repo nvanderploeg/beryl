@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
+import { listLoginTokens } from '#lib/server/logins.ts';
 import { listOwnedPages } from '#lib/server/store.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
 	if (!user) redirect(303, '/login?next=/profile');
-	return { pages: await listOwnedPages(user.uid) };
+	return { pages: await listOwnedPages(user.uid), tokens: await listLoginTokens(user.uid) };
 };

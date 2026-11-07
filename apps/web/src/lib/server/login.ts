@@ -1,5 +1,6 @@
 import { ApiError } from '#lib/server/api.ts';
 import { verifier, type LoginUser } from '#lib/server/firebase.ts';
+import { LOGIN_PREFIX, uidOfLoginToken } from '#lib/server/logins.ts';
 import { log } from '#lib/server/log.ts';
 
 export type { LoginUser };
@@ -26,10 +27,21 @@ export async function verifyCookie(cookie: string | undefined): Promise<LoginUse
 	}
 }
 
-export const loginUser = (request: Request) => verifyCookie(cookieValue(request, COOKIE));
+export const cookieUser = (request: Request) => verifyCookie(cookieValue(request, COOKIE));
 
-export async function requireLogin(request: Request): Promise<LoginUser> {
-	const user = await loginUser(request);
+// An agent's login token stands for its uid alone; the browser cookie also knows email and name.
+export async function loginUser(request: Request): Promise<LoginUser | null> {
+	const key = /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1];
+	if (key?.startsWith(LOGIN_PREFIX)) {
+		const uid = await uidOfLoginToken(key);
+		if (!uid) throw new ApiError(401, 'invalid login token');
+		return { uid, email: null, name: null };
+	}
+	return cookieUser(request);
+}
+
+export async function requireCookie(request: Request): Promise<LoginUser> {
+	const user = await cookieUser(request);
 	if (!user) throw new ApiError(401, 'sign in required');
 	return user;
 }

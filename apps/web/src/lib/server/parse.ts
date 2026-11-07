@@ -286,6 +286,10 @@ export function parseTopicPatch(body: Body): TopicPatch {
 	});
 }
 
+export function parseDeviceLabel(body: Body): string {
+	return text(body, 'label', 64, { nonEmpty: true }) ?? 'an agent';
+}
+
 export function parsePaths(body: Body): string[] {
 	const value = body.paths;
 	if (!Array.isArray(value) || value.length > MAX_BATCH) {

@@ -3,6 +3,7 @@ import { and, eq, gt, lt } from 'drizzle-orm';
 import { ApiError } from '#lib/server/api.ts';
 import { db } from '#lib/server/db/index.ts';
 import { pairings, sessions } from '#lib/server/db/schema.ts';
+import { pruneDeviceCodes } from '#lib/server/logins.ts';
 import { hashKey } from '#lib/server/hash.ts';
 
 export const PAIRING_TTL_MS = 5 * 60_000;
@@ -104,4 +105,5 @@ export async function refreshSession(token: string, now = new Date()): Promise<D
 export async function pruneExpired(now = new Date()): Promise<void> {
 	await db.delete(pairings).where(lt(pairings.expiresAt, now));
 	await db.delete(sessions).where(lt(sessions.expiresAt, now));
+	await pruneDeviceCodes(now);
 }

@@ -15,6 +15,13 @@
       "when": 1794056003515,
       "tag": "0001_firebase_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794056699480,
+      "tag": "0002_device_login",
+      "breakpoints": true
     }
   ]
 }

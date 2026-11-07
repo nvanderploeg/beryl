@@ -15,6 +15,18 @@
 
 	onMount(() => theme.start());
 
+	async function revoke(id: string) {
+		pending = id;
+		error = '';
+		try {
+			const res = await fetch(`/api/me/tokens/${id}`, { method: 'DELETE' });
+			if (!res.ok) error = (await res.json().catch(() => null))?.error ?? 'Could not revoke';
+			await invalidateAll();
+		} finally {
+			pending = null;
+		}
+	}
+
 	async function setPublic(topicId: string, value: boolean) {
 		pending = topicId;
 		error = '';
@@ -81,6 +93,33 @@
 				them.
 			</p>
 		{/each}
+		<section class="agents" data-testid="agents">
+			<h2>Connected agents</h2>
+			{#if data.tokens.length === 0}
+				<p class="empty">
+					None. An agent asks you to approve a code at <a href={resolve('/device')}>/device</a>.
+				</p>
+			{:else}
+				<ul>
+					{#each data.tokens as token (token.id)}
+						<li>
+							<span>{token.label}</span>
+							<time datetime={token.lastUsedAt ?? token.createdAt}
+								>{token.lastUsedAt
+									? `used ${ago(token.lastUsedAt, Date.now())}`
+									: 'never used'}</time
+							>
+							<button
+								type="button"
+								disabled={pending === token.id}
+								data-testid="revoke"
+								onclick={() => revoke(token.id)}>Revoke</button
+							>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
 	</main>
 	<footer><SiteFooter /></footer>
 </div>
@@ -171,6 +210,15 @@
 		align-items: center;
 		gap: 0.4rem;
 		font-size: 0.9rem;
+		cursor: pointer;
+	}
+	button {
+		border: 1px solid var(--line);
+		background: transparent;
+		color: var(--ink);
+		border-radius: 8px;
+		padding: 0.25rem 0.7rem;
+		font: inherit;
 		cursor: pointer;
 	}
 	.empty {

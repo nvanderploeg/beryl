@@ -1,7 +1,9 @@
 import { DATABASE_URL } from '$app/env/private';
 import { db } from '#lib/server/db/index.ts';
 import {
+	deviceCodes,
 	events,
+	loginTokens,
 	nodes,
 	notes,
 	pairings,
@@ -21,5 +23,7 @@ export async function resetDb(): Promise<void> {
 	await db.delete(topics);
 	await db.delete(pairings);
 	await db.delete(sessions);
+	await db.delete(deviceCodes);
+	await db.delete(loginTokens);
 	await db.delete(projects);
 }
