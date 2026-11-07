@@ -11,6 +11,7 @@ import Cursor from 'pg-cursor';
 import { ADMIN_BACKUP_DIR, ADMIN_MAX_UNPACKED_MB } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { pool } from '#lib/server/db/index.ts';
+import { isNulInText } from '#lib/server/db/errors.ts';
 import { events, nodes, notes, projects, topics } from '#lib/server/db/schema.ts';
 import { log } from '#lib/server/log.ts';
 import { endStreams } from '#lib/server/stream.ts';
@@ -30,7 +31,7 @@ export const FORMAT = 1;
 export const SERVICE = 'beryl';
 export const DB_FILE = 'db.ndjson';
 export const MANIFEST_FILE = 'manifest.json';
-// Journal-less schema levels still accepted on import: Bundles from the MySQL build.
+// Manifest schema tags accepted beyond the journal's.
 const MYSQL_SCHEMAS = ['0000_init', '0001_pairing_sessions', '0002_project_topic_slugs'];
 const BACKUPS_KEPT = 5;
 const MAX_LINE_BYTES = 40 << 20;
@@ -393,10 +394,20 @@ export async function importBundle(
 				const tuples = target.pending.map(
 					(_, r) => `(${target.columns.map((_, c) => `$${r * width + c + 1}`).join(', ')})`
 				);
-				await conn.query(
-					`INSERT INTO ${quote(target.name)} (${target.columns.map(quote).join(', ')}) VALUES ${tuples.join(', ')}`,
-					target.pending.flat()
-				);
+				try {
+					await conn.query(
+						`INSERT INTO ${quote(target.name)} (${target.columns.map(quote).join(', ')}) VALUES ${tuples.join(', ')}`,
+						target.pending.flat()
+					);
+				} catch (error) {
+					if (!isNulInText(error)) throw error;
+					const at = target.columns.findIndex((_, c) =>
+						target.pending.some((row) => typeof row[c] === 'string' && row[c].includes('\0'))
+					);
+					refuse(
+						`bundle rejected: ${target.name}${at < 0 ? '' : `.${target.columns[at]}`} contains a NUL character`
+					);
+				}
 				rows[target.name] += target.pending.length;
 				target.pending = [];
 			};
@@ -423,8 +434,17 @@ export async function importBundle(
 			if (rows.projects === 0 && !options.allowEmpty) {
 				refuse('bundle rejected: it holds no Projects; pass allowEmpty to wipe the server', 409);
 			}
+			// The sequence only moves forward: a lower value would reissue seqs clients have seen.
+			const { rows: named } = await conn.query(
+				`SELECT pg_get_serial_sequence('events', 'seq') AS name`
+			);
+			const sequence = named[0].name as string;
 			await conn.query(
-				`SELECT setval(pg_get_serial_sequence('events', 'seq'), COALESCE(MAX(seq), 0) + 1, false) FROM events`
+				`SELECT setval($1, GREATEST(
+					COALESCE((SELECT MAX(seq) FROM events), 0) + 1,
+					(SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END FROM ${sequence})
+				), false)`,
+				[sequence]
 			);
 			await conn.query('COMMIT');
 		} catch (error) {

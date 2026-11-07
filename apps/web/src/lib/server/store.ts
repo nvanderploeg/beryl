@@ -157,22 +157,24 @@ export async function backfillSlugs(): Promise<void> {
 
 // A Project is addressed by id or slug.
 export async function resolveProjectId(ref: string): Promise<string | undefined> {
+	const lower = ref.toLowerCase();
 	const [row] = await db
 		.select({ id: projects.id })
 		.from(projects)
-		.where(isUuid(ref) ? eq(projects.id, ref.toLowerCase()) : eq(projects.slug, ref));
+		.where(isUuid(ref) ? eq(projects.id, lower) : eq(projects.slug, lower));
 	return row?.id;
 }
 
 // A Topic is addressed by id or by slug within its Project.
 export async function resolveTopicId(projectId: string, ref: string): Promise<string | undefined> {
+	const lower = ref.toLowerCase();
 	const [row] = await db
 		.select({ id: topics.id })
 		.from(topics)
 		.where(
 			and(
 				eq(topics.projectId, projectId),
-				isUuid(ref) ? eq(topics.id, ref.toLowerCase()) : eq(topics.slug, ref)
+				isUuid(ref) ? eq(topics.id, lower) : eq(topics.slug, lower)
 			)
 		);
 	return row?.id;

@@ -134,6 +134,9 @@ async function emptyTail(): Promise<string> {
 		.join('\n')}\n`;
 }
 
+const nextSeq = async () =>
+	(await pool.query("SELECT nextval('events_seq_seq')::int AS n")).rows[0].n as number;
+
 const rejected = (work: Promise<unknown>, status: number, message: RegExp) =>
 	expect(work).rejects.toMatchObject({ status, message: expect.stringMatching(message) });
 
@@ -325,6 +328,14 @@ describe('import', () => {
 		expect((await listProjects())[0].slug).toBe('old-project');
 	});
 
+	it('leaves the event sequence where it is when it is already past the Bundle', async () => {
+		await seed();
+		const bundle = await exportTo('seq.zip');
+		await pool.query("SELECT setval('events_seq_seq', 1000000)");
+		await importBundle(bundle, { backupDir: dir });
+		expect(await nextSeq()).toBe(1000001);
+	});
+
 	it('imports a Bundle exported by the MySQL build and keeps allocating event seqs after it', async () => {
 		const legacyKey = 'bk_legacy';
 		const pid = '33333333-3333-4333-8333-333333333333';
@@ -462,7 +473,9 @@ describe('import', () => {
 			...m,
 			schema: '0002_project_topic_slugs'
 		}));
+		await pool.query('ALTER SEQUENCE events_seq_seq RESTART WITH 1');
 		await importBundle(bundle, { backupDir: dir });
+		expect(await nextSeq()).toBe(43);
 
 		const topic = await api.getTopic(tid);
 		expect(topic.status).toBe(200);
@@ -509,6 +522,15 @@ describe('import', () => {
 		);
 		expect(written.status).toBe(200);
 		expect((await api.getTopic(tid)).body.lastSeq).toBeGreaterThan(42);
+	});
+
+	it('rejects a NUL character in a text column with a 422 naming table and column', async () => {
+		await seed();
+		const header = JSON.stringify({ table: 'projects', columns: ['id', 'name', 'write_key_hash'] });
+		const bad = await repack('nul.zip', {
+			[DB_FILE]: `${header}\n${JSON.stringify(['11111111-1111-4111-8111-111111111111', 'a\u0000b', 'a'.repeat(64)])}\n${await emptyTail()}`
+		});
+		await rejected(importBundle(bad, { backupDir: dir }), 422, /projects\.name contains a NUL/);
 	});
 
 	it('refuses an older bundle that lacks a column with no default', async () => {
