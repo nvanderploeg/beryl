@@ -235,8 +235,8 @@ describe('owned Projects', () => {
 		const { projectId, topicId } = await ownedTopic();
 		expect((await call.createTopic(projectId)).status).toBe(401);
 		expect((await call.createTopic(projectId, 'mallory')).status).toBe(403);
-		expect((await call.putNodes(topicId)).status).toBe(401);
-		expect((await call.putNodes(topicId, 'mallory')).status).toBe(403);
+		expect((await call.putNodes(topicId)).status).toBe(404);
+		expect((await call.putNodes(topicId, 'mallory')).status).toBe(404);
 		expect((await call.putNodes(topicId, 'alice')).status).toBe(200);
 		const rename = await reply(
 			patchProjectRoute(
@@ -267,7 +267,7 @@ describe('owned Projects', () => {
 		expect(open.body.topic.public).toBe(true);
 	});
 
-	it('mint Pairing codes with the login, and the Session they redeem carries Notes only', async () => {
+	it('mint Pairing codes with the login, and the Session they redeem carries Notes into public Topics only', async () => {
 		const { projectId, topicId } = await ownedTopic();
 		expect((await call.pairing(projectId)).status).toBe(401);
 		expect((await call.pairing(projectId, 'mallory')).status).toBe(403);
@@ -275,7 +275,9 @@ describe('owned Projects', () => {
 		expect(minted.status).toBe(201);
 		const session = await api.redeem({ code: minted.body.code });
 		expect(session.status).toBe(200);
-		expect((await call.note(topicId, session.body.token)).status).toBe(201);
+		expect((await call.note(topicId, session.body.token)).status).toBe(404);
+		const open = await call.createTopic(projectId, 'alice', undefined, { title: 'O', public: true });
+		expect((await call.note(open.body.topicId, session.body.token)).status).toBe(201);
 		expect((await call.createTopic(projectId, undefined, session.body.token)).status).toBe(403);
 	});
 
@@ -319,8 +321,8 @@ describe('private Topics', () => {
 
 	it('turn public when the owner flips the flag, and only the owner may', async () => {
 		const { topicId } = await ownedTopic();
-		expect((await call.patchTopic(topicId, { public: true })).status).toBe(401);
-		expect((await call.patchTopic(topicId, { public: true }, 'mallory')).status).toBe(403);
+		expect((await call.patchTopic(topicId, { public: true })).status).toBe(404);
+		expect((await call.patchTopic(topicId, { public: true }, 'mallory')).status).toBe(404);
 		expect((await call.patchTopic(topicId, { public: 'yes' }, 'alice')).status).toBe(400);
 		const flipped = await call.patchTopic(topicId, { public: true }, 'alice');
 		expect(flipped.body.topic.public).toBe(true);

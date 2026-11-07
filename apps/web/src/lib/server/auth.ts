@@ -72,8 +72,7 @@ export async function authorizeTopic(
 	topicId: string,
 	kind: KeyKind
 ): Promise<TopicRow> {
-	const topic = await getTopicRow(topicId);
-	if (!topic) throw new ApiError(404, 'topic not found');
+	const topic = await readableTopic(request, topicId);
 	await authorizeProject(request, topic.projectId, kind);
 	return topic;
 }
@@ -85,7 +84,7 @@ export async function authorizeNote(request: Request, noteId: string): Promise<N
 	return note;
 }
 
-// A private Topic does not exist for anyone but its owner.
+// A private Topic does not exist for anyone but its owner, whatever the method or key.
 export async function readableTopic(request: Request, topicId: string): Promise<TopicRow> {
 	const topic = await getTopicRow(topicId);
 	if (!topic) throw new ApiError(404, 'topic not found');
