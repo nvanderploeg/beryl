@@ -85,6 +85,7 @@ export interface Project {
 	id: string;
 	slug: string;
 	name: string;
+	owned: boolean;
 	createdAt: string;
 	lastWriteAt: string;
 }
@@ -101,6 +102,7 @@ export interface Topic {
 	agent: AgentInfo | null;
 	repo: string | null;
 	branch: string | null;
+	public: boolean;
 	createdAt: string;
 	updatedAt: string;
 	closedAt: string | null;

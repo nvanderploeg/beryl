@@ -225,6 +225,13 @@ export function parseProjectPatch(body: Body): { name: string } {
 	return { name: name as string };
 }
 
+function flag(body: Body, key: string): boolean | undefined {
+	const value = body[key];
+	if (value === undefined) return undefined;
+	if (typeof value !== 'boolean') return bad(`${key} must be a boolean`);
+	return value;
+}
+
 export interface TopicPatch {
 	title?: string;
 	destination?: string;
@@ -232,6 +239,7 @@ export interface TopicPatch {
 	status?: TopicStatus;
 	current?: string | null;
 	agent?: AgentInfo | null;
+	public?: boolean;
 }
 
 export interface TopicCreate {
@@ -241,6 +249,7 @@ export interface TopicCreate {
 	agent: AgentInfo | null;
 	repo: string | null;
 	branch: string | null;
+	public?: boolean;
 	nodes: NodeInput[];
 }
 
@@ -254,6 +263,7 @@ export function parseTopicCreate(body: Body): TopicCreate {
 		agent: agent(body) ?? null,
 		repo: text(body, 'repo', 255, { nonEmpty: true }) ?? null,
 		branch: text(body, 'branch', 255, { nonEmpty: true }) ?? null,
+		public: flag(body, 'public'),
 		nodes: body.nodes === undefined ? [] : parseNodeInputs(body.nodes)
 	};
 }
@@ -271,7 +281,8 @@ export function parseTopicPatch(body: Body): TopicPatch {
 			body.current === undefined || body.current === null
 				? (body.current as null | undefined)
 				: parsePath(body.current, 'current'),
-		agent: agent(body)
+		agent: agent(body),
+		public: flag(body, 'public')
 	});
 }
 

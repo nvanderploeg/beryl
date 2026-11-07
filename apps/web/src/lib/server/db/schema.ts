@@ -22,18 +22,23 @@ const now = (name: string) =>
 		.default(sql`now()`);
 
 // `slug` is the friendly address of the row: unique across Projects, and across one Project's
-// Topics. NULL only until the boot backfill assigns one.
+// Topics. NULL only until the boot backfill assigns one. `ownerUid` is a Firebase uid; an owned
+// Project has no Write key (`writeKeyHash` NULL) and an anonymous one has no owner.
 export const projects = pgTable(
 	'projects',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		slug: varchar('slug', { length: 48 }),
 		name: varchar('name', { length: 200 }).notNull(),
-		writeKeyHash: char('write_key_hash', { length: 64 }).notNull(),
+		writeKeyHash: char('write_key_hash', { length: 64 }),
+		ownerUid: varchar('owner_uid', { length: 128 }),
 		createdAt: now('created_at'),
 		lastWriteAt: now('last_write_at')
 	},
-	(table) => [uniqueIndex('projects_slug_idx').on(table.slug)]
+	(table) => [
+		uniqueIndex('projects_slug_idx').on(table.slug),
+		index('projects_owner_idx').on(table.ownerUid)
+	]
 );
 
 export const pairings = pgTable('pairings', {
@@ -69,6 +74,7 @@ export const topics = pgTable(
 		status: varchar('status', { length: 16 }).notNull(),
 		current: varchar('current', { length: 512 }),
 		agent: json('agent'),
+		public: boolean('public').notNull().default(true),
 		repo: varchar('repo', { length: 255 }),
 		branch: varchar('branch', { length: 255 }),
 		createdAt: now('created_at'),

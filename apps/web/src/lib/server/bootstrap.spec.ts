@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 import { DATABASE_URL } from '$app/env/private';
 import { runMigrations } from '#lib/server/bootstrap.ts';
+import { journalTags } from '#lib/server/admin/bundle.ts';
 
 const name = 'beryl_boot_test';
 const url = new URL(DATABASE_URL);
@@ -27,6 +28,6 @@ describe('runMigrations', () => {
 		const { rows } = await fresh.query(
 			'SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations'
 		);
-		expect(rows[0].n).toBe(1);
+		expect(rows[0].n).toBe((await journalTags()).length);
 	});
 });

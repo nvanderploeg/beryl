@@ -67,6 +67,7 @@ describe('POST /api/projects', () => {
 			id: expect.stringMatching(UUID_V4),
 			slug: 'tracker',
 			name: 'Tracker',
+			owned: false,
 			writeKey: expect.stringMatching(/^bw_[A-Za-z0-9_-]{43}$/),
 			url: `${ORIGIN}/p/tracker`
 		});
@@ -123,6 +124,7 @@ describe('GET and PATCH /api/projects/:id', () => {
 			id: project.id,
 			slug: 'spec',
 			name: 'spec',
+			owned: false,
 			createdAt: expect.stringMatching(ISO),
 			lastWriteAt: expect.stringMatching(ISO)
 		});
@@ -214,6 +216,7 @@ describe('POST /api/projects/:id/topics', () => {
 			agent: { tool: 'claude-code', model: 'opus', effort: 'high' },
 			repo: 'owner/name',
 			branch: 'main',
+			public: true,
 			createdAt: expect.stringMatching(ISO),
 			updatedAt: expect.stringMatching(ISO),
 			closedAt: null

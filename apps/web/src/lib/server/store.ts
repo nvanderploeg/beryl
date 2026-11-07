@@ -199,15 +199,22 @@ const OPEN_COUNTS: Record<string, keyof Counts> = {
 	risk: 'risks'
 };
 
+// An owned Project's private Topics appear only to the owner.
 export async function getProjectPage(
-	projectId: string
+	projectId: string,
+	viewerUid: string | null = null
 ): Promise<{ project: Project; topics: TopicSummary[] } | undefined> {
 	const project = await getProjectRow(projectId);
 	if (!project) return undefined;
+	const sees = project.ownerUid === null || project.ownerUid === viewerUid;
 	const topicRows = await db
 		.select()
 		.from(topics)
-		.where(eq(topics.projectId, projectId))
+		.where(
+			sees
+				? eq(topics.projectId, projectId)
+				: and(eq(topics.projectId, projectId), eq(topics.public, true))
+		)
 		.orderBy(desc(topics.updatedAt), asc(topics.id));
 	const ids = topicRows.map((row) => row.id);
 	const counts = new Map(ids.map((id) => [id, emptyCounts()]));
@@ -239,6 +246,18 @@ export async function getProjectPage(
 			queuedNotes: queued.get(row.id) ?? 0
 		}))
 	};
+}
+
+export async function listOwnedPages(
+	uid: string
+): Promise<{ project: Project; topics: TopicSummary[] }[]> {
+	const owned = await db
+		.select({ id: projects.id })
+		.from(projects)
+		.where(eq(projects.ownerUid, uid))
+		.orderBy(desc(projects.lastWriteAt), asc(projects.id));
+	const pages = await Promise.all(owned.map(({ id }) => getProjectPage(id, uid)));
+	return pages.filter((page) => page !== undefined);
 }
 
 async function lastSeqOf(topicId: string): Promise<number> {
@@ -458,11 +477,16 @@ function written(tree: Tree, inputs: NodeInput[]): Node[] {
 	return inputs.map((input) => toNode(tree.rows.get(input.path)!));
 }
 
+const anonymousPublic = () => new ApiError(400, 'topics of an anonymous project are always public');
+
 export async function createTopic(
 	projectId: string,
 	input: TopicCreate
 ): Promise<{ topic: Topic; nodes: Node[] }> {
 	const now = new Date();
+	const project = await getProjectRow(projectId);
+	if (!project) throw new ApiError(404, 'project not found');
+	if (project.ownerUid === null && input.public === false) throw anonymousPublic();
 	const row: TopicRow = {
 		id: randomUUID(),
 		slug: null,
@@ -475,6 +499,7 @@ export async function createTopic(
 		agent: input.agent,
 		repo: input.repo,
 		branch: input.branch,
+		public: project.ownerUid === null || (input.public ?? false),
 		createdAt: now,
 		updatedAt: now,
 		closedAt: null
@@ -495,6 +520,10 @@ export async function createTopic(
 export async function patchTopic(topicId: string, patch: TopicPatch): Promise<Topic> {
 	return mutate(topicId, async (ctx) => {
 		const old = ctx.topic;
+		if (patch.public === false) {
+			const project = await getProjectRow(old.projectId);
+			if (project?.ownerUid === null) throw anonymousPublic();
+		}
 		if (patch.current !== undefined && patch.current !== null) {
 			const [node] = await ctx.tx
 				.select({ status: nodes.status })
@@ -510,7 +539,8 @@ export async function patchTopic(topicId: string, patch: TopicPatch): Promise<To
 			summary: patch.summary ?? old.summary,
 			status: patch.status ?? old.status,
 			current: patch.current === undefined ? old.current : patch.current,
-			agent: patch.agent === undefined ? old.agent : patch.agent
+			agent: patch.agent === undefined ? old.agent : patch.agent,
+			public: patch.public ?? old.public
 		};
 		const statusChanged = next.status !== old.status;
 		const changed =
@@ -519,6 +549,7 @@ export async function patchTopic(topicId: string, patch: TopicPatch): Promise<To
 			next.destination !== old.destination ||
 			next.summary !== old.summary ||
 			next.current !== old.current ||
+			next.public !== old.public ||
 			!sameJson(next.agent, old.agent);
 		if (!changed) return toTopic(old);
 		await saveTopic(ctx, {

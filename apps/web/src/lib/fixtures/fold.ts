@@ -60,6 +60,7 @@ class Folder {
 			id: DEMO_PROJECT_ID,
 			slug: DEMO_PROJECT_ID,
 			name: fixture.project.name,
+			owned: false,
 			createdAt: now,
 			lastWriteAt: now
 		};
@@ -75,6 +76,7 @@ class Folder {
 			agent: null,
 			repo: null,
 			branch: null,
+			public: true,
 			createdAt: now,
 			updatedAt: now,
 			closedAt: null

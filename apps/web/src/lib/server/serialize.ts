@@ -31,6 +31,7 @@ export function toProject(row: ProjectRow): Project {
 		id: row.id,
 		slug: row.slug ?? row.id,
 		name: row.name,
+		owned: row.ownerUid !== null,
 		createdAt: iso(row.createdAt),
 		lastWriteAt: iso(row.lastWriteAt)
 	};
@@ -49,6 +50,7 @@ export function toTopic(row: TopicRow): Topic {
 		agent: (row.agent as AgentInfo | null) ?? null,
 		repo: row.repo ?? null,
 		branch: row.branch ?? null,
+		public: row.public,
 		createdAt: iso(row.createdAt),
 		updatedAt: iso(row.updatedAt),
 		closedAt: isoOrNull(row.closedAt)

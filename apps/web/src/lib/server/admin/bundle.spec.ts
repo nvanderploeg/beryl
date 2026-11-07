@@ -534,11 +534,11 @@ describe('import', () => {
 	});
 
 	it('refuses an older bundle that lacks a column with no default', async () => {
-		const header = JSON.stringify({ table: 'projects', columns: ['id', 'name'] });
+		const header = JSON.stringify({ table: 'projects', columns: ['id'] });
 		const old = await repack('nodef.zip', {
-			[DB_FILE]: `${header}\n["11111111-1111-4111-8111-111111111111","x"]\n`
+			[DB_FILE]: `${header}\n["11111111-1111-4111-8111-111111111111"]\n`
 		});
-		await rejected(importBundle(old, { backupDir: dir }), 422, /write_key_hash/);
+		await rejected(importBundle(old, { backupDir: dir }), 422, /projects\.name/);
 	});
 
 	it('refuses a bundle with a missing table or no Projects unless allowEmpty is set', async () => {

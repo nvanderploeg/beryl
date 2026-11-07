@@ -8,6 +8,13 @@
       "when": 1794023953261,
       "tag": "0000_postgres_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794056003515,
+      "tag": "0001_firebase_owner",
+      "breakpoints": true
     }
   ]
 }
