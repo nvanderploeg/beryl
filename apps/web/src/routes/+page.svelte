@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import AccountNav from '#lib/components/AccountNav.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Orb from '#lib/components/Orb.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
@@ -56,6 +57,7 @@
 		<nav>
 			<a href={resolve('/demo')}>Demo</a>
 			<a href="#install">Install</a>
+			<AccountNav />
 		</nav>
 	</header>
 

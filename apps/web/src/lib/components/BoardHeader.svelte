@@ -4,6 +4,7 @@
 	import { theme } from '#lib/ui/theme.svelte.ts';
 	import { countsOf, progressOf } from '#lib/ui/topic.ts';
 	import type { NodeKind } from '#lib/types.ts';
+	import AccountNav from './AccountNav.svelte';
 	import Mark from './Mark.svelte';
 	import Orb from './Orb.svelte';
 
@@ -112,6 +113,7 @@
 			{/if}
 		</div>
 		<div class="right">
+			<AccountNav />
 			{#if freshNodes.length}
 				<div class="fresh-wrap">
 					<button

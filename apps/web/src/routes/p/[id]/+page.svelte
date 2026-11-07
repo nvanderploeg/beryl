@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import AccountNav from '#lib/components/AccountNav.svelte';
 	import Mark from '#lib/components/Mark.svelte';
 	import Orb from '#lib/components/Orb.svelte';
 	import SiteFooter from '#lib/components/SiteFooter.svelte';
@@ -61,6 +62,9 @@
 					<div class="t-meta">
 						{#if t.queuedNotes}<span class="queued">{t.queuedNotes} queued</span>{/if}
 						<span class="status s-{t.status}">{t.status === 'open' ? 'Open' : 'Closed'}</span>
+						{#if data.project.owned}
+							<span class="status">{t.public ? 'Public' : 'Private'}</span>
+						{/if}
 						<time datetime={t.updatedAt} title={new Date(t.updatedAt).toLocaleString()}
 							>{ago(t.updatedAt, now)}</time
 						>
@@ -74,6 +78,7 @@
 <div class="page">
 	<header class="top">
 		<a href={resolve('/')} class="brand"><Orb size={28} /> beryl</a>
+		<AccountNav />
 	</header>
 	<main>
 		<h1>{data.project.name}</h1>
@@ -121,6 +126,9 @@
 		padding-inline: 1rem;
 	}
 	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		padding-block: 1.1rem;
 	}
 	.brand {
