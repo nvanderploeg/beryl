@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { pool } from '#lib/server/db/index.ts';
 import { listenerCount } from './bus.ts';
 import { resetDb } from './test/db.ts';
 import { api, seedProject, seedTopic, type Seeded } from './test/http.ts';
@@ -79,6 +80,9 @@ describe('waitForSent', () => {
 
 	it('stops at once when the client goes away, leaving no listener or timer behind', async () => {
 		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		// The pool keeps its own idle timer; count only what waitForSent adds.
+		await pool.query('SELECT 1');
+		const baseline = vi.getTimerCount();
 		const controller = new AbortController();
 		const waiting = waitForSent(topicId, 60_000, controller.signal);
 		await vi.waitFor(() => expect(listenerCount(topicId)).toBe(1));
@@ -87,7 +91,7 @@ describe('waitForSent', () => {
 
 		expect(await waiting).toBe(0);
 		expect(listenerCount(topicId)).toBe(0);
-		expect(vi.getTimerCount()).toBe(0);
+		await vi.waitFor(() => expect(vi.getTimerCount()).toBe(baseline));
 	});
 
 	it('answers 0 without subscribing for long when the signal is already aborted', async () => {

@@ -1567,7 +1567,11 @@ describe('auth', () => {
 describe('events table', () => {
 	it('stores one row per changed row with the full payload', async () => {
 		const { topicId } = await seedTopic(project, { nodes: [{ path: 'a', kind: 'fact' }] });
-		const rows = await db.select().from(events).where(eq(events.topicId, topicId));
+		const rows = await db
+			.select()
+			.from(events)
+			.where(eq(events.topicId, topicId))
+			.orderBy(events.seq);
 		expect(rows.map((r) => r.type)).toEqual(['topic', 'node']);
 		expect(rows[1].payload).toMatchObject({ path: 'a', kind: 'fact', status: 'settled' });
 	});
