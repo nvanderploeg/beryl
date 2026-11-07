@@ -16,6 +16,8 @@ export const USAGE = `usage:
   beryl note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
   beryl send <topicId>
   beryl url <topicId> [--private]
+  beryl login                                      sign in; run again once the code is approved
+  beryl logout
   beryl doctor [--cwd dir]
   beryl hook`;
 

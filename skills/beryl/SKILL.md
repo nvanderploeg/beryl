@@ -15,6 +15,8 @@ A failed board write never blocks the grill. Once a board is open, keeping it cu
 2. Otherwise the `beryl` CLI (run it with no arguments for its commands).
 3. Neither: grill without the board, silently.
 
+Boards are anonymous unless you sign in. The `login` tool (CLI: `beryl login`) answers `approveAt` and `code`: show both to the user, and call `login` again once they have approved. The login is shared with chronicle in `~/.config/runestone/login.json`; later boards are private to the user's account. `logout` (CLI: `beryl logout`) forgets it.
+
 ## Open the board
 
 Before the first question, call `open_topic` with:

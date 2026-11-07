@@ -56,7 +56,7 @@ The Questions sidebar lists every Question the agent knows about; click one to f
 | `login`         | sign in through a person's approval; later projects are private and owned    |
 | `logout`        | forget the login on this machine                                             |
 
-Signing in is optional. `login` returns a URL and code; the person approves while signed in at that beryl, then `login` is called again. Credentials (a Firebase refresh token) live in `logins.json` in the config dir, mode 0600. Owned projects are recorded in `projects.json` with the key `login`, which stands for a fresh Firebase ID token on every call. `DELETE /api/me/agents` (the Profile page's "Disconnect all agents") revokes it.
+Signing in is optional. `login` returns a URL and code; the person approves while signed in at that beryl, then `login` is called again. Credentials (a Firebase refresh token) live in the Runestone login file, `$XDG_CONFIG_HOME/runestone/login.json`, shared with chronicle (see `docs/client.md`). `beryl login` and `beryl logout` do the same from a terminal. Owned projects are recorded in `projects.json` with the key `login`, which stands for a fresh Firebase ID token on every call. `DELETE /api/me/agents` (the Profile page's "Disconnect all agents") revokes it.
 
 ## CLI
 
@@ -80,7 +80,7 @@ beryl doctor
 | `BERYL_OPEN`      | `1`         | `0` stops the MCP server opening the board link |
 | `XDG_CONFIG_HOME` | `~/.config` | the registry lives in `$XDG_CONFIG_HOME/beryl`  |
 
-Sign-in (off unless a service account and `FIREBASE_WEB_API_KEY` are set): `FIREBASE_SERVICE_ACCOUNT_FILE` (path) or `FIREBASE_SERVICE_ACCOUNT` (the JSON), `AUTH_COOKIE_DOMAIN`, `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`. See `deploy/README.md`. Never commit the service account.
+Sign-in (off unless a service account and `FIREBASE_WEB_API_KEY` are set): `FIREBASE_SERVICE_ACCOUNT_FILE` (path) or `FIREBASE_SERVICE_ACCOUNT` (the JSON), `AUTH_COOKIE_DOMAIN`, `FIREBASE_WEB_API_KEY`, `FIREBASE_AUTH_DOMAIN` (default `runestone-d3a35.firebaseapp.com`), `FIREBASE_PROJECT_ID` (default `runestone-d3a35`), `FIREBASE_APP_ID`. See `deploy/README.md`. Never commit the service account.
 
 Server: `DATABASE_URL`, `ORIGIN`, `BERYL_IDLE_MS`, `BERYL_WRITES_PER_WINDOW`, `BERYL_WRITE_WINDOW_MS`, `BERYL_HEARTBEAT_MS`, and for the admin portal `ADMIN_TOKEN`, `ADMIN_BACKUP_DIR`, `ADMIN_MAX_BUNDLE_MB`, `ADMIN_MAX_UNPACKED_MB` (see `apps/web/src/env.ts` and `docs/admin.md`).
 

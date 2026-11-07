@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import {
 	FIREBASE_APP_ID,
 	FIREBASE_AUTH_DOMAIN,
+	FIREBASE_PROJECT_ID,
 	FIREBASE_SERVICE_ACCOUNT,
 	FIREBASE_SERVICE_ACCOUNT_FILE,
 	FIREBASE_WEB_API_KEY
@@ -106,12 +107,10 @@ export function verifier(): Verifier | undefined {
 export function webConfig(): WebConfig | undefined {
 	if (override) return overrideConfig;
 	if (!configured() || !FIREBASE_WEB_API_KEY) return undefined;
-	const projectId = credentials()?.projectId;
-	if (!projectId) return undefined;
 	return {
 		apiKey: FIREBASE_WEB_API_KEY,
-		authDomain: FIREBASE_AUTH_DOMAIN ?? `${projectId}.firebaseapp.com`,
-		projectId,
+		authDomain: FIREBASE_AUTH_DOMAIN,
+		projectId: FIREBASE_PROJECT_ID,
 		...(FIREBASE_APP_ID ? { appId: FIREBASE_APP_ID } : {})
 	};
 }

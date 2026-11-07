@@ -78,8 +78,12 @@ export const variables = defineEnvVars({
 		schema: optional
 	},
 	FIREBASE_AUTH_DOMAIN: {
-		description: 'The Firebase auth domain. Unset: `<project id>.firebaseapp.com`.',
-		schema: optional
+		description: 'The Firebase auth domain.',
+		schema: (value) => value?.trim() || 'runestone-d3a35.firebaseapp.com'
+	},
+	FIREBASE_PROJECT_ID: {
+		description: 'The Firebase project id the sign-in page loads.',
+		schema: (value) => value?.trim() || 'runestone-d3a35'
 	},
 	FIREBASE_APP_ID: {
 		description: 'The Firebase web app id. Optional.',

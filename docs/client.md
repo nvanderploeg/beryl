@@ -11,6 +11,7 @@ export const UNREACHABLE_WARNING = 'beryl unreachable — continuing without the
 export interface ClientOptions {
 	env?: Record<string, string | undefined>; // default process.env
 	configDir?: string; // default `${XDG_CONFIG_HOME ?? ~/.config}/beryl`, read from `env`
+	loginFile?: string; // default `${XDG_CONFIG_HOME ?? ~/.config}/runestone/login.json`, read from `env`
 	fetch?: typeof fetch; // default globalThis.fetch
 	candidates?: string[]; // default DEFAULT_CANDIDATES
 	probeTimeoutMs?: number; // loopback hosts; default 300
@@ -39,6 +40,8 @@ export interface NodeInput {
 
 export interface BerylClient {
 	discover(): Promise<string | null>;
+	login(): Promise<Result<{ status: 'signed_in' } | { status: 'pending'; url: string; userCode: string }>>;
+	logout(): Promise<Result<{ status: 'signed_out' }>>;
 	openTopic(input: {
 		title?: string; // required unless topicId is given
 		destination?: string;
@@ -128,6 +131,7 @@ Behaviour:
 
 - **discover** — as chronicle's: servers normalised (trim, strip trailing `/`). `BERYL_URL` set and non-empty → probe it alone. Otherwise the first healthy candidate. Healthy = `GET <server>/api/health` answers 2xx with JSON `service === 'beryl'` within the probe timeout for its host.
 - **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `beryl failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
+- **login / logout** — `login` starts or continues a device login at the discovered server (`POST /api/auth/device`, then `POST /api/auth/device/token`) and polls a few times; it answers `pending` with the approval URL and code until a person approves, then trades the custom token at Firebase and writes the Runestone login file. A login file already present answers `signed_in` without contacting the server. A device code in flight is kept in `<configDir>/pending-logins.json`. `logout` deletes the login file. Owned Projects store the Write key `login`, which stands for a fresh ID token minted from the refresh token (its web API key and project id come from `GET /api/auth/config`; a project id that differs from the file's counts as signed out).
 - **openTopic** — with `topicId`: needs its `topics.json` handle (else `unknown topic <id> on this machine`), `GET /api/topics/:id` to confirm it exists, `resumed: true`, nothing created. Without: `title` required; `discover()` (`null` → `UNREACHABLE_WARNING`); find or create the Project for `(server, repoKey)` as chronicle's `startTask` does (name = `project`, else the repo name from `repoIdentity`; rename when `project` differs; a 401/403/404 on topic create → create a fresh Project, overwrite the entry, retry once). `POST /api/projects/:id/topics`; `repo` and `branch` default from `gitRefs(cwd)`; `agent.tool` defaults to `'claude-code'` when `env.CLAUDECODE === '1'`. Save the handle.
 - **Topic-scoped calls** need the `topics.json` handle and use its server only, never Discovery. Every call uses the Project's Write key. A Private link costs one `POST /api/projects/:id/pairings`; if that fails, `openTopic` returns the Share link as `noteUrl` with a `warning`, and `topicUrl` with `private` fails.
 - **waitForSent** — loops `GET /api/topics/:id/wait?timeoutMs=<pollMs>`. `sent > 0` → return it. Network error, timeout or 5xx → sleep with backoff starting at 1 s, doubling to 30 s, reset after any good answer. A 4xx → return the warning. Stops with `{ sent: 0 }` at the overall timeout or when `signal` aborts.
@@ -187,6 +191,8 @@ beryl wait <topicId> [--timeout 12h]                      see Wait
 beryl note <topicId> <intent> [text] [--path p] [--widget w] [--element e] [--author a]
 beryl send <topicId>                                      stdout: "sent <n>"
 beryl url <topicId> [--private]
+beryl login                                               sign in; run again once the code is approved
+beryl logout
 beryl doctor
 beryl hook
 ```
@@ -230,6 +236,8 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 | `move_node`     | `{ topicId, from, to }`                                                                        | JSON `{ moved }`                                        |
 | `update_topic`  | `{ topicId, title?, destination?, summary?, status?, current?, agent? }`                       | JSON `{ topic }`                                        |
 | `pull_notes`    | `{ topicId }`                                                                                  | `formatPulled`                                          |
+| `login`         | `{}`                                                                                           | JSON `{ signedIn: true }` or `{ signedIn: false, approveAt, code }` |
+| `logout`        | `{}`                                                                                           | JSON `{ status: 'signed_out' }`                         |
 | `resolve_notes` | `{ topicId, notes: { id, reply?, changed? }[] }`                                               | JSON `{ resolved: id[] }`                               |
 
 - Failures → one text item `beryl: <warning>`, never `isError`.
@@ -237,3 +245,13 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 - `open_topic` without `agent.tool` fills it from the MCP client's name (`claude` → `claude-code`, `codex` → `codex`).
 - **Opener** — after an `open_topic` that returns `ok`, open its `noteUrl` once with `open`, `cmd /c start` or `xdg-open`, detached, output discarded; `BERYL_OPEN=0` disables it; failures are swallowed.
 - Tool descriptions are one sentence an agent can act on. `open_topic`'s says to call it when a grill starts and to print the `noteUrl` to the user; `put_nodes`'s says widget shapes are in the beryl skill's `WIDGETS.md`.
+
+## Runestone login file
+
+One login serves every Runestone tool on a machine: the beryl and chronicle clients read and write the same file, so signing in through either serves both (and command-center).
+
+- Path: `$XDG_CONFIG_HOME/runestone/login.json`, default `~/.config/runestone/login.json`. File mode 0600, directory 0700.
+- Content: `{ "refreshToken": string, "uid": string, "email"?: string, "projectId": string }`. `refreshToken` is the Firebase refresh token; `projectId` is the Firebase project it belongs to. A login for a project other than the server's is not used there.
+- Write atomically (temp file in the same directory, then rename), never in place.
+- Another tool may replace the file at any time: read it afresh on every use and never hold it open. A missing, unparseable or incomplete file means signed out. After a refresh returns a new refresh token, write it back only if the file still holds the one that was refreshed.
+- `logout` deletes the file.

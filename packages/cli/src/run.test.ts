@@ -72,7 +72,9 @@ function fakeClient() {
 		addNote: vi.fn(),
 		send: vi.fn(),
 		topicUrl: vi.fn(),
-		doctor: vi.fn()
+		doctor: vi.fn(),
+		login: vi.fn(),
+		logout: vi.fn()
 	};
 }
 
@@ -497,6 +499,29 @@ describe('note, send and url', () => {
 			[{ topicId: 'topic-1', private: undefined }],
 			[{ topicId: 'topic-1', private: true }]
 		]);
+	});
+});
+
+describe('login and logout', () => {
+	it('prints the approval step while pending, then confirms', async () => {
+		const client = fakeClient();
+		client.login.mockResolvedValueOnce({
+			ok: true,
+			value: { status: 'pending', url: 'http://h/device?code=ABCD-2345', userCode: 'ABCD-2345' }
+		});
+		client.login.mockResolvedValueOnce({ ok: true, value: { status: 'signed_in' } });
+
+		expect((await invoke(['login'], client)).stdout).toBe(
+			'approve code ABCD-2345 at http://h/device?code=ABCD-2345, then run beryl login again'
+		);
+		expect((await invoke(['login'], client)).stdout).toBe('signed in');
+	});
+
+	it('signs out', async () => {
+		const client = fakeClient();
+		client.logout.mockResolvedValue({ ok: true, value: { status: 'signed_out' } });
+
+		expect((await invoke(['logout'], client)).stdout).toBe('signed out');
 	});
 });
 

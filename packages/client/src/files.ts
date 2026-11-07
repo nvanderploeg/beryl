@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { dirname, join } from 'node:path';
 
@@ -17,13 +17,18 @@ export interface TopicHandle {
 	slug?: string;
 }
 
-export interface LoginEntry {
-	// Firebase credentials of the signed-in person: the refresh token is the long-lived secret.
-	refreshToken?: string;
-	apiKey?: string;
-	idToken?: string;
-	idExpiresAt?: number;
-	pending?: { deviceCode: string; userCode: string; url: string; expiresAt: string };
+export interface Login {
+	refreshToken: string;
+	uid: string;
+	email?: string;
+	projectId: string;
+}
+
+export interface PendingLogin {
+	deviceCode: string;
+	userCode: string;
+	url: string;
+	expiresAt: string;
 }
 
 export type ProjectsFile = Record<string, Record<string, ProjectEntry>>;
@@ -114,13 +119,36 @@ function withLock<T>(lockPath: string, run: () => Promise<T>): Promise<T> {
 
 export type Resolved<F> = { ok: true; entry: ProjectEntry; created: boolean } | F;
 
-export function createStore(configDir: string) {
+export function createStore(configDir: string, loginPath: string) {
 	const projectsPath = join(configDir, 'projects.json');
 	const topicsPath = join(configDir, 'topics.json');
-	const loginsPath = join(configDir, 'logins.json');
+	const pendingPath = join(configDir, 'pending-logins.json');
 	const lockPath = join(configDir, '.lock');
-	// Separate from the registry lock: refreshing a login happens while a project is being created.
 	const loginLockPath = join(configDir, '.login-lock');
+
+	// Another tool shares this file and replaces it whole; anything unreadable counts as signed out.
+	async function readLogin(): Promise<Login | undefined> {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(await readFile(loginPath, 'utf8'));
+		} catch {
+			return undefined;
+		}
+		const o = parsed as Partial<Login> | null;
+		if (
+			typeof o?.refreshToken !== 'string' ||
+			typeof o.uid !== 'string' ||
+			typeof o.projectId !== 'string'
+		) {
+			return undefined;
+		}
+		return {
+			refreshToken: o.refreshToken,
+			uid: o.uid,
+			projectId: o.projectId,
+			...(typeof o.email === 'string' ? { email: o.email } : {})
+		};
+	}
 
 	async function putProject(server: string, repoKey: string, entry: ProjectEntry): Promise<void> {
 		const projects = await readJson<ProjectsFile[string]>(projectsPath);
@@ -130,13 +158,19 @@ export function createStore(configDir: string) {
 
 	return {
 		readProjects: () => readJson<ProjectsFile[string]>(projectsPath),
-		readLogins: () => readJson<LoginEntry>(loginsPath),
-		saveLogin: (server: string, entry: LoginEntry | undefined) =>
+		readLogin,
+		saveLogin: (login: Login) => writeJson(loginPath, login),
+		clearLogin: () => rm(loginPath, { force: true }),
+		readPending: async (server: string) =>
+			own(await readJson<PendingLogin>(pendingPath).catch(() => ({})), server),
+		savePending: (server: string, pending: PendingLogin | undefined) =>
 			withLock(loginLockPath, async () => {
-				const logins = await readJson<LoginEntry>(loginsPath);
-				if (entry) logins[server] = entry;
-				else delete logins[server];
-				await writeJson(loginsPath, logins);
+				const all = await readJson<PendingLogin>(pendingPath).catch(
+					() => ({}) as Record<string, PendingLogin>
+				);
+				if (pending) all[server] = pending;
+				else delete all[server];
+				await writeJson(pendingPath, all);
 			}),
 		readTopics: () => readJson<TopicHandle>(topicsPath),
 		assertReadable: async () => {

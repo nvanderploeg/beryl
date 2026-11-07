@@ -14,6 +14,7 @@ import type {
 export interface ClientOptions {
 	env?: Record<string, string | undefined>;
 	configDir?: string;
+	loginFile?: string;
 	fetch?: typeof fetch;
 	candidates?: string[];
 	probeTimeoutMs?: number;

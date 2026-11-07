@@ -259,6 +259,18 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 				});
 				return finish(result, (v) => v.url);
 			}
+			case 'login': {
+				parse(rest, {}, [0, 0]);
+				return finish(await client.login(), (v) =>
+					v.status === 'signed_in'
+						? 'signed in'
+						: `approve code ${v.userCode} at ${v.url}, then run beryl login again`
+				);
+			}
+			case 'logout': {
+				parse(rest, {}, [0, 0]);
+				return finish(await client.logout(), () => 'signed out');
+			}
 			case 'doctor': {
 				const { values } = parse(rest, { cwd: { type: 'string' } }, [0, 0]);
 				io.stdout(formatDoctor(await client.doctor({ cwd: values.cwd })));

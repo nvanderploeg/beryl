@@ -207,6 +207,7 @@ function makeClient(fake: Fake, options: Partial<ClientOptions> = {}): BerylClie
 	return createClient({
 		env: {},
 		configDir,
+		loginFile,
 		candidates: [SERVER],
 		probeTimeoutMs: 100,
 		remoteProbeTimeoutMs: 100,
@@ -223,6 +224,7 @@ function writeRaw(name: string, text: string): void {
 }
 
 const seedFile = (name: string, data: unknown) => writeRaw(name, JSON.stringify(data));
+let loginFile: string;
 const readFile = (name: string): unknown =>
 	JSON.parse(fs.readFileSync(path.join(configDir, name), 'utf8'));
 const modeOf = (name: string) => fs.statSync(path.join(configDir, name)).mode & 0o777;
@@ -269,6 +271,7 @@ function git(cwd: string, args: string[]): void {
 
 beforeEach(() => {
 	configDir = tempDir('beryl-config-');
+	loginFile = path.join(tempDir('runestone-config-'), 'runestone', 'login.json');
 });
 
 afterEach(() => {
@@ -1376,6 +1379,15 @@ describe('login', () => {
 						}
 					};
 				}
+				if (req.path === '/api/auth/config') {
+					return {
+						status: 200,
+						body: {
+							enabled: true,
+							config: { apiKey: FB_KEY, authDomain: 'x', projectId: 'runestone-d3a35' }
+						}
+					};
+				}
 				if (req.path === '/api/auth/device/token') {
 					return approved()
 						? { status: 200, body: { uid: 'alice', customToken: 'custom-1', apiKey: FB_KEY } }
@@ -1445,10 +1457,32 @@ describe('login', () => {
 
 		approved = true;
 		expect(await client.login()).toEqual({ ok: true, value: { status: 'signed_in' } });
-		const stored = readFile('logins.json') as Record<string, Record<string, unknown>>;
-		expect(stored[SERVER]).toMatchObject({ refreshToken: 'refresh-1', apiKey: FB_KEY });
-		expect(stored[SERVER].pending).toBeUndefined();
-		expect(modeOf('logins.json')).toBe(0o600);
+		expect(JSON.parse(fs.readFileSync(loginFile, 'utf8'))).toEqual({
+			refreshToken: 'refresh-1',
+			uid: 'alice',
+			projectId: 'runestone-d3a35'
+		});
+		expect(fs.statSync(loginFile).mode & 0o777).toBe(0o600);
+		expect(fs.statSync(path.dirname(loginFile)).mode & 0o777).toBe(0o700);
+	});
+
+	it('serves a login file written by another tool', async () => {
+		fs.mkdirSync(path.dirname(loginFile), { recursive: true });
+		fs.writeFileSync(
+			loginFile,
+			JSON.stringify({ refreshToken: 'refresh-1', uid: 'alice', projectId: 'runestone-d3a35' })
+		);
+		const client = makeClient(fakeFetch(loginServer(() => true)));
+
+		expect(await client.login()).toEqual({ ok: true, value: { status: 'signed_in' } });
+	});
+
+	it('reads an unreadable login file as signed out', async () => {
+		fs.mkdirSync(path.dirname(loginFile), { recursive: true });
+		fs.writeFileSync(loginFile, '{"refreshToken":');
+		const client = makeClient(fakeFetch(loginServer(() => false)));
+
+		expect(await client.login()).toMatchObject({ ok: true, value: { status: 'pending' } });
 	});
 
 	it('creates owned projects keyed by a fresh ID token and refreshes it when it lapses', async () => {
@@ -1473,6 +1507,6 @@ describe('login', () => {
 		const client = makeClient(fake);
 		await client.login();
 		expect(await client.logout()).toEqual({ ok: true, value: { status: 'signed_out' } });
-		expect(readFile('logins.json')).toEqual({});
+		expect(fs.existsSync(loginFile)).toBe(false);
 	});
 });

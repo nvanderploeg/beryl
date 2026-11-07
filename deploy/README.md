@@ -26,7 +26,9 @@ the key outside the repository and outside images, and set in `beryl.env`:
 - `FIREBASE_SERVICE_ACCOUNT_HOST_PATH`: the key's path on the host; compose mounts it read-only
   and points `FIREBASE_SERVICE_ACCOUNT_FILE` at it. Outside compose, set
   `FIREBASE_SERVICE_ACCOUNT_FILE` to a path, or `FIREBASE_SERVICE_ACCOUNT` to the JSON itself.
-- `FIREBASE_WEB_API_KEY` (and optionally `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`): the web app
+- `FIREBASE_WEB_API_KEY` (and optionally `FIREBASE_AUTH_DOMAIN`, default
+  `runestone-d3a35.firebaseapp.com`; `FIREBASE_PROJECT_ID`, default `runestone-d3a35`;
+  `FIREBASE_APP_ID`): the web app
   config the login page loads from `/api/auth/config`.
 
 - `AUTH_COOKIE_DOMAIN`: the `Domain` of the `runestone_session` cookie, e.g. `.nanzero.com`. Sagas,

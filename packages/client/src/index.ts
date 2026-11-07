@@ -62,6 +62,10 @@ export function defaultConfigDir(env: Record<string, string | undefined> = proce
 	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'beryl');
 }
 
+export function defaultLoginFile(env: Record<string, string | undefined> = process.env): string {
+	return join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'runestone', 'login.json');
+}
+
 // Build links from the server's replies, never from `server`: the address we reach it on may not be its public origin.
 function projectUrlFrom(topicUrl: string, topicSlug: string, fallback: string): string {
 	const suffix = `/t/${topicSlug}`;
@@ -95,7 +99,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 	const sleep =
 		options.sleep ?? ((ms: number, signal?: AbortSignal) => delay(ms, undefined, { signal }));
 	const configDir = options.configDir ?? defaultConfigDir(env);
-	const store = createStore(configDir);
+	const store = createStore(configDir, options.loginFile ?? defaultLoginFile(env));
 	const discovery = createDiscovery({
 		fetch: fetchFn,
 		env,
@@ -120,37 +124,46 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		}
 	}
 
-	async function saveTokens(
-		server: string,
-		apiKey: string,
-		got: { idToken: string; refreshToken: string; expiresIn: number }
-	): Promise<string> {
-		await store.saveLogin(server, {
-			apiKey,
-			refreshToken: got.refreshToken,
-			idToken: got.idToken,
-			idExpiresAt: Date.now() + got.expiresIn * 1000
-		});
-		return got.idToken;
+	let cachedId: { refreshToken: string; idToken: string; expiresAt: number } | undefined;
+
+	async function webConfig(server: string) {
+		const reply = await call<{ enabled: boolean; config?: { apiKey: string; projectId: string } }>(
+			server,
+			'/api/auth/config',
+			{ method: 'GET' }
+		);
+		return reply.ok && reply.body.enabled ? reply.body.config : undefined;
 	}
 
 	async function freshIdToken(server: string): Promise<string | undefined> {
-		const entry = own(await store.readLogins(), server);
-		if (!entry?.refreshToken || !entry.apiKey) return undefined;
-		if (entry.idToken && (entry.idExpiresAt ?? 0) - Date.now() > ID_TOKEN_SLACK_MS) {
-			return entry.idToken;
+		const login = await store.readLogin();
+		if (!login) return undefined;
+		if (
+			cachedId?.refreshToken === login.refreshToken &&
+			cachedId.expiresAt - Date.now() > ID_TOKEN_SLACK_MS
+		) {
+			return cachedId.idToken;
 		}
+		const config = await webConfig(server);
+		if (!config || config.projectId !== login.projectId) return undefined;
 		const got = await postJson<{ id_token: string; refresh_token: string; expires_in: string }>(
-			`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(entry.apiKey)}`,
-			{ grant_type: 'refresh_token', refresh_token: entry.refreshToken },
+			`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(config.apiKey)}`,
+			{ grant_type: 'refresh_token', refresh_token: login.refreshToken },
 			true
 		);
 		if (!got) return undefined;
-		return saveTokens(server, entry.apiKey, {
-			idToken: got.id_token,
+		if (got.refresh_token !== login.refreshToken) {
+			const current = await store.readLogin();
+			if (current?.refreshToken === login.refreshToken) {
+				await store.saveLogin({ ...current, refreshToken: got.refresh_token });
+			}
+		}
+		cachedId = {
 			refreshToken: got.refresh_token,
-			expiresIn: Number(got.expires_in)
-		});
+			idToken: got.id_token,
+			expiresAt: Date.now() + Number(got.expires_in) * 1000
+		};
+		return got.id_token;
 	}
 
 	async function call<T>(
@@ -188,7 +201,7 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		server: string,
 		name: string
 	): Promise<{ ok: true; entry: ProjectEntry } | Failure> {
-		const signedIn = Boolean(own(await store.readLogins(), server)?.refreshToken);
+		const signedIn = Boolean(await store.readLogin());
 		const reply = await call<{
 			id: string;
 			name?: string;
@@ -321,9 +334,8 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			guard<LoginState>(async () => {
 				const server = await discovery.discover();
 				if (!server) return unreachable;
-				const current = own(await store.readLogins(), server);
-				if (current?.refreshToken) return { ok: true, value: { status: 'signed_in' as const } };
-				let pending = current?.pending;
+				if (await store.readLogin()) return { ok: true, value: { status: 'signed_in' as const } };
+				let pending = await store.readPending(server);
 				if (!pending || Date.parse(pending.expiresAt) <= Date.now()) {
 					const started = await call<{
 						deviceCode: string;
@@ -341,35 +353,45 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 						url: started.body.verificationUrl,
 						expiresAt: started.body.expiresAt
 					};
-					await store.saveLogin(server, { pending });
+					await store.savePending(server, pending);
 				}
 				for (let attempt = 1; ; attempt++) {
-					const polled = await call<{ customToken?: string; apiKey?: string }>(
+					const polled = await call<{ uid?: string; customToken?: string; apiKey?: string }>(
 						server,
 						'/api/auth/device/token',
 						{ method: 'POST', body: { deviceCode: pending.deviceCode } }
 					);
 					if (!polled.ok) {
-						if (polled.status === 410) await store.saveLogin(server, undefined);
+						if (polled.status === 410) await store.savePending(server, undefined);
 						return polled;
 					}
-					if (polled.body.customToken && polled.body.apiKey) {
-						const { apiKey, customToken } = polled.body;
+					if (polled.body.customToken && polled.body.apiKey && polled.body.uid) {
+						const { apiKey, customToken, uid } = polled.body;
 						const got = await postJson<{
 							idToken: string;
 							refreshToken: string;
 							expiresIn: string;
+							email?: string;
 						}>(
 							`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${encodeURIComponent(apiKey)}`,
 							{ token: customToken, returnSecureToken: true }
 						);
-						if (!got)
+						const config = got ? await webConfig(server) : undefined;
+						if (!got || !config) {
 							return { ok: false, warning: 'firebase refused the sign-in; try login again' };
-						await saveTokens(server, apiKey, {
-							idToken: got.idToken,
+						}
+						await store.saveLogin({
 							refreshToken: got.refreshToken,
-							expiresIn: Number(got.expiresIn)
+							uid,
+							projectId: config.projectId,
+							...(got.email ? { email: got.email } : {})
 						});
+						await store.savePending(server, undefined);
+						cachedId = {
+							refreshToken: got.refreshToken,
+							idToken: got.idToken,
+							expiresAt: Date.now() + Number(got.expiresIn) * 1000
+						};
 						return { ok: true, value: { status: 'signed_in' as const } };
 					}
 					if (attempt >= LOGIN_POLLS) break;
@@ -383,9 +405,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 
 		logout: () =>
 			guard(async () => {
+				await store.clearLogin();
+				cachedId = undefined;
 				const server = await discovery.discover();
-				if (!server) return unreachable;
-				await store.saveLogin(server, undefined);
+				if (server) await store.savePending(server, undefined);
 				return { ok: true, value: { status: 'signed_out' as const } };
 			}),
 
