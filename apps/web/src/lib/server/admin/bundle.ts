@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { getTableConfig, type MySqlTable } from 'drizzle-orm/mysql-core';
-import type { PoolConnection } from 'mysql2/promise';
+import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
+import type { PoolClient } from 'pg';
+import Cursor from 'pg-cursor';
 import { ADMIN_BACKUP_DIR, ADMIN_MAX_UNPACKED_MB } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { pool } from '#lib/server/db/index.ts';
@@ -29,6 +30,8 @@ export const FORMAT = 1;
 export const SERVICE = 'beryl';
 export const DB_FILE = 'db.ndjson';
 export const MANIFEST_FILE = 'manifest.json';
+// Journal-less schema levels still accepted on import: Bundles from the MySQL build.
+const MYSQL_SCHEMAS = ['0000_init', '0001_pairing_sessions', '0002_project_topic_slugs'];
 const BACKUPS_KEPT = 5;
 const MAX_LINE_BYTES = 40 << 20;
 const MAX_MANIFEST_BYTES = 1 << 20;
@@ -36,7 +39,7 @@ const BATCH_ROWS = 500;
 
 // Parents before children. Pairing codes and Sessions are deliberately absent: they are
 // short-lived browser credentials, and a restored host starts with none.
-export const BUNDLE_TABLES: Record<string, MySqlTable> = {
+export const BUNDLE_TABLES: Record<string, PgTable> = {
 	projects,
 	topics,
 	nodes,
@@ -63,51 +66,63 @@ export async function journalTags(): Promise<string[]> {
 	return journal.entries.map((entry: { tag: string }) => entry.tag);
 }
 
-function columnsOf(table: MySqlTable) {
+function columnsOf(table: PgTable) {
 	return getTableConfig(table).columns;
 }
 
-// Raw text for timestamps and JSON keeps a round trip byte-exact.
-const typeCast = (
-	field: { type: string; string: (encoding: string) => string | null },
-	next: () => unknown
-): unknown =>
-	field.type === 'TIMESTAMP' || field.type === 'DATETIME' || field.type === 'JSON'
-		? field.string('utf8')
-		: next();
+const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
-// The promise wrapper hides row streaming; the callback connection underneath has it.
-function callbackConnection(conn: PoolConnection) {
-	return (
-		conn as unknown as {
-			connection: {
-				query: (options: object) => { stream: (options: object) => AsyncIterable<unknown> };
-			};
-		}
-	).connection;
+// Bundle value forms: timestamps as UTC text without a zone, JSON as text, booleans as 0 or 1.
+function dumpExpression(column: ReturnType<typeof columnsOf>[number]): string {
+	const name = quote(column.name);
+	switch (column.columnType) {
+		case 'PgTimestamp':
+			return `to_char(${name} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS')`;
+		case 'PgJson':
+			return `${name}::text`;
+		case 'PgBoolean':
+			return `${name}::int`;
+		default:
+			return name;
+	}
 }
 
-async function* dumpDatabase(conn: PoolConnection): AsyncGenerator<Buffer> {
+const readCursor = (cursor: Cursor, rows: number) =>
+	new Promise<unknown[][]>((resolve, reject) =>
+		cursor.read(rows, (error, result) => (error ? reject(error) : resolve(result as unknown[][])))
+	);
+const closeCursor = (cursor: Cursor) =>
+	new Promise<void>((resolve) => cursor.close(() => resolve()));
+
+async function* dumpDatabase(conn: PoolClient): AsyncGenerator<Buffer> {
 	for (const [name, table] of Object.entries(BUNDLE_TABLES)) {
-		const names = columnsOf(table).map((column) => column.name);
+		const columns = columnsOf(table);
+		const names = columns.map((column) => column.name);
+		const numeric = columns.map((column) => column.columnType === 'PgBigSerial53');
 		yield Buffer.from(`${JSON.stringify({ table: name, columns: names })}\n`);
-		const rows = callbackConnection(conn)
-			.query({
-				sql: `SELECT ${names.map((n) => `\`${n}\``).join(', ')} FROM \`${name}\``,
-				typeCast
+		const cursor = conn.query(
+			new Cursor(`SELECT ${columns.map(dumpExpression).join(', ')} FROM ${quote(name)}`, [], {
+				rowMode: 'array'
 			})
-			.stream({ highWaterMark: 256 });
+		);
 		let pending = '';
 		try {
-			for await (const row of rows as AsyncIterable<Record<string, unknown>>) {
-				pending += `${JSON.stringify(names.map((n) => row[n]))}\n`;
-				if (pending.length > 1 << 16) {
-					yield Buffer.from(pending);
-					pending = '';
+			for (;;) {
+				const batch = await readCursor(cursor, 256);
+				if (!batch.length) break;
+				for (const row of batch) {
+					const values = row.map((value, i) =>
+						numeric[i] && value !== null ? Number(value) : value
+					);
+					pending += `${JSON.stringify(values)}\n`;
+					if (pending.length > 1 << 16) {
+						yield Buffer.from(pending);
+						pending = '';
+					}
 				}
 			}
 		} finally {
-			(rows as unknown as { destroy: () => void }).destroy();
+			await closeCursor(cursor);
 		}
 		if (pending) yield Buffer.from(pending);
 	}
@@ -117,12 +132,10 @@ async function* dumpDatabase(conn: PoolConnection): AsyncGenerator<Buffer> {
 // A streamed Bundle lists its files last: sizes and hashes are known only once they are sent.
 export async function* exportBundle(): AsyncGenerator<Buffer> {
 	const tags = await journalTags();
-	const conn = await pool.getConnection();
+	const conn = await pool.connect();
 	let clean = false;
 	try {
-		await conn.query("SET time_zone = '+00:00'");
-		await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-		await conn.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+		await conn.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
 		const hash = createHash('sha256');
 		let size = 0;
 		async function* entries(): AsyncGenerator<ZipSource> {
@@ -159,7 +172,7 @@ export async function* exportBundle(): AsyncGenerator<Buffer> {
 			await conn.query('ROLLBACK').catch(() => {});
 			conn.release();
 		} else {
-			conn.destroy();
+			conn.release(true);
 		}
 	}
 }
@@ -228,8 +241,7 @@ export async function verifyBundle(
 	}
 
 	const tags = await journalTags();
-	const level = tags.indexOf(manifest.schema);
-	if (level < 0) {
+	if (!tags.includes(manifest.schema) && !MYSQL_SCHEMAS.includes(manifest.schema)) {
 		refuse(
 			`bundle rejected: schema ${JSON.stringify(manifest.schema)} is newer than this build (latest ${tags[tags.length - 1]})`,
 			409
@@ -366,22 +378,27 @@ export async function importBundle(
 		const dbEntry = entries.get(DB_FILE)!;
 		const backup = await writeBackup(options.backupDir ?? (await backupDir()));
 
-		const conn = await pool.getConnection();
+		const conn = await pool.connect();
 		const rows: Record<string, number> = {};
 		try {
-			await conn.query("SET time_zone = '+00:00'");
-			await conn.query('START TRANSACTION');
-			for (const name of WIPE_ORDER) await conn.query(`DELETE FROM \`${name}\``);
+			await conn.query('BEGIN');
+			await conn.query("SET LOCAL TIME ZONE 'UTC'");
+			for (const name of WIPE_ORDER) await conn.query(`DELETE FROM ${quote(name)}`);
 
 			let table: ReturnType<typeof openTable> | undefined;
 			const flush = async () => {
-				if (!table?.pending.length) return;
-				await conn.query(`INSERT INTO \`${table.name}\` (??) VALUES ?`, [
-					table.columns,
-					table.pending
-				]);
-				rows[table.name] += table.pending.length;
-				table.pending = [];
+				const target = table;
+				if (!target?.pending.length) return;
+				const width = target.columns.length;
+				const tuples = target.pending.map(
+					(_, r) => `(${target.columns.map((_, c) => `$${r * width + c + 1}`).join(', ')})`
+				);
+				await conn.query(
+					`INSERT INTO ${quote(target.name)} (${target.columns.map(quote).join(', ')}) VALUES ${tuples.join(', ')}`,
+					target.pending.flat()
+				);
+				rows[target.name] += target.pending.length;
+				target.pending = [];
 			};
 			for await (const line of lines(readEntry(path, dbEntry))) {
 				if (line === '') continue;
@@ -406,6 +423,9 @@ export async function importBundle(
 			if (rows.projects === 0 && !options.allowEmpty) {
 				refuse('bundle rejected: it holds no Projects; pass allowEmpty to wipe the server', 409);
 			}
+			await conn.query(
+				`SELECT setval(pg_get_serial_sequence('events', 'seq'), COALESCE(MAX(seq), 0) + 1, false) FROM events`
+			);
 			await conn.query('COMMIT');
 		} catch (error) {
 			await conn.query('ROLLBACK').catch(() => {});

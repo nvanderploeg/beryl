@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '#lib/server/db/index.ts';
 import { randomBytes } from 'node:crypto';
 import { ApiError } from '#lib/server/api.ts';
+import { hashKey } from '#lib/server/hash.ts';
 import { endStreams, createTopicStream } from '#lib/server/stream.ts';
 import { resetDb } from '#lib/server/test/db.ts';
 import { api, event, seedProject, seedTopic } from '#lib/server/test/http.ts';
@@ -324,6 +325,192 @@ describe('import', () => {
 		expect((await listProjects())[0].slug).toBe('old-project');
 	});
 
+	it('imports a Bundle exported by the MySQL build and keeps allocating event seqs after it', async () => {
+		const legacyKey = 'bk_legacy';
+		const pid = '33333333-3333-4333-8333-333333333333';
+		const tid = '44444444-4444-4444-8444-444444444444';
+		const at = '2026-03-04 05:06:07.089';
+		const table = (name: string, columns: string[], rows: unknown[][]) =>
+			[JSON.stringify({ table: name, columns }), ...rows.map((row) => JSON.stringify(row))].join(
+				'\n'
+			);
+		const widgets = '[{"key": "w", "type": "markdown", "data": {"text": "hi"}}]';
+		const dump = [
+			table(
+				'projects',
+				['id', 'slug', 'name', 'write_key_hash', 'created_at', 'last_write_at'],
+				[[pid, 'legacy', 'Legacy', hashKey(legacyKey), at, at]]
+			),
+			table(
+				'topics',
+				[
+					'id',
+					'project_id',
+					'slug',
+					'title',
+					'destination',
+					'summary',
+					'status',
+					'current',
+					'agent',
+					'repo',
+					'branch',
+					'created_at',
+					'updated_at',
+					'closed_at'
+				],
+				[
+					[
+						tid,
+						pid,
+						'legacy-topic',
+						'Legacy topic',
+						'',
+						'',
+						'open',
+						null,
+						'{"name": "claude"}',
+						null,
+						null,
+						at,
+						at,
+						null
+					]
+				]
+			),
+			table(
+				'nodes',
+				[
+					'topic_id',
+					'path',
+					'parent_path',
+					'key',
+					'depth',
+					'position',
+					'kind',
+					'status',
+					'title',
+					'gist',
+					'body',
+					'recommendation',
+					'answer',
+					'rank',
+					'edges',
+					'widgets',
+					'sources',
+					'gist_stale',
+					'created_at',
+					'updated_at',
+					'status_since'
+				],
+				[
+					[
+						tid,
+						'Storage',
+						null,
+						'Storage',
+						1,
+						0,
+						'decision',
+						'open',
+						'Storage',
+						'',
+						'',
+						'',
+						'',
+						null,
+						'[]',
+						widgets,
+						'[]',
+						1,
+						at,
+						at,
+						at
+					]
+				]
+			),
+			table(
+				'notes',
+				[
+					'id',
+					'topic_id',
+					'anchor',
+					'intent',
+					'text',
+					'author',
+					'status',
+					'sent_at',
+					'delivered_at',
+					'resolved_at',
+					'reply',
+					'changed',
+					'created_at',
+					'updated_at'
+				],
+				[]
+			),
+			table(
+				'events',
+				['seq', 'topic_id', 'path', 'type', 'payload', 'at'],
+				[
+					[41, tid, null, 'topic', '{"title": "Legacy topic"}', at],
+					[42, tid, 'Storage', 'node', '{"path": "Storage"}', at]
+				]
+			)
+		].join('\n');
+		const bundle = await repack('mysql-era.zip', { [DB_FILE]: `${dump}\n` }, (m) => ({
+			...m,
+			schema: '0002_project_topic_slugs'
+		}));
+		await importBundle(bundle, { backupDir: dir });
+
+		const topic = await api.getTopic(tid);
+		expect(topic.status).toBe(200);
+		expect(topic.body.lastSeq).toBe(42);
+		expect(topic.body.nodes[0]).toMatchObject({ path: 'Storage', gistStale: true });
+		const { rows } = await pool.query(
+			'SELECT EXTRACT(EPOCH FROM created_at)::float8 AS u, widgets::text AS w FROM nodes'
+		);
+		expect(rows[0].u).toBe(Date.UTC(2026, 2, 4, 5, 6, 7, 89) / 1000);
+		expect(rows[0].w).toBe(widgets);
+
+		const { db } = await unpack(await exportTo('mysql-era-out.zip'));
+		expect(db).toContain(JSON.stringify([41, tid, null, 'topic', '{"title": "Legacy topic"}', at]));
+		expect(db).toContain(
+			JSON.stringify([
+				tid,
+				'Storage',
+				null,
+				'Storage',
+				1,
+				0,
+				'decision',
+				'open',
+				'Storage',
+				'',
+				'',
+				'',
+				'',
+				null,
+				'[]',
+				widgets,
+				'[]',
+				1,
+				at,
+				at,
+				at
+			])
+		);
+
+		const written = await api.putNodes(
+			tid,
+			{ nodes: [{ path: 'Other', kind: 'fact', title: 'Other' }] },
+			legacyKey
+		);
+		expect(written.status).toBe(200);
+		expect((await api.getTopic(tid)).body.lastSeq).toBeGreaterThan(42);
+	});
+
 	it('refuses an older bundle that lacks a column with no default', async () => {
 		const header = JSON.stringify({ table: 'projects', columns: ['id', 'name'] });
 		const old = await repack('nodef.zip', {
@@ -486,12 +673,14 @@ describe('portal', () => {
 			'[]',
 			'[]'
 		]);
+		const columns =
+			'topic_id, path, parent_path, "key", depth, position, kind, status, title, gist, body, recommendation, answer, edges, widgets, sources';
 		for (let at = 0; at < filler.length; at += 300) {
 			const batch = filler.slice(at, at + 300);
-			await pool.query(
-				'INSERT INTO nodes (topic_id, path, parent_path, `key`, depth, position, kind, status, title, gist, body, recommendation, answer, edges, widgets, sources) VALUES ?',
-				[batch]
+			const tuples = batch.map(
+				(row, r) => `(${row.map((_, c) => `$${r * row.length + c + 1}`).join(', ')})`
 			);
+			await pool.query(`INSERT INTO nodes (${columns}) VALUES ${tuples.join(', ')}`, batch.flat());
 		}
 
 		for (let i = 0; i < 15; i++) {
@@ -504,7 +693,7 @@ describe('portal', () => {
 			setTimeout(() => reject(new Error('pool exhausted by abandoned exports')), 5000)
 		);
 		const held = await Promise.race([
-			Promise.all(Array.from({ length: 10 }, () => pool.getConnection())),
+			Promise.all(Array.from({ length: 10 }, () => pool.connect())),
 			timeout
 		]);
 		(held as { release: () => void }[]).forEach((c) => c.release());
@@ -513,13 +702,13 @@ describe('portal', () => {
 
 	it('dumps and loads timestamps as UTC whatever the pooled sessions use', async () => {
 		const setZone = async (zone: string) => {
-			const held = await Promise.all(Array.from({ length: 10 }, () => pool.getConnection()));
-			for (const c of held) await c.query(`SET time_zone = '${zone}'`);
+			const held = await Promise.all(Array.from({ length: 10 }, () => pool.connect()));
+			for (const c of held) await c.query(`SET TIME ZONE '${zone}'`);
 			held.forEach((c) => c.release());
 		};
 		const tamper = async (zone: string) => {
 			await setZone(zone);
-			return () => setZone('+00:00');
+			return () => setZone('UTC');
 		};
 		const id = '22222222-2222-4222-8222-222222222222';
 		const header = JSON.stringify({
@@ -536,8 +725,10 @@ describe('portal', () => {
 		} finally {
 			await restore();
 		}
-		const [rows] = await pool.query('SELECT UNIX_TIMESTAMP(created_at) AS u FROM projects');
-		expect(Number((rows as { u: number }[])[0].u)).toBe(Date.UTC(2026, 0, 1, 12) / 1000);
+		const { rows } = await pool.query(
+			'SELECT EXTRACT(EPOCH FROM created_at)::int AS u FROM projects'
+		);
+		expect(rows[0].u).toBe(Date.UTC(2026, 0, 1, 12) / 1000);
 
 		restore = await tamper('-08:00');
 		try {

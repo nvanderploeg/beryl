@@ -16,6 +16,7 @@ import {
 import { ApiError } from '#lib/server/api.ts';
 import { publish } from '#lib/server/bus.ts';
 import { db } from '#lib/server/db/index.ts';
+import { isUniqueViolation } from '#lib/server/db/errors.ts';
 import { events, nodes, notes, projects, topics } from '#lib/server/db/schema.ts';
 import {
 	checkNoteText,
@@ -72,16 +73,7 @@ export async function getNoteRow(id: string): Promise<NoteRow | undefined> {
 	return row;
 }
 
-const DUP_ENTRY = 1062;
 const CLAIM_ATTEMPTS = 8;
-
-function isDuplicateKey(error: unknown): boolean {
-	for (let e = error as { errno?: number; cause?: unknown } | undefined; e;) {
-		if (e.errno === DUP_ENTRY) return true;
-		e = e.cause as typeof e;
-	}
-	return false;
-}
 
 // Numbered candidates truncate `base` to fit, so match on a prefix short enough to cover them.
 async function takenProjectSlugs(base: string): Promise<Set<string>> {
@@ -104,7 +96,7 @@ export async function insertProject(
 			await db.insert(projects).values({ ...row, slug });
 			return slug;
 		} catch (error) {
-			if (!isDuplicateKey(error) || attempt >= CLAIM_ATTEMPTS) throw error;
+			if (!isUniqueViolation(error) || attempt >= CLAIM_ATTEMPTS) throw error;
 		}
 	}
 }
@@ -126,7 +118,7 @@ export async function backfillSlugs(): Promise<void> {
 					.where(eq(projects.id, project.id));
 				break;
 			} catch (error) {
-				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+				if (!isUniqueViolation(error) || attempt === CLAIM_ATTEMPTS) throw error;
 			}
 		}
 	}
@@ -156,7 +148,7 @@ export async function backfillSlugs(): Promise<void> {
 				claimed.add(slug);
 				break;
 			} catch (error) {
-				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+				if (!isUniqueViolation(error) || attempt === CLAIM_ATTEMPTS) throw error;
 				taken.delete(topic.projectId);
 			}
 		}
@@ -372,11 +364,12 @@ async function mutate<T>(
 				now,
 				topic,
 				async emit(type, path, payload) {
-					const [result] = await tx
+					const [{ seq }] = await tx
 						.insert(events)
-						.values({ topicId, path, type, payload, at: now });
+						.values({ topicId, path, type, payload, at: now })
+						.returning({ seq: events.seq });
 					stored.push({
-						seq: Number(result.insertId),
+						seq,
 						type,
 						topicId,
 						path,

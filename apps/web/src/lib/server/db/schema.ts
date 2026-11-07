@@ -1,28 +1,29 @@
 import { sql } from 'drizzle-orm';
 import {
+	bigserial,
 	boolean,
 	char,
 	index,
-	int,
+	integer,
 	json,
-	mediumtext,
-	mysqlTable,
+	pgTable,
 	primaryKey,
-	serial,
 	text,
 	timestamp,
 	uniqueIndex,
 	varchar
-} from 'drizzle-orm/mysql-core';
+} from 'drizzle-orm/pg-core';
+
+const instant = (name: string) => timestamp(name, { precision: 3, withTimezone: true });
 
 const now = (name: string) =>
-	timestamp(name, { fsp: 3 })
+	instant(name)
 		.notNull()
-		.default(sql`CURRENT_TIMESTAMP(3)`);
+		.default(sql`now()`);
 
 // `slug` is the friendly address of the row: unique across Projects, and across one Project's
 // Topics. NULL only until the boot backfill assigns one.
-export const projects = mysqlTable(
+export const projects = pgTable(
 	'projects',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
@@ -35,26 +36,26 @@ export const projects = mysqlTable(
 	(table) => [uniqueIndex('projects_slug_idx').on(table.slug)]
 );
 
-export const pairings = mysqlTable('pairings', {
+export const pairings = pgTable('pairings', {
 	codeHash: char('code_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
 		.references(() => projects.id, { onDelete: 'cascade' }),
-	expiresAt: timestamp('expires_at', { fsp: 3 }).notNull()
+	expiresAt: instant('expires_at').notNull()
 });
 
-export const sessions = mysqlTable('sessions', {
+export const sessions = pgTable('sessions', {
 	tokenHash: char('token_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
 		.references(() => projects.id, { onDelete: 'cascade' }),
-	lastActionAt: timestamp('last_action_at', { fsp: 3 }).notNull(),
-	expiresAt: timestamp('expires_at', { fsp: 3 }).notNull()
+	lastActionAt: instant('last_action_at').notNull(),
+	expiresAt: instant('expires_at').notNull()
 });
 
-// Paths are case-sensitive: give every path column `CHARACTER SET ascii COLLATE ascii_bin` by
-// hand in its migration SQL, which drizzle cannot express.
-export const topics = mysqlTable(
+// Paths are case-sensitive and byte-ordered: give every path column `COLLATE "C"` by hand in its
+// migration SQL, which drizzle cannot express.
+export const topics = pgTable(
 	'topics',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
@@ -72,7 +73,7 @@ export const topics = mysqlTable(
 		branch: varchar('branch', { length: 255 }),
 		createdAt: now('created_at'),
 		updatedAt: now('updated_at'),
-		closedAt: timestamp('closed_at', { fsp: 3 })
+		closedAt: instant('closed_at')
 	},
 	(table) => [
 		index('topics_project_updated_idx').on(table.projectId, table.updatedAt),
@@ -80,7 +81,7 @@ export const topics = mysqlTable(
 	]
 );
 
-export const nodes = mysqlTable(
+export const nodes = pgTable(
 	'nodes',
 	{
 		topicId: varchar('topic_id', { length: 36 })
@@ -89,16 +90,16 @@ export const nodes = mysqlTable(
 		path: varchar('path', { length: 512 }).notNull(),
 		parentPath: varchar('parent_path', { length: 512 }),
 		key: varchar('key', { length: 64 }).notNull(),
-		depth: int('depth').notNull(),
-		position: int('position').notNull(),
+		depth: integer('depth').notNull(),
+		position: integer('position').notNull(),
 		kind: varchar('kind', { length: 16 }).notNull(),
 		status: varchar('status', { length: 16 }).notNull(),
 		title: varchar('title', { length: 120 }).notNull(),
 		gist: varchar('gist', { length: 400 }).notNull(),
-		body: mediumtext('body').notNull(),
+		body: text('body').notNull(),
 		recommendation: text('recommendation').notNull(),
 		answer: text('answer').notNull(),
-		rank: int('rank'),
+		rank: integer('rank'),
 		edges: json('edges').notNull(),
 		widgets: json('widgets').notNull(),
 		sources: json('sources').notNull(),
@@ -113,7 +114,7 @@ export const nodes = mysqlTable(
 	]
 );
 
-export const notes = mysqlTable(
+export const notes = pgTable(
 	'notes',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
@@ -125,9 +126,9 @@ export const notes = mysqlTable(
 		text: text('text').notNull(),
 		author: varchar('author', { length: 64 }).notNull(),
 		status: varchar('status', { length: 16 }).notNull(),
-		sentAt: timestamp('sent_at', { fsp: 3 }),
-		deliveredAt: timestamp('delivered_at', { fsp: 3 }),
-		resolvedAt: timestamp('resolved_at', { fsp: 3 }),
+		sentAt: instant('sent_at'),
+		deliveredAt: instant('delivered_at'),
+		resolvedAt: instant('resolved_at'),
 		reply: text('reply').notNull(),
 		changed: json('changed').notNull(),
 		createdAt: now('created_at'),
@@ -136,10 +137,10 @@ export const notes = mysqlTable(
 	(table) => [index('notes_topic_created_idx').on(table.topicId, table.createdAt)]
 );
 
-export const events = mysqlTable(
+export const events = pgTable(
 	'events',
 	{
-		seq: serial('seq').primaryKey(),
+		seq: bigserial('seq', { mode: 'number' }).primaryKey(),
 		topicId: varchar('topic_id', { length: 36 })
 			.notNull()
 			.references(() => topics.id, { onDelete: 'cascade' }),

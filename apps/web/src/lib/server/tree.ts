@@ -40,7 +40,7 @@ const keyOf = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 const deepestFirst = (a: string, b: string) => depthOf(b) - depthOf(a) || (a < b ? -1 : 1);
 const shallowestFirst = (a: string, b: string) => depthOf(a) - depthOf(b) || (a < b ? -1 : 1);
 
-// MySQL JSON columns reorder object keys, so compare JSON by value, never by its text.
+// Stored JSON text may differ in key order from what was written: compare by value, never by text.
 function canonical(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
 	if (typeof value === 'object' && value !== null) {

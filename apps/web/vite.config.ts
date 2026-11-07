@@ -7,14 +7,14 @@ import { buildInfo } from './build-info.ts';
 export default defineConfig(({ mode, command }) => {
 	// Set before the sveltekit plugin loads the environment; the real environment wins.
 	if (mode === 'test') {
-		process.env.DATABASE_URL ??= 'mysql://beryl:beryl@127.0.0.1:3326/beryl_test';
+		process.env.DATABASE_URL ??= 'postgres://beryl:beryl@127.0.0.1:5446/beryl_test';
 	}
 	if (mode === 'development') {
-		process.env.DATABASE_URL ??= 'mysql://beryl:beryl@127.0.0.1:3326/beryl_dev';
+		process.env.DATABASE_URL ??= 'postgres://beryl:beryl@127.0.0.1:5446/beryl_dev';
 	}
 	// Route analysis imports server modules; the runtime environment supplies the real value.
 	if (command === 'build') {
-		process.env.DATABASE_URL ??= 'mysql://build:build@127.0.0.1:3306/build';
+		process.env.DATABASE_URL ??= 'postgres://build:build@127.0.0.1:5432/build';
 	}
 
 	return {

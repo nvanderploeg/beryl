@@ -16,7 +16,7 @@ test('refuses a wrong token, accepts the right one', async ({ page }) => {
 	await page.getByRole('button', { name: 'Log in' }).click();
 	await expect(page.getByTestId('message')).toContainText('wrong admin token');
 	await login(page);
-	await expect(page.getByText('applied 0002_project_topic_slugs')).toBeAttached();
+	await expect(page.getByText('applied 0000_postgres_baseline')).toBeAttached();
 });
 
 test('API needs the token: 401 without, 200 with Bearer', async ({ request }) => {
