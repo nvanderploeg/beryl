@@ -276,7 +276,10 @@ describe('owned Projects', () => {
 		const session = await api.redeem({ code: minted.body.code });
 		expect(session.status).toBe(200);
 		expect((await call.note(topicId, session.body.token)).status).toBe(404);
-		const open = await call.createTopic(projectId, 'alice', undefined, { title: 'O', public: true });
+		const open = await call.createTopic(projectId, 'alice', undefined, {
+			title: 'O',
+			public: true
+		});
 		expect((await call.note(open.body.topicId, session.body.token)).status).toBe(201);
 		expect((await call.createTopic(projectId, undefined, session.body.token)).status).toBe(403);
 	});

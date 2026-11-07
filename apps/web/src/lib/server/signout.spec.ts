@@ -171,4 +171,3 @@ describe('streams of private Topics', () => {
 		expect(await ended(reader)).toBe(true);
 	});
 });
-

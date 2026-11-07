@@ -60,16 +60,14 @@ export async function createDeviceCode(
 	for (let attempt = 1; ; attempt++) {
 		const userCode = newUserCode();
 		try {
-			await db
-				.insert(deviceCodes)
-				.values({
-					codeHash: hashKey(deviceCode),
-					userCode,
-					label,
-					requestIp: requester.ip.slice(0, 64),
-					requestAgent: requester.userAgent.slice(0, 200),
-					expiresAt
-				});
+			await db.insert(deviceCodes).values({
+				codeHash: hashKey(deviceCode),
+				userCode,
+				label,
+				requestIp: requester.ip.slice(0, 64),
+				requestAgent: requester.userAgent.slice(0, 200),
+				expiresAt
+			});
 			await pruneDeviceCodes(now);
 			return { deviceCode, userCode, expiresAt };
 		} catch (error) {
