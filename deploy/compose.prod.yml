@@ -1,27 +1,10 @@
 services:
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: beryl
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/beryl.env}
-      POSTGRES_DB: beryl
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U beryl -d beryl']
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
   app:
     image: ghcr.io/nvanderploeg/beryl:${BERYL_TAG:-latest}
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgres://beryl:${POSTGRES_PASSWORD}@db:5432/beryl
+      # postgres://user:pw@host:5432/beryl?sslmode=verify-full; hex password (see deploy/README.md).
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/beryl.env}
       ORIGIN: ${ORIGIN:?set ORIGIN in deploy/beryl.env}
       # Keep in step with client_max_body_size in deploy/nginx.
       BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
@@ -48,5 +31,4 @@ services:
       - ${FIREBASE_SERVICE_ACCOUNT_HOST_PATH:-/dev/null}:/run/secrets/firebase.json:ro
 
 volumes:
-  pgdata:
   backups:

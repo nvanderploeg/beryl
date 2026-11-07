@@ -50,10 +50,10 @@ volume (`ADMIN_BACKUP_DIR`), the newest five kept. See `docs/admin.md`.
 
 Bundles exported by MySQL-era builds import unchanged.
 
-## External Postgres (Kubernetes and shared servers)
+## Postgres (shared servers and Kubernetes)
 
-Set `DATABASE_URL=postgres://user:pw@host:5432/beryl?sslmode=verify-full` and leave out the `db`
-service. The user and password are spliced into the URL unencoded, so use hex-only passwords.
+Set `DATABASE_URL=postgres://user:pw@host:5432/beryl?sslmode=verify-full` (compose has no
+`db` service). The user and password are spliced into the URL unencoded, so use hex-only passwords.
 
 - **TLS.** The `pg` driver (8.23) reads `sslmode=require`, `prefer` and `verify-ca` as full
   certificate and hostname verification, not as libpq does. `sslmode=no-verify` turns verification
