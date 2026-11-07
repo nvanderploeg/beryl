@@ -5,7 +5,7 @@ proxy. Adapt them to your host.
 
 | File                       | What it is                                                                                                                                                                                                       |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compose.prod.yml`         | MySQL and the app, with the app bound to `127.0.0.1:3270`. Migrations run at boot. MySQL is sized for a small shared host.                                                                                       |
+| `compose.prod.yml`         | Postgres and the app, with the app bound to `127.0.0.1:3270`. Migrations run at boot.                                                                                                                            |
 | `beryl.env.example`        | Copy to `beryl.env` and `chmod 600` it. Passwords are hex only (`openssl rand -hex 24`) because they are spliced into `DATABASE_URL`. Set `ORIGIN` to your public URL.                                           |
 | `nginx/beryl.conf.example` | A server block for nginx. The stream route turns off buffering and holds connections for an hour, the wait route outlasts its 60 s long-poll, and every route passes `X-Real-IP`, which the write limit keys on. |
 | `systemd/beryl-update.*`   | A timer that pulls `latest` every 10 minutes and recreates the app when the image changed. Expects the stack in `/opt/beryl`.                                                                                    |
@@ -25,5 +25,7 @@ bundle carries their hashes; browser Sessions and Pairing codes are not carried,
 mints a new Private link. To import more than `BERYL_BODY_LIMIT` (8M by default), raise
 `BERYL_BODY_LIMIT` for the import and lower it again. Pre-import backups land in the `backups`
 volume (`ADMIN_BACKUP_DIR`), the newest five kept. See `docs/admin.md`.
+
+A bundle exported by the earlier MySQL build imports into the Postgres build the same way.
 
 Point agents at the server with `BERYL_URL=https://beryl.example.com` (see `docs/usage.md`).

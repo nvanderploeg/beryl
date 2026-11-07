@@ -13,19 +13,18 @@ jobs:
     permissions:
       contents: read
     env:
-      DATABASE_URL: mysql://beryl:beryl@127.0.0.1:3326/beryl_test
+      DATABASE_URL: postgres://beryl:beryl@127.0.0.1:5432/beryl_test
     services:
-      mysql:
-        image: mysql:8.4
+      postgres:
+        image: postgres:17
         env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: beryl_test
-          MYSQL_USER: beryl
-          MYSQL_PASSWORD: beryl
+          POSTGRES_USER: beryl
+          POSTGRES_PASSWORD: beryl
+          POSTGRES_DB: beryl_test
         ports:
-          - 3326:3306
+          - 5432:5432
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -prootpassword --silent"
+          --health-cmd "pg_isready -U beryl -d beryl_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20

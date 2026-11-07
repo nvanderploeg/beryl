@@ -1,18 +1,15 @@
 services:
   db:
-    image: mysql:8.4
+    image: postgres:17
     restart: unless-stopped
-    # Sized for a small shared host; raise the buffer pool if the database outgrows it.
-    command: ['--performance-schema=OFF', '--innodb-buffer-pool-size=64M']
     environment:
-      MYSQL_DATABASE: beryl
-      MYSQL_USER: beryl
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in deploy/beryl.env}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in deploy/beryl.env}
+      POSTGRES_USER: beryl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/beryl.env}
+      POSTGRES_DB: beryl
     volumes:
-      - mysqldata:/var/lib/mysql
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      test: ['CMD-SHELL', 'pg_isready -U beryl -d beryl']
       interval: 5s
       timeout: 5s
       retries: 30
@@ -24,7 +21,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: mysql://beryl:${MYSQL_PASSWORD}@db:3306/beryl
+      DATABASE_URL: postgres://beryl:${POSTGRES_PASSWORD}@db:5432/beryl
       ORIGIN: ${ORIGIN:?set ORIGIN in deploy/beryl.env}
       # Keep in step with client_max_body_size in deploy/nginx.
       BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
@@ -43,5 +40,5 @@ services:
       - backups:/backups
 
 volumes:
-  mysqldata:
+  pgdata:
   backups:
