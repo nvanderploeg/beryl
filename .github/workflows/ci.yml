@@ -16,7 +16,7 @@ jobs:
       DATABASE_URL: postgres://beryl:beryl@127.0.0.1:5432/beryl_test
     services:
       postgres:
-        image: postgres:17
+        image: postgres:16
         env:
           POSTGRES_USER: beryl
           POSTGRES_PASSWORD: beryl

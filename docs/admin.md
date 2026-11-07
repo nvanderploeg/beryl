@@ -54,7 +54,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" --data-binary @beryl.zip \
 
 `schema` is the latest drizzle migration tag the exporting build knew. `manifest.json` is the last entry in the zip, because the stream knows each file's size and hash only after sending it.
 
-**The database file is `db.ndjson`, not `db.sqlite`.** Beryl runs on Postgres, so there is no file to snapshot. The export opens one `REPEATABLE READ` read-only transaction and streams every table through it, so the dump is a single point in time while writes continue. Each table is a header line `{"table","columns"}` followed by one JSON array per row. Timestamps travel as UTC text (`2026-01-01 12:00:00.000`), JSON columns as their stored text and booleans as `0` or `1`, so a round trip is byte-identical. Bundles exported by the earlier MySQL build import unchanged.
+**The database file is `db.ndjson`, not `db.sqlite`.** Beryl runs on Postgres, so there is no file to snapshot. The export opens one `REPEATABLE READ` read-only transaction and streams every table through it, so the dump is a single point in time while writes continue. Each table is a header line `{"table","columns"}` followed by one JSON array per row. Timestamps travel as UTC text (`2026-01-01 12:00:00.000`), JSON columns as their stored text and booleans as `0` or `1`, so a round trip is byte-identical. Bundles exported by MySQL-era builds import unchanged.
 
 Carried: Projects (with the sha256 of each Write key, so every agent's key keeps working), Topics, Nodes, Notes, and the event log (so `seq`, and a stream's replay, stay meaningful). Not carried: **Sessions** and **Pairing codes**. They are short-lived browser credentials (ten-minute Sessions, five-minute codes); an imported server starts with none, and an import clears the ones it had. The agent mints a new Private link to re-open a board for writing; Share links keep working.
 
@@ -64,7 +64,7 @@ Replace-everything, in this order:
 
 1. Read the upload into a private temp file, capped at `ADMIN_MAX_BUNDLE_MB` (256).
 2. Validate before touching the database: zip structure, entry names (no `..`, absolute paths, backslashes, duplicates; entries are matched against an allowlist and never written to disk by name), declared and actual sizes (total cap `ADMIN_MAX_UNPACKED_MB`, 2048; inflation stops at the declared size, so a lying header cannot expand further), zip CRCs, manifest `format` and `service`, the schema level, and the sha256 and size of every file.
-3. Refuse a Bundle whose `schema` is not one this build knows (409, "newer than this build"). Older is accepted, including the schema levels of the MySQL build.
+3. Refuse a Bundle whose `schema` is not one this build knows (409, "newer than this build"). Older is accepted, as are the schema levels of MySQL-era builds.
 4. Write the current database to a Bundle in `ADMIN_BACKUP_DIR` (default: the OS temp dir; the production compose file mounts a `backups` volume). The newest five are kept. The response names the file.
 5. In one Postgres transaction: delete every row, insert the Bundle's rows, commit. Any failure rolls back and the database is as it was. This is the atomic swap; there is no file to rename.
 6. After commit, run the slug backfill, then close open streams. A backfill failure does not fail the import: the response carries a `warning`.
