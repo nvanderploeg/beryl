@@ -5,6 +5,7 @@ import { bootstrap } from '#lib/server/bootstrap.ts';
 import { log } from '#lib/server/log.ts';
 import { adminAuth } from '#lib/server/admin/auth.ts';
 import { isImporting } from '#lib/server/admin/bundle.ts';
+import { varyOnLogin } from '#lib/server/cache.ts';
 import { COOKIE } from '#lib/server/login.ts';
 import { crossSiteCookieWrite } from '#lib/server/origin.ts';
 import { normalizePath } from '#lib/server/path.ts';
@@ -48,7 +49,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			{ status: 503, headers: { 'retry-after': '30' } }
 		);
 	}
-	const response = await resolve(event);
+	const response = varyOnLogin(await resolve(event));
 	if (response.status >= 400 && path.startsWith('/api/')) {
 		const body = await response
 			.clone()
