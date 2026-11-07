@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { POST as startRoute } from '../../routes/api/auth/device/+server.ts';
+import { POST as lookupRoute } from '../../routes/api/auth/device/lookup/+server.ts';
 import { POST as approveRoute } from '../../routes/api/auth/device/approve/+server.ts';
 import { POST as tokenRoute } from '../../routes/api/auth/device/token/+server.ts';
 import { DELETE as disconnectRoute } from '../../routes/api/me/agents/+server.ts';
@@ -10,7 +11,7 @@ import { GET as getTopicRoute } from '../../routes/api/topics/[id]/+server.ts';
 import { db } from '#lib/server/db/index.ts';
 import { deviceCodes } from '#lib/server/db/schema.ts';
 import { AuthRejected, setVerifier } from '#lib/server/firebase.ts';
-import { exchangeDeviceCode, normalizeUserCode } from '#lib/server/logins.ts';
+import { exchangeDeviceCode, limitPoll, normalizeUserCode } from '#lib/server/logins.ts';
 import { resetDb } from '#lib/server/test/db.ts';
 import { event, type Body } from '#lib/server/test/http.ts';
 
@@ -81,11 +82,11 @@ async function login(uid: string, label = 'claude-code') {
 }
 
 describe('device login', () => {
-	it('hands out a code, a verification URL on the request origin and a poll interval', async () => {
+	it('hands out a code, a code-free verification URL on the request origin and a poll interval', async () => {
 		const res = await start('claude-code on laptop');
 		expect(res.status).toBe(201);
 		expect(res.body.userCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-		expect(res.body.verificationUrl).toBe(`http://beryl.test/device?code=${res.body.userCode}`);
+		expect(res.body.verificationUrl).toBe('http://beryl.test/device');
 		expect(res.body.deviceCode).toMatch(/^bd_[A-Za-z0-9_-]{43}$/);
 		expect(res.body.interval).toBeGreaterThan(0);
 	});
@@ -122,7 +123,91 @@ describe('device login', () => {
 			.set({ expiresAt: new Date(Date.now() - 1000) })
 			.where(eq(deviceCodes.userCode, flow.body.userCode));
 		expect((await approve(flow.body.userCode, 'alice')).status).toBe(404);
-		await expect(exchangeDeviceCode(flow.body.deviceCode)).rejects.toMatchObject({ status: 410 });
+		await expect(exchangeDeviceCode(flow.body.deviceCode, async () => 't')).rejects.toMatchObject({
+			status: 410
+		});
+	});
+});
+
+const lookup = (userCode: string, uid?: string) =>
+	reply(
+		lookupRoute(
+			event({
+				method: 'POST',
+				path: '/api/auth/device/lookup',
+				body: { userCode },
+				headers: uid ? { ...as(uid), 'user-agent': 'x' } : {}
+			})
+		)
+	);
+
+describe('device login hardening', () => {
+	it('shows a signed-in person where the request came from and how long ago', async () => {
+		const flow = (
+			await reply(
+				startRoute(
+					event({
+						method: 'POST',
+						path: '/api/auth/device',
+						body: { label: 'claude-code' },
+						headers: { 'user-agent': 'node-fetch/1.0' }
+					})
+				)
+			)
+		).body;
+		expect((await lookup(flow.userCode)).status).toBe(401);
+		const seen = await lookup(flow.userCode.toLowerCase(), 'alice');
+		expect(seen.status).toBe(200);
+		expect(seen.body).toMatchObject({
+			label: 'claude-code',
+			ip: '10.0.0.1',
+			userAgent: 'node-fetch/1.0'
+		});
+		expect(seen.body.startedSecondsAgo).toBeGreaterThanOrEqual(0);
+		expect((await lookup('ZZZZ-ZZZZ', 'alice')).status).toBe(404);
+	});
+
+	it('limits lookups per address', async () => {
+		let last = 0;
+		for (let i = 0; i < 11; i++) last = (await lookup('ZZZZ-ZZZZ', 'alice')).status;
+		expect(last).toBe(429);
+	});
+
+	it('limits approvals per address', async () => {
+		let last = { status: 0, body: {} as Body };
+		for (let i = 0; i < 11; i++) last = await approve('ZZZZ-ZZZZ', 'alice');
+		expect(last.status).toBe(429);
+	});
+
+	it('limits polling per device code and says when to retry', async () => {
+		const flow = await start();
+		let res: Response | undefined;
+		for (let i = 0; i < 31; i++) {
+			res = await tokenRoute(
+				event({
+					method: 'POST',
+					path: '/api/auth/device/token',
+					body: { deviceCode: flow.body.deviceCode }
+				})
+			);
+		}
+		expect(res!.status).toBe(429);
+		expect(Number(res!.headers.get('retry-after'))).toBeGreaterThan(0);
+		expect(() => limitPoll('bd_other')).not.toThrow();
+	});
+
+	it('keeps the approval when minting the custom token fails', async () => {
+		const flow = await start();
+		await approve(flow.body.userCode, 'alice');
+		await expect(
+			exchangeDeviceCode(flow.body.deviceCode, async () => {
+				throw new Error('firebase down');
+			})
+		).rejects.toThrow('firebase down');
+		expect(await exchangeDeviceCode(flow.body.deviceCode, async (uid) => uid)).toEqual({
+			uid: 'alice',
+			minted: 'alice'
+		});
 	});
 });
 

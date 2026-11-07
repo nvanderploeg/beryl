@@ -75,6 +75,9 @@ export const deviceCodes = pgTable(
 		userCode: varchar('user_code', { length: 16 }).notNull(),
 		label: varchar('label', { length: 64 }).notNull(),
 		uid: varchar('uid', { length: 128 }),
+		requestIp: varchar('request_ip', { length: 64 }),
+		requestAgent: varchar('request_agent', { length: 200 }),
+		createdAt: now('created_at'),
 		expiresAt: instant('expires_at').notNull()
 	},
 	(table) => [uniqueIndex('device_codes_user_code_idx').on(table.userCode)]

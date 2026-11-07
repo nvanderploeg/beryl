@@ -37,6 +37,9 @@ export function createRateLimiter(perWindow: number, windowMs: number) {
 			if (buckets.size > PRUNE_ABOVE) prune(now);
 			return { ok: true };
 		},
+		clear(): void {
+			buckets.clear();
+		},
 		get size() {
 			return buckets.size;
 		}

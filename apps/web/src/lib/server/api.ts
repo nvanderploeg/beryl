@@ -1,11 +1,18 @@
 export class ApiError extends Error {
 	readonly status: number;
 	readonly body: Record<string, unknown>;
+	readonly headers: Record<string, string>;
 
-	constructor(status: number, error: string, extra: Record<string, unknown> = {}) {
+	constructor(
+		status: number,
+		error: string,
+		extra: Record<string, unknown> = {},
+		headers: Record<string, string> = {}
+	) {
 		super(error);
 		this.status = status;
 		this.body = { error, ...extra };
+		this.headers = headers;
 	}
 }
 
@@ -17,7 +24,9 @@ export function route<E>(
 		try {
 			return await handler(event);
 		} catch (error) {
-			if (error instanceof ApiError) return Response.json(error.body, { status: error.status });
+			if (error instanceof ApiError) {
+				return Response.json(error.body, { status: error.status, headers: error.headers });
+			}
 			throw error;
 		}
 	};
