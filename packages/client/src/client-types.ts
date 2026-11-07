@@ -73,7 +73,8 @@ export interface BerylClient {
 	discover(): Promise<string | null>;
 	// Starts or continues a device login; `pending` carries the URL the person must approve.
 	login(): Promise<Result<LoginState>>;
-	logout(): Promise<Result<{ status: 'signed_out' }>>;
+	// `revoked` is false when the server could not be told to revoke the refresh token.
+	logout(): Promise<Result<{ status: 'signed_out'; revoked: boolean }>>;
 	openTopic(input: OpenTopicInput): Promise<Result<OpenedTopic>>;
 	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string }>>;
 	putNodes(input: { topicId: string; nodes: NodeInput[] }): Promise<Result<{ nodes: Node[] }>>;

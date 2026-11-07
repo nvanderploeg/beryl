@@ -269,7 +269,9 @@ export async function run(argv: string[], io: RunIo): Promise<number> {
 			}
 			case 'logout': {
 				parse(rest, {}, [0, 0]);
-				return finish(await client.logout(), () => 'signed out');
+				return finish(await client.logout(), (v) =>
+					v.revoked ? 'signed out' : 'signed out; the refresh token was not revoked'
+				);
 			}
 			case 'doctor': {
 				const { values } = parse(rest, { cwd: { type: 'string' } }, [0, 0]);

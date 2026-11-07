@@ -41,7 +41,7 @@ export interface NodeInput {
 export interface BerylClient {
 	discover(): Promise<string | null>;
 	login(): Promise<Result<{ status: 'signed_in' } | { status: 'pending'; url: string; userCode: string }>>;
-	logout(): Promise<Result<{ status: 'signed_out' }>>;
+	logout(): Promise<Result<{ status: 'signed_out'; revoked: boolean }>>;
 	openTopic(input: {
 		title?: string; // required unless topicId is given
 		destination?: string;
@@ -131,7 +131,7 @@ Behaviour:
 
 - **discover** — as chronicle's: servers normalised (trim, strip trailing `/`). `BERYL_URL` set and non-empty → probe it alone. Otherwise the first healthy candidate. Healthy = `GET <server>/api/health` answers 2xx with JSON `service === 'beryl'` within the probe timeout for its host.
 - **Registry** — `projects.json` = `{ [server]: { [repoKey]: { projectId, writeKey, name, projectUrl } } }` and `topics.json` = `{ [topicId]: { server, projectId, projectUrl } }` in `configDir`. Read, lock and write them exactly as chronicle's client does (missing file reads `{}`; a damaged file is never overwritten and fails the call with `beryl failed: <path> is not a JSON object; fix or delete it`; atomic writes, dir 0700, files 0600).
-- **login / logout** — `login` starts or continues a device login at the discovered server (`POST /api/auth/device`, then `POST /api/auth/device/token`) and polls a few times; it answers `pending` with the approval URL and code until a person approves, then trades the custom token at Firebase and writes the Runestone login file. A login file already present answers `signed_in` without contacting the server. A device code in flight is kept in `<configDir>/pending-logins.json`. `logout` deletes the login file. Owned Projects store the Write key `login`, which stands for a fresh ID token minted from the refresh token (its web API key and project id come from `GET /api/auth/config`; a project id that differs from the file's counts as signed out).
+- **login / logout** — `login` starts or continues a device login at the discovered server (`POST /api/auth/device`, then `POST /api/auth/device/token`) and polls a few times; it answers `pending` with the approval URL and code until a person approves, then trades the custom token at Firebase and writes the Runestone login file. A login file already present answers `signed_in` without contacting the server. A device code in flight is kept in `<configDir>/pending-logins.json`. `logout` first calls `DELETE /api/me/agents` with a fresh ID token, then deletes the login file; `revoked` is false when the server could not be told, and the file is removed regardless. The login file's `uid` and `projectId` come from the ID token's `sub` and `aud` claims, and a cached ID token is only sent to the server it was fetched for. Owned Projects store the Write key `login`, which stands for a fresh ID token minted from the refresh token (its web API key and project id come from `GET /api/auth/config`; a project id that differs from the file's counts as signed out).
 - **openTopic** — with `topicId`: needs its `topics.json` handle (else `unknown topic <id> on this machine`), `GET /api/topics/:id` to confirm it exists, `resumed: true`, nothing created. Without: `title` required; `discover()` (`null` → `UNREACHABLE_WARNING`); find or create the Project for `(server, repoKey)` as chronicle's `startTask` does (name = `project`, else the repo name from `repoIdentity`; rename when `project` differs; a 401/403/404 on topic create → create a fresh Project, overwrite the entry, retry once). `POST /api/projects/:id/topics`; `repo` and `branch` default from `gitRefs(cwd)`; `agent.tool` defaults to `'claude-code'` when `env.CLAUDECODE === '1'`. Save the handle.
 - **Topic-scoped calls** need the `topics.json` handle and use its server only, never Discovery. Every call uses the Project's Write key. A Private link costs one `POST /api/projects/:id/pairings`; if that fails, `openTopic` returns the Share link as `noteUrl` with a `warning`, and `topicUrl` with `private` fails.
 - **waitForSent** — loops `GET /api/topics/:id/wait?timeoutMs=<pollMs>`. `sent > 0` → return it. Network error, timeout or 5xx → sleep with backoff starting at 1 s, doubling to 30 s, reset after any good answer. A 4xx → return the warning. Stops with `{ sent: 0 }` at the overall timeout or when `signal` aborts.
@@ -237,7 +237,7 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 | `update_topic`  | `{ topicId, title?, destination?, summary?, status?, current?, agent? }`                       | JSON `{ topic }`                                        |
 | `pull_notes`    | `{ topicId }`                                                                                  | `formatPulled`                                          |
 | `login`         | `{}`                                                                                           | JSON `{ signedIn: true }` or `{ signedIn: false, approveAt, code }` |
-| `logout`        | `{}`                                                                                           | JSON `{ status: 'signed_out' }`                         |
+| `logout`        | `{}`                                                                                           | JSON `{ status: 'signed_out', revoked }` |
 | `resolve_notes` | `{ topicId, notes: { id, reply?, changed? }[] }`                                               | JSON `{ resolved: id[] }`                               |
 
 - Failures → one text item `beryl: <warning>`, never `isError`.
@@ -254,4 +254,4 @@ One login serves every Runestone tool on a machine: the beryl and chronicle clie
 - Content: `{ "refreshToken": string, "uid": string, "email"?: string, "projectId": string }`. `refreshToken` is the Firebase refresh token; `projectId` is the Firebase project it belongs to. A login for a project other than the server's is not used there.
 - Write atomically (temp file in the same directory, then rename), never in place.
 - Another tool may replace the file at any time: read it afresh on every use and never hold it open. A missing, unparseable or incomplete file means signed out. After a refresh returns a new refresh token, write it back only if the file still holds the one that was refreshed.
-- `logout` deletes the file.
+- `logout` revokes the refresh token through the server, then deletes the file.

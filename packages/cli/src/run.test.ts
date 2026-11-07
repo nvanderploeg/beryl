@@ -507,21 +507,30 @@ describe('login and logout', () => {
 		const client = fakeClient();
 		client.login.mockResolvedValueOnce({
 			ok: true,
-			value: { status: 'pending', url: 'http://h/device?code=ABCD-2345', userCode: 'ABCD-2345' }
+			value: { status: 'pending', url: 'http://h/device', userCode: 'ABCD-2345' }
 		});
 		client.login.mockResolvedValueOnce({ ok: true, value: { status: 'signed_in' } });
 
 		expect((await invoke(['login'], client)).stdout).toBe(
-			'approve code ABCD-2345 at http://h/device?code=ABCD-2345, then run beryl login again'
+			'approve code ABCD-2345 at http://h/device, then run beryl login again'
 		);
 		expect((await invoke(['login'], client)).stdout).toBe('signed in');
 	});
 
 	it('signs out', async () => {
 		const client = fakeClient();
-		client.logout.mockResolvedValue({ ok: true, value: { status: 'signed_out' } });
+		client.logout.mockResolvedValue({ ok: true, value: { status: 'signed_out', revoked: true } });
 
 		expect((await invoke(['logout'], client)).stdout).toBe('signed out');
+	});
+
+	it('says when the refresh token could not be revoked', async () => {
+		const client = fakeClient();
+		client.logout.mockResolvedValue({ ok: true, value: { status: 'signed_out', revoked: false } });
+
+		expect((await invoke(['logout'], client)).stdout).toBe(
+			'signed out; the refresh token was not revoked'
+		);
 	});
 });
 

@@ -1362,6 +1362,11 @@ describe('repoIdentity and gitRefs', () => {
 describe('login', () => {
 	const FB_KEY = 'web-key';
 
+	// An unsigned Firebase ID token carrying the claims the client reads.
+	const idTokenFor = (n: number, claims: Record<string, unknown> = {}) =>
+		`h.${Buffer.from(JSON.stringify({ sub: 'alice', aud: 'runestone-d3a35', ...claims })).toString('base64url')}.${n}`;
+	const BEARER = /^Bearer h\.[\w-]+\.\d+$/;
+
 	// A beryl server with device login, and Firebase endpoints that issue short-lived ID tokens.
 	function loginServer(approved: () => boolean, expiresIn = '3600') {
 		let issued = 0;
@@ -1373,7 +1378,7 @@ describe('login', () => {
 						body: {
 							deviceCode: 'bd_1',
 							userCode: 'ABCD-2345',
-							verificationUrl: `${SERVER}/device?code=ABCD-2345`,
+							verificationUrl: `${SERVER}/device`,
 							expiresAt: new Date(Date.now() + 600_000).toISOString(),
 							interval: 3
 						}
@@ -1390,14 +1395,14 @@ describe('login', () => {
 				}
 				if (req.path === '/api/auth/device/token') {
 					return approved()
-						? { status: 200, body: { uid: 'alice', customToken: 'custom-1', apiKey: FB_KEY } }
+						? { status: 200, body: { uid: 'mallory', customToken: 'custom-1', apiKey: FB_KEY } }
 						: { status: 202, body: { pending: true } };
 				}
 				if (req.server === 'https://identitytoolkit.googleapis.com') {
 					issued += 1;
 					return {
 						status: 200,
-						body: { idToken: `h.alice.${issued}`, refreshToken: 'refresh-1', expiresIn }
+						body: { idToken: idTokenFor(issued), refreshToken: 'refresh-1', expiresIn }
 					};
 				}
 				if (req.server === 'https://securetoken.googleapis.com') {
@@ -1405,7 +1410,7 @@ describe('login', () => {
 					return {
 						status: 200,
 						body: {
-							id_token: `h.alice.${issued}`,
+							id_token: idTokenFor(issued),
 							refresh_token: 'refresh-1',
 							expires_in: expiresIn
 						}
@@ -1423,7 +1428,7 @@ describe('login', () => {
 					};
 				}
 				if (/^\/api\/projects\/proj-9\//.test(req.path)) {
-					if (!/^Bearer h\.alice\.\d+$/.test(req.headers.authorization ?? '')) {
+					if (!BEARER.test(req.headers.authorization ?? '')) {
 						return { status: 401, body: { error: 'sign in required' } };
 					}
 					return req.path.endsWith('/pairings')
@@ -1452,7 +1457,7 @@ describe('login', () => {
 		const pending = await client.login();
 		expect(pending).toEqual({
 			ok: true,
-			value: { status: 'pending', url: `${SERVER}/device?code=ABCD-2345`, userCode: 'ABCD-2345' }
+			value: { status: 'pending', url: `${SERVER}/device`, userCode: 'ABCD-2345' }
 		});
 
 		approved = true;
@@ -1493,7 +1498,7 @@ describe('login', () => {
 		const opened = await client.openTopic({ title: 'T', cwd: tempDir('beryl-repo-') });
 		expect(opened.ok).toBe(true);
 		const create = fake.requests.find((r) => r.method === 'POST' && r.path === '/api/projects')!;
-		expect(create.headers.authorization).toMatch(/^Bearer h\.alice\.\d+$/);
+		expect(create.headers.authorization).toMatch(BEARER);
 		const stored = readFile('projects.json') as Record<
 			string,
 			Record<string, { writeKey: string }>
@@ -1506,7 +1511,106 @@ describe('login', () => {
 		const fake = fakeFetch(loginServer(() => true));
 		const client = makeClient(fake);
 		await client.login();
-		expect(await client.logout()).toEqual({ ok: true, value: { status: 'signed_out' } });
+		expect(await client.logout()).toEqual({
+			ok: true,
+			value: { status: 'signed_out', revoked: false }
+		});
 		expect(fs.existsSync(loginFile)).toBe(false);
+	});
+
+	it('takes uid and project from the ID token claims, not the server JSON', async () => {
+		const client = makeClient(fakeFetch(loginServer(() => true)));
+		await client.login();
+		expect(JSON.parse(fs.readFileSync(loginFile, 'utf8'))).toMatchObject({
+			uid: 'alice',
+			projectId: 'runestone-d3a35'
+		});
+	});
+
+	it('revokes the refresh token on logout before removing the login file', async () => {
+		const base = loginServer(() => true);
+		const fake = fakeFetch((req) => {
+			if (req.method === 'DELETE' && req.path === '/api/me/agents') {
+				expect(fs.existsSync(loginFile)).toBe(true);
+				return { status: 200, body: { ok: true } };
+			}
+			return base(req);
+		});
+		const client = makeClient(fake);
+		await client.login();
+		expect(await client.logout()).toEqual({
+			ok: true,
+			value: { status: 'signed_out', revoked: true }
+		});
+		const revoke = fake.requests.find((r) => r.path === '/api/me/agents')!;
+		expect(revoke.headers.authorization).toMatch(BEARER);
+		expect(fs.existsSync(loginFile)).toBe(false);
+	});
+
+	it('still removes the login file when the server cannot be told, and says so', async () => {
+		const base = loginServer(() => true);
+		const fake = fakeFetch((req) =>
+			req.method === 'DELETE' && req.path === '/api/me/agents' ? 'refuse' : base(req)
+		);
+		const client = makeClient(fake);
+		await client.login();
+		expect(await client.logout()).toEqual({
+			ok: true,
+			value: { status: 'signed_out', revoked: false }
+		});
+		expect(fs.existsSync(loginFile)).toBe(false);
+	});
+
+	it('never sends an ID token fetched for one server to another', async () => {
+		const other = 'http://second.test:3270';
+		const base = loginServer(() => true, '3600');
+		const fake = fakeFetch((req) => {
+			if (req.server === other && req.path === '/api/auth/config') {
+				return {
+					status: 200,
+					body: {
+						enabled: true,
+						config: { apiKey: FB_KEY, authDomain: 'x', projectId: 'runestone-d3a35' }
+					}
+				};
+			}
+			if (req.server === other) return { status: 200, body: { snapshot: SNAPSHOT } };
+			return base(req);
+		});
+		const client = makeClient(fake);
+		await client.login();
+		seedFile('projects.json', {});
+		seedFile('topics.json', {
+			'topic-x': { server: other, projectId: 'p', projectUrl: `${other}/p/p` }
+		});
+		seedFile('projects.json', {
+			[other]: { k: { projectId: 'p', writeKey: 'login', name: 'n', projectUrl: `${other}/p/p` } }
+		});
+		await client.getTopic({ topicId: 'topic-x' });
+		const sent = fake.requests.find((r) => r.server === other && r.path.startsWith('/api/topics'))!;
+		const refreshes = fake.requests.filter(
+			(r) => r.server === 'https://securetoken.googleapis.com'
+		);
+		expect(refreshes).toHaveLength(1);
+		expect(sent.headers.authorization).toBe(`Bearer ${idTokenFor(2)}`);
+	});
+
+	it('keeps the project entry when the server answers 503', async () => {
+		const base = loginServer(() => true);
+		const fake = fakeFetch((req) =>
+			req.method === 'POST' && /^\/api\/projects\/[^/]+\/topics$/.test(req.path)
+				? { status: 503, body: { error: 'sign-in is unavailable; retry shortly' } }
+				: base(req)
+		);
+		const client = makeClient(fake);
+		await client.login();
+		const repo = tempDir('beryl-repo-');
+		await client.openTopic({ title: 'T', cwd: repo });
+		const before = JSON.stringify(readFile('projects.json'));
+		await client.openTopic({ title: 'T2', cwd: repo });
+		expect(JSON.stringify(readFile('projects.json'))).toBe(before);
+		expect(
+			fake.requests.filter((r) => r.method === 'POST' && r.path === '/api/projects')
+		).toHaveLength(1);
 	});
 });
