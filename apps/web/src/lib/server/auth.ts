@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { ApiError } from '#lib/server/api.ts';
 import { hashKey } from '#lib/server/hash.ts';
+import { loginUser } from '#lib/server/login.ts';
 import { actOnSession, SESSION_PREFIX } from '#lib/server/sessions.ts';
 import {
 	getNoteRow,
@@ -27,17 +28,31 @@ export function bearer(request: Request): string {
 }
 
 function isWriteKey(key: string, project: ProjectRow): boolean {
+	if (project.writeKeyHash === null) return false;
 	const given = Buffer.from(hashKey(key), 'hex');
 	const stored = Buffer.from(project.writeKeyHash, 'hex');
 	return given.length === stored.length && timingSafeEqual(given, stored);
 }
 
+function optionalBearer(request: Request): string | undefined {
+	return /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1];
+}
+
+// An owned Project answers only to its owner's login (a Session still carries Notes); an
+// anonymous one answers to its Write key.
 async function checkKey(request: Request, project: ProjectRow, kind: KeyKind): Promise<void> {
-	const key = bearer(request);
-	if (kind === 'note' && key.startsWith(SESSION_PREFIX)) {
+	const key = optionalBearer(request);
+	if (kind === 'note' && key?.startsWith(SESSION_PREFIX)) {
 		await actOnSession(key, project.id);
 		return;
 	}
+	if (project.ownerUid !== null) {
+		const user = await loginUser(request);
+		if (user?.uid === project.ownerUid) return;
+		if (!user && !key) throw new ApiError(401, 'sign in required');
+		throw new ApiError(403, 'invalid key');
+	}
+	if (!key) throw new ApiError(401, 'missing key');
 	if (!isWriteKey(key, project)) throw new ApiError(403, 'invalid key');
 }
 
@@ -68,4 +83,18 @@ export async function authorizeNote(request: Request, noteId: string): Promise<N
 	if (!note) throw new ApiError(404, 'note not found');
 	await authorizeTopic(request, note.topicId, 'note');
 	return note;
+}
+
+// A private Topic does not exist for anyone but its owner.
+export async function readableTopic(request: Request, topicId: string): Promise<TopicRow> {
+	const topic = await getTopicRow(topicId);
+	if (!topic) throw new ApiError(404, 'topic not found');
+	if (!topic.public) {
+		const project = await getProjectRow(topic.projectId);
+		if (project?.ownerUid) {
+			const user = await loginUser(request);
+			if (user?.uid !== project.ownerUid) throw new ApiError(404, 'topic not found');
+		}
+	}
+	return topic;
 }

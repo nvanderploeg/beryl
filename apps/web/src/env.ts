@@ -10,6 +10,8 @@ function positive(value: string | undefined, fallback: number, allowZero = false
 	return number;
 }
 
+const optional = (value: string | undefined) => value?.trim() || undefined;
+
 export const variables = defineEnvVars({
 	DATABASE_URL: { description: 'The database connection string.' },
 	ORIGIN: {
@@ -55,5 +57,27 @@ export const variables = defineEnvVars({
 	BERYL_HEARTBEAT_MS: {
 		description: 'Milliseconds between `: ping` heartbeats on a topic stream.',
 		schema: (value) => positive(value, 25_000)
+	},
+	FIREBASE_SERVICE_ACCOUNT_FILE: {
+		description:
+			'Path to a Firebase service account JSON file, used to verify sign-ins. With `FIREBASE_SERVICE_ACCOUNT` unset too, sign-in is off.',
+		schema: optional
+	},
+	FIREBASE_SERVICE_ACCOUNT: {
+		description:
+			'The Firebase service account JSON itself, when a file is awkward. Wins over `FIREBASE_SERVICE_ACCOUNT_FILE`.',
+		schema: optional
+	},
+	FIREBASE_WEB_API_KEY: {
+		description: 'The Firebase web app API key the sign-in page loads. Unset: sign-in is off.',
+		schema: optional
+	},
+	FIREBASE_AUTH_DOMAIN: {
+		description: 'The Firebase auth domain. Unset: `<project id>.firebaseapp.com`.',
+		schema: optional
+	},
+	FIREBASE_APP_ID: {
+		description: 'The Firebase web app id. Optional.',
+		schema: optional
 	}
 });

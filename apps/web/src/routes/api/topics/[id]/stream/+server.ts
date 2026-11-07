@@ -1,11 +1,13 @@
 import type { RequestHandler } from './$types';
 import { ApiError, parseId, route } from '#lib/server/api.ts';
+import { readableTopic } from '#lib/server/auth.ts';
 import { log } from '#lib/server/log.ts';
 import { parseSince } from '#lib/server/parse.ts';
 import { createTopicStream } from '#lib/server/stream.ts';
 
 export const GET: RequestHandler = route(async ({ request, params, url, getClientAddress }) => {
 	const topicId = parseId(params.id, 'topic');
+	await readableTopic(request, topicId);
 	const since = parseSince(request.headers.get('last-event-id') || url.searchParams.get('since'));
 	const ip = getClientAddress();
 	const openedAt = Date.now();
