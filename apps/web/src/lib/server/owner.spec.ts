@@ -164,7 +164,7 @@ describe('sign-in', () => {
 		});
 	});
 
-	it('trades an ID token for an HttpOnly Strict session cookie and names the user', async () => {
+	it('trades an ID token for an HttpOnly Lax session cookie and names the user', async () => {
 		const res = await reply(
 			signInRoute(
 				event({ method: 'POST', path: '/api/auth/session', body: { idToken: 'id-alice' } })
@@ -175,7 +175,7 @@ describe('sign-in', () => {
 		const cookie = res.headers.get('set-cookie')!;
 		expect(cookie).toMatch(/^runestone_session=cookie-alice;/);
 		expect(cookie).toMatch(/HttpOnly/);
-		expect(cookie).toMatch(/SameSite=Strict/);
+		expect(cookie).toMatch(/SameSite=Lax/);
 		expect(cookie).not.toMatch(/Secure/);
 
 		const me = await reply(meRoute(event({ path: '/api/me', headers: as('alice') })));

@@ -67,14 +67,14 @@ export async function requireCookie(request: Request): Promise<LoginUser> {
 	return user;
 }
 
-// Strict, so a cross-site request never carries the cookie.
+// Lax: a link followed from another site arrives signed in. Unsafe requests are origin-checked.
 export function sessionCookie(
 	value: string,
 	secure: boolean,
 	maxAgeMs: number,
 	domain = AUTH_COOKIE_DOMAIN
 ): string {
-	const attrs = ['Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${Math.floor(maxAgeMs / 1000)}`];
+	const attrs = ['Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${Math.floor(maxAgeMs / 1000)}`];
 	if (domain) attrs.push(`Domain=${domain}`);
 	if (secure) attrs.push('Secure');
 	return `${COOKIE}=${value}; ${attrs.join('; ')}`;

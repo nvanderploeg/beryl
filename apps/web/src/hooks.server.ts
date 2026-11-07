@@ -5,6 +5,8 @@ import { bootstrap } from '#lib/server/bootstrap.ts';
 import { log } from '#lib/server/log.ts';
 import { adminAuth } from '#lib/server/admin/auth.ts';
 import { isImporting } from '#lib/server/admin/bundle.ts';
+import { COOKIE } from '#lib/server/login.ts';
+import { crossSiteCookieWrite } from '#lib/server/origin.ts';
 import { normalizePath } from '#lib/server/path.ts';
 import { createRateLimiter, limitWrites } from '#lib/server/ratelimit.ts';
 
@@ -35,6 +37,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			retry_after: refused.headers.get('retry-after')
 		});
 		return refused;
+	}
+	if (crossSiteCookieWrite(event.request, event.url, COOKIE)) {
+		return Response.json({ error: 'cross-origin request refused' }, { status: 403 });
 	}
 	const path = normalizePath(event.url.pathname) ?? '';
 	if (isImporting() && path.startsWith('/api/') && !FREEZE_EXEMPT.has(path)) {
