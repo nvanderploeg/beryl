@@ -1,0 +1,3 @@
+CREATE DATABASE beryl_dev;
+CREATE DATABASE beryl_test;
+CREATE DATABASE beryl_e2e;

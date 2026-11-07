@@ -22,6 +22,13 @@ describe('Project slugs', () => {
 		expect(await resolveProjectId(project.id)).toBe(project.id);
 		expect(await resolveProjectId('nope')).toBeUndefined();
 	});
+
+	it('resolves a slug whatever its case', async () => {
+		const project = await seedProject('Runestone');
+		expect(await resolveProjectId('RuneStone')).toBe(project.id);
+		const { topicId } = await seedTopic(project, { title: 'Plan' });
+		expect(await resolveTopicId(project.id, 'PLAN')).toBe(topicId);
+	});
 });
 
 describe('Project slugs at the length cap', () => {

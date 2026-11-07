@@ -1,27 +1,13 @@
 {
-	"version": "7",
-	"dialect": "mysql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "5",
-			"when": 1792887549994,
-			"tag": "0000_init",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "5",
-			"when": 1793213365386,
-			"tag": "0001_pairing_sessions",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "5",
-			"when": 1793543390191,
-			"tag": "0002_project_topic_slugs",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794023953261,
+      "tag": "0000_postgres_baseline",
+      "breakpoints": true
+    }
+  ]
 }

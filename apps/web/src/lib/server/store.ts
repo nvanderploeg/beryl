@@ -16,6 +16,7 @@ import {
 import { ApiError } from '#lib/server/api.ts';
 import { publish } from '#lib/server/bus.ts';
 import { db } from '#lib/server/db/index.ts';
+import { isUniqueViolation } from '#lib/server/db/errors.ts';
 import { events, nodes, notes, projects, topics } from '#lib/server/db/schema.ts';
 import {
 	checkNoteText,
@@ -72,16 +73,7 @@ export async function getNoteRow(id: string): Promise<NoteRow | undefined> {
 	return row;
 }
 
-const DUP_ENTRY = 1062;
 const CLAIM_ATTEMPTS = 8;
-
-function isDuplicateKey(error: unknown): boolean {
-	for (let e = error as { errno?: number; cause?: unknown } | undefined; e;) {
-		if (e.errno === DUP_ENTRY) return true;
-		e = e.cause as typeof e;
-	}
-	return false;
-}
 
 // Numbered candidates truncate `base` to fit, so match on a prefix short enough to cover them.
 async function takenProjectSlugs(base: string): Promise<Set<string>> {
@@ -104,7 +96,7 @@ export async function insertProject(
 			await db.insert(projects).values({ ...row, slug });
 			return slug;
 		} catch (error) {
-			if (!isDuplicateKey(error) || attempt >= CLAIM_ATTEMPTS) throw error;
+			if (!isUniqueViolation(error) || attempt >= CLAIM_ATTEMPTS) throw error;
 		}
 	}
 }
@@ -126,7 +118,7 @@ export async function backfillSlugs(): Promise<void> {
 					.where(eq(projects.id, project.id));
 				break;
 			} catch (error) {
-				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+				if (!isUniqueViolation(error) || attempt === CLAIM_ATTEMPTS) throw error;
 			}
 		}
 	}
@@ -156,7 +148,7 @@ export async function backfillSlugs(): Promise<void> {
 				claimed.add(slug);
 				break;
 			} catch (error) {
-				if (!isDuplicateKey(error) || attempt === CLAIM_ATTEMPTS) throw error;
+				if (!isUniqueViolation(error) || attempt === CLAIM_ATTEMPTS) throw error;
 				taken.delete(topic.projectId);
 			}
 		}
@@ -165,22 +157,24 @@ export async function backfillSlugs(): Promise<void> {
 
 // A Project is addressed by id or slug.
 export async function resolveProjectId(ref: string): Promise<string | undefined> {
+	const lower = ref.toLowerCase();
 	const [row] = await db
 		.select({ id: projects.id })
 		.from(projects)
-		.where(isUuid(ref) ? eq(projects.id, ref.toLowerCase()) : eq(projects.slug, ref));
+		.where(isUuid(ref) ? eq(projects.id, lower) : eq(projects.slug, lower));
 	return row?.id;
 }
 
 // A Topic is addressed by id or by slug within its Project.
 export async function resolveTopicId(projectId: string, ref: string): Promise<string | undefined> {
+	const lower = ref.toLowerCase();
 	const [row] = await db
 		.select({ id: topics.id })
 		.from(topics)
 		.where(
 			and(
 				eq(topics.projectId, projectId),
-				isUuid(ref) ? eq(topics.id, ref.toLowerCase()) : eq(topics.slug, ref)
+				isUuid(ref) ? eq(topics.id, lower) : eq(topics.slug, lower)
 			)
 		);
 	return row?.id;
@@ -372,11 +366,12 @@ async function mutate<T>(
 				now,
 				topic,
 				async emit(type, path, payload) {
-					const [result] = await tx
+					const [{ seq }] = await tx
 						.insert(events)
-						.values({ topicId, path, type, payload, at: now });
+						.values({ topicId, path, type, payload, at: now })
+						.returning({ seq: events.seq });
 					stored.push({
-						seq: Number(result.insertId),
+						seq,
 						type,
 						topicId,
 						path,

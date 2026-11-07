@@ -65,6 +65,8 @@ function text(
 			`${name} must be a ${opts.nonEmpty ? 'non-empty ' : ''}string of at most ${max} characters`
 		);
 	}
+	if ((value as string).includes('\0'))
+		bad(`${opts.at ? `${opts.at}${field}` : field} must not contain NUL characters`);
 	return value as string;
 }
 
