@@ -275,11 +275,16 @@ describe('ID token bearers', () => {
 		expect(after.body.error).toBe('invalid login token');
 	});
 
-	it('cannot disconnect agents themselves', async () => {
-		const res = await reply(
+	it('can sign themselves out everywhere, and a stranger cannot', async () => {
+		const own = await reply(
 			disconnectRoute(event({ method: 'DELETE', path: '/api/me/agents', key: idToken('alice') }))
 		);
-		expect(res.status).toBe(401);
+		expect(own.status).toBe(200);
+		expect(revoked.has('alice')).toBe(true);
+		const anonymous = await reply(
+			disconnectRoute(event({ method: 'DELETE', path: '/api/me/agents' }))
+		);
+		expect(anonymous.status).toBe(401);
 	});
 
 	it('leave Write keys and Session tokens alone', async () => {
