@@ -2,7 +2,6 @@ import { AUTH_COOKIE_DOMAIN } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { verifier, type LoginUser } from '#lib/server/firebase.ts';
 import { ensureUser } from '#lib/server/users.ts';
-import { LOGIN_PREFIX, uidOfLoginToken } from '#lib/server/logins.ts';
 import { log } from '#lib/server/log.ts';
 
 export type { LoginUser };
@@ -34,13 +33,23 @@ export async function verifyCookie(cookie: string | undefined): Promise<LoginUse
 
 export const cookieUser = (request: Request) => verifyCookie(cookieValue(request, COOKIE));
 
-// An agent's login token stands for its uid alone; the browser cookie also knows email and name.
+// Bearers that are neither a Write key nor a Session token are Firebase ID tokens.
+const isIdToken = (key: string) => !/^b[a-z]_/.test(key) && key.split('.').length === 3;
+
+// An agent's Bearer is a Firebase ID token, verified (and revocation-checked) per request.
 export async function loginUser(request: Request): Promise<LoginUser | null> {
 	const key = /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1];
-	if (key?.startsWith(LOGIN_PREFIX)) {
-		const uid = await uidOfLoginToken(key);
-		if (!uid) throw new ApiError(401, 'invalid login token');
-		return { uid, email: null, name: null };
+	if (key && isIdToken(key)) {
+		const check = verifier();
+		if (!check) throw new ApiError(503, 'sign-in is not configured');
+		let user: LoginUser;
+		try {
+			user = await check.verifyIdToken(key);
+		} catch {
+			throw new ApiError(401, 'invalid login token');
+		}
+		await ensureUser(user);
+		return user;
 	}
 	return cookieUser(request);
 }

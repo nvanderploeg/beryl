@@ -184,6 +184,30 @@ export function createServer(
 	);
 
 	server.registerTool(
+		'login',
+		{
+			description:
+				'Sign in so new projects are private to your account, by returning a URL and code for the person to approve and being called again once they have.',
+			inputSchema: {}
+		},
+		async () =>
+			respond(await client.login(), (result) =>
+				result.status === 'signed_in'
+					? JSON.stringify({ signedIn: true })
+					: JSON.stringify({ signedIn: false, approveAt: result.url, code: result.userCode })
+			)
+	);
+
+	server.registerTool(
+		'logout',
+		{
+			description: 'Forget the login on this machine; later projects are anonymous again.',
+			inputSchema: {}
+		},
+		async () => respond(await client.logout())
+	);
+
+	server.registerTool(
 		'remove_nodes',
 		{
 			description: 'Remove Nodes by path, each with its whole subtree.',

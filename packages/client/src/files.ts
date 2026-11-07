@@ -17,6 +17,15 @@ export interface TopicHandle {
 	slug?: string;
 }
 
+export interface LoginEntry {
+	// Firebase credentials of the signed-in person: the refresh token is the long-lived secret.
+	refreshToken?: string;
+	apiKey?: string;
+	idToken?: string;
+	idExpiresAt?: number;
+	pending?: { deviceCode: string; userCode: string; url: string; expiresAt: string };
+}
+
 export type ProjectsFile = Record<string, Record<string, ProjectEntry>>;
 export type TopicsFile = Record<string, TopicHandle>;
 
@@ -108,7 +117,10 @@ export type Resolved<F> = { ok: true; entry: ProjectEntry; created: boolean } | 
 export function createStore(configDir: string) {
 	const projectsPath = join(configDir, 'projects.json');
 	const topicsPath = join(configDir, 'topics.json');
+	const loginsPath = join(configDir, 'logins.json');
 	const lockPath = join(configDir, '.lock');
+	// Separate from the registry lock: refreshing a login happens while a project is being created.
+	const loginLockPath = join(configDir, '.login-lock');
 
 	async function putProject(server: string, repoKey: string, entry: ProjectEntry): Promise<void> {
 		const projects = await readJson<ProjectsFile[string]>(projectsPath);
@@ -118,6 +130,14 @@ export function createStore(configDir: string) {
 
 	return {
 		readProjects: () => readJson<ProjectsFile[string]>(projectsPath),
+		readLogins: () => readJson<LoginEntry>(loginsPath),
+		saveLogin: (server: string, entry: LoginEntry | undefined) =>
+			withLock(loginLockPath, async () => {
+				const logins = await readJson<LoginEntry>(loginsPath);
+				if (entry) logins[server] = entry;
+				else delete logins[server];
+				await writeJson(loginsPath, logins);
+			}),
 		readTopics: () => readJson<TopicHandle>(topicsPath),
 		assertReadable: async () => {
 			await readJson(projectsPath);

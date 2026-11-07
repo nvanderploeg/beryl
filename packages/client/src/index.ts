@@ -1,4 +1,4 @@
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { DEFAULT_CANDIDATES, createDiscovery } from './discovery.ts';
@@ -9,6 +9,7 @@ import { gitRefs, repoFromRemote, repoIdentity } from './repo.ts';
 import type {
 	ClientOptions,
 	DoctorReport,
+	LoginState,
 	OpenedTopic,
 	BerylClient,
 	Result
@@ -39,6 +40,11 @@ const unreachable: Failure = { ok: false, warning: UNREACHABLE_WARNING };
 // Longer waits are reported, not slept through: the board must never stall the agent.
 const MAX_RATE_LIMIT_WAIT_MS = 5000;
 
+// Stands in for a Write key on owned projects: calls swap it for a fresh Firebase ID token.
+export const LOGIN_KEY = 'login';
+const ID_TOKEN_SLACK_MS = 60_000;
+const LOGIN_POLLS = 6;
+const LOGIN_INTERVAL_MS = 3000;
 const WAIT_TIMEOUT_MS = 43_200_000;
 const WAIT_POLL_MS = 25_000;
 const BACKOFF_START_MS = 1000;
@@ -98,12 +104,73 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		remoteProbeTimeoutMs: options.remoteProbeTimeoutMs ?? 2000
 	});
 
+	async function postJson<T>(url: string, body: unknown, form = false): Promise<T | null> {
+		try {
+			const res = await fetchFn(url, {
+				method: 'POST',
+				headers: {
+					'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json'
+				},
+				body: form ? new URLSearchParams(body as Record<string, string>) : JSON.stringify(body),
+				signal: AbortSignal.timeout(requestTimeoutMs)
+			});
+			return res.ok ? ((await res.json()) as T) : null;
+		} catch {
+			return null;
+		}
+	}
+
+	async function saveTokens(
+		server: string,
+		apiKey: string,
+		got: { idToken: string; refreshToken: string; expiresIn: number }
+	): Promise<string> {
+		await store.saveLogin(server, {
+			apiKey,
+			refreshToken: got.refreshToken,
+			idToken: got.idToken,
+			idExpiresAt: Date.now() + got.expiresIn * 1000
+		});
+		return got.idToken;
+	}
+
+	async function freshIdToken(server: string): Promise<string | undefined> {
+		const entry = own(await store.readLogins(), server);
+		if (!entry?.refreshToken || !entry.apiKey) return undefined;
+		if (entry.idToken && (entry.idExpiresAt ?? 0) - Date.now() > ID_TOKEN_SLACK_MS) {
+			return entry.idToken;
+		}
+		const got = await postJson<{ id_token: string; refresh_token: string; expires_in: string }>(
+			`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(entry.apiKey)}`,
+			{ grant_type: 'refresh_token', refresh_token: entry.refreshToken },
+			true
+		);
+		if (!got) return undefined;
+		return saveTokens(server, entry.apiKey, {
+			idToken: got.id_token,
+			refreshToken: got.refresh_token,
+			expiresIn: Number(got.expires_in)
+		});
+	}
+
 	async function call<T>(
 		server: string,
 		path: string,
-		init: RequestInit,
+		rawInit: RequestInit,
 		timeoutMs = requestTimeoutMs
 	) {
+		let init = rawInit;
+		if (init.key === LOGIN_KEY) {
+			const idToken = await freshIdToken(server);
+			if (!idToken) {
+				return {
+					ok: false as const,
+					warning: 'beryl login lapsed; call login to sign in again',
+					status: 401
+				};
+			}
+			init = { ...init, key: idToken };
+		}
 		const reply = await request<T>(fetchFn, timeoutMs, `${server}${path}`, init);
 		if (
 			reply.ok ||
@@ -121,19 +188,26 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		server: string,
 		name: string
 	): Promise<{ ok: true; entry: ProjectEntry } | Failure> {
+		const signedIn = Boolean(own(await store.readLogins(), server)?.refreshToken);
 		const reply = await call<{
 			id: string;
 			name?: string;
-			writeKey: string;
+			writeKey?: string;
 			url?: string;
-		}>(server, '/api/projects', { method: 'POST', body: { name } });
+		}>(server, '/api/projects', {
+			method: 'POST',
+			key: signedIn ? LOGIN_KEY : undefined,
+			body: { name }
+		});
 		if (!reply.ok) return reply;
 		const { id, writeKey, url } = reply.body;
+		const key = writeKey ?? (signedIn ? LOGIN_KEY : undefined);
+		if (!key) return { ok: false, warning: 'beryl returned no key for the new project' };
 		return {
 			ok: true,
 			entry: {
 				projectId: id,
-				writeKey,
+				writeKey: key,
 				name: reply.body.name ?? name,
 				projectUrl: url || `${server}/p/${id}`
 			}
@@ -219,7 +293,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		if (!target.ok) return target;
 		const { server, projectId, projectUrl, writeKey } = target.value;
 		if (!writeKey) return unknownTopic(topicId);
-		const reply = await call<Snapshot>(server, topicPath(topicId), { method: 'GET' });
+		const reply = await call<Snapshot>(server, topicPath(topicId), {
+			method: 'GET',
+			key: writeKey
+		});
 		if (!reply.ok) return reply;
 		const url = `${projectUrl}/t/${reply.body.topic.slug ?? topicId}`;
 		return {
@@ -239,6 +316,78 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 
 	const api: BerylClient = {
 		discover: () => discovery.discover().catch(() => null),
+
+		login: () =>
+			guard<LoginState>(async () => {
+				const server = await discovery.discover();
+				if (!server) return unreachable;
+				const current = own(await store.readLogins(), server);
+				if (current?.refreshToken) return { ok: true, value: { status: 'signed_in' as const } };
+				let pending = current?.pending;
+				if (!pending || Date.parse(pending.expiresAt) <= Date.now()) {
+					const started = await call<{
+						deviceCode: string;
+						userCode: string;
+						verificationUrl: string;
+						expiresAt: string;
+					}>(server, '/api/auth/device', {
+						method: 'POST',
+						body: { label: `${env.CLAUDECODE === '1' ? 'claude-code' : 'beryl'} on ${hostname()}` }
+					});
+					if (!started.ok) return started;
+					pending = {
+						deviceCode: started.body.deviceCode,
+						userCode: started.body.userCode,
+						url: started.body.verificationUrl,
+						expiresAt: started.body.expiresAt
+					};
+					await store.saveLogin(server, { pending });
+				}
+				for (let attempt = 1; ; attempt++) {
+					const polled = await call<{ customToken?: string; apiKey?: string }>(
+						server,
+						'/api/auth/device/token',
+						{ method: 'POST', body: { deviceCode: pending.deviceCode } }
+					);
+					if (!polled.ok) {
+						if (polled.status === 410) await store.saveLogin(server, undefined);
+						return polled;
+					}
+					if (polled.body.customToken && polled.body.apiKey) {
+						const { apiKey, customToken } = polled.body;
+						const got = await postJson<{
+							idToken: string;
+							refreshToken: string;
+							expiresIn: string;
+						}>(
+							`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${encodeURIComponent(apiKey)}`,
+							{ token: customToken, returnSecureToken: true }
+						);
+						if (!got)
+							return { ok: false, warning: 'firebase refused the sign-in; try login again' };
+						await saveTokens(server, apiKey, {
+							idToken: got.idToken,
+							refreshToken: got.refreshToken,
+							expiresIn: Number(got.expiresIn)
+						});
+						return { ok: true, value: { status: 'signed_in' as const } };
+					}
+					if (attempt >= LOGIN_POLLS) break;
+					await sleep(LOGIN_INTERVAL_MS);
+				}
+				return {
+					ok: true,
+					value: { status: 'pending' as const, url: pending.url, userCode: pending.userCode }
+				};
+			}),
+
+		logout: () =>
+			guard(async () => {
+				const server = await discovery.discover();
+				if (!server) return unreachable;
+				await store.saveLogin(server, undefined);
+				return { ok: true, value: { status: 'signed_out' as const } };
+			}),
 
 		openTopic: (input) =>
 			guard(async () => {
@@ -324,7 +473,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 				const target = await targetFor(input.topicId);
 				if (!target.ok) return target;
 				const { server, projectUrl } = target.value;
-				const reply = await call<Snapshot>(server, topicPath(input.topicId), { method: 'GET' });
+				const reply = await call<Snapshot>(server, topicPath(input.topicId), {
+					method: 'GET',
+					key: target.value.writeKey
+				});
 				if (!reply.ok) return reply;
 				return {
 					ok: true,

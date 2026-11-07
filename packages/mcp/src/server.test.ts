@@ -32,6 +32,7 @@ const TOPIC: Topic = {
 	agent: null,
 	repo: null,
 	branch: null,
+	public: true,
 	createdAt: T,
 	updatedAt: T,
 	closedAt: null
@@ -132,6 +133,8 @@ async function textOf(mcp: Client, name: string, args: Record<string, unknown>) 
 
 const TOOLS = [
 	'get_topic',
+	'login',
+	'logout',
 	'move_node',
 	'open_topic',
 	'pull_notes',
@@ -148,7 +151,7 @@ describe('tool listing', () => {
 		expect(mcp.getServerVersion()?.name).toBe('beryl');
 	});
 
-	it('lists exactly the eight beryl tools', async () => {
+	it('lists exactly the ten beryl tools', async () => {
 		const { mcp } = await connect();
 
 		const { tools } = await mcp.listTools();

@@ -3,31 +3,48 @@ import { eq } from 'drizzle-orm';
 import { POST as startRoute } from '../../routes/api/auth/device/+server.ts';
 import { POST as approveRoute } from '../../routes/api/auth/device/approve/+server.ts';
 import { POST as tokenRoute } from '../../routes/api/auth/device/token/+server.ts';
-import { GET as listRoute } from '../../routes/api/me/tokens/+server.ts';
-import { DELETE as revokeRoute } from '../../routes/api/me/tokens/[id]/+server.ts';
+import { DELETE as disconnectRoute } from '../../routes/api/me/agents/+server.ts';
 import { POST as postProjectRoute } from '../../routes/api/projects/+server.ts';
 import { POST as postTopicRoute } from '../../routes/api/projects/[id]/topics/+server.ts';
 import { GET as getTopicRoute } from '../../routes/api/topics/[id]/+server.ts';
 import { db } from '#lib/server/db/index.ts';
-import { deviceCodes, loginTokens } from '#lib/server/db/schema.ts';
+import { deviceCodes } from '#lib/server/db/schema.ts';
 import { setVerifier } from '#lib/server/firebase.ts';
-import { hashKey } from '#lib/server/hash.ts';
 import { exchangeDeviceCode, normalizeUserCode } from '#lib/server/logins.ts';
 import { resetDb } from '#lib/server/test/db.ts';
 import { event, type Body } from '#lib/server/test/http.ts';
 
+const revoked = new Set<string>();
+
 beforeEach(async () => {
 	await resetDb();
-	setVerifier({
-		async createSessionCookie() {
-			throw new Error('unused');
+	revoked.clear();
+	setVerifier(
+		{
+			async createSessionCookie() {
+				throw new Error('unused');
+			},
+			async verifySessionCookie(cookie) {
+				return { uid: cookie.slice(7), email: null, name: null };
+			},
+			async verifyIdToken(idToken) {
+				const uid = idToken.split('.')[1];
+				if (revoked.has(uid)) throw new Error('revoked');
+				return { uid, email: null, name: null };
+			},
+			async createCustomToken(uid) {
+				return `custom-${uid}`;
+			},
+			async revokeRefreshTokens(uid) {
+				revoked.add(uid);
+			}
 		},
-		async verifySessionCookie(cookie) {
-			return { uid: cookie.slice(7), email: null, name: null };
-		}
-	});
+		{ apiKey: 'web-key', authDomain: 'x.firebaseapp.com', projectId: 'x' }
+	);
 });
 afterEach(() => setVerifier(undefined));
+
+const idToken = (uid: string) => `h.${uid}.s`;
 
 const as = (uid: string) => ({ cookie: `runestone_session=cookie-${uid}` });
 
@@ -59,7 +76,8 @@ const poll = (deviceCode: string) =>
 async function login(uid: string, label = 'claude-code') {
 	const flow = await start(label);
 	await approve(flow.body.userCode, uid);
-	return (await poll(flow.body.deviceCode)).body.token as string;
+	expect((await poll(flow.body.deviceCode)).body.customToken).toBe(`custom-${uid}`);
+	return idToken(uid);
 }
 
 describe('device login', () => {
@@ -82,17 +100,8 @@ describe('device login', () => {
 		expect(approved.status).toBe(200);
 		const done = await poll(flow.body.deviceCode);
 		expect(done.status).toBe(200);
-		expect(done.body.token).toMatch(/^bl_[A-Za-z0-9_-]{43}$/);
-		expect(done.body.uid).toBe('alice');
+		expect(done.body).toEqual({ uid: 'alice', customToken: 'custom-alice', apiKey: 'web-key' });
 		expect((await poll(flow.body.deviceCode)).status).toBe(410);
-	});
-
-	it('stores only the hash of the token', async () => {
-		const token = await login('alice');
-		const rows = await db.select().from(loginTokens);
-		expect(rows).toHaveLength(1);
-		expect(rows[0].tokenHash).toBe(hashKey(token));
-		expect(JSON.stringify(rows)).not.toContain(token);
 	});
 
 	it('approves a code once, tolerating how a person types it', async () => {
@@ -117,14 +126,17 @@ describe('device login', () => {
 	});
 });
 
-describe('login tokens as a bearer', () => {
-	it('create owned Projects and write to them, and read their private Topics', async () => {
-		const token = await login('alice');
-		const created = await reply(
+describe('ID token bearers', () => {
+	const createProject = (key?: string) =>
+		reply(
 			postProjectRoute(
-				event({ method: 'POST', path: '/api/projects', body: { name: 'Agent made' }, key: token })
+				event({ method: 'POST', path: '/api/projects', body: { name: 'Agent made' }, key })
 			)
 		);
+
+	it('create owned Projects and write to them, and read their private Topics', async () => {
+		const token = await login('alice');
+		const created = await createProject(token);
 		expect(created.status).toBe(201);
 		expect(created.body.owned).toBe(true);
 		expect(created.body.writeKey).toBeUndefined();
@@ -147,25 +159,18 @@ describe('login tokens as a bearer', () => {
 			reply(getTopicRoute(event({ path: `/api/topics/${topicId}`, key, params: { id: topicId } })));
 		expect((await read(token)).status).toBe(200);
 		expect((await read()).status).toBe(404);
-		expect((await read(await login('mallory'))).status).toBe(404);
+		expect((await read(idToken('mallory'))).status).toBe(404);
 	});
 
 	it('are refused on a Project owned by someone else', async () => {
-		const alice = await login('alice');
-		const mallory = await login('mallory');
-		const created = await reply(
-			postProjectRoute(
-				event({ method: 'POST', path: '/api/projects', body: { name: 'A' }, key: alice })
-			)
-		);
-		const id = created.body.id;
+		const id = (await createProject(idToken('alice'))).body.id;
 		const attempt = await reply(
 			postTopicRoute(
 				event({
 					method: 'POST',
 					path: `/api/projects/${id}/topics`,
 					body: { title: 'T' },
-					key: mallory,
+					key: idToken('mallory'),
 					params: { id }
 				})
 			)
@@ -173,39 +178,28 @@ describe('login tokens as a bearer', () => {
 		expect(attempt.status).toBe(403);
 	});
 
-	it('stop working once the owner revokes them, never falling back to anonymous', async () => {
-		const token = await login('alice');
-		const listed = await reply(listRoute(event({ path: '/api/me/tokens', headers: as('alice') })));
-		expect(listed.body.tokens).toHaveLength(1);
-		expect(listed.body.tokens[0].label).toBe('claude-code');
-		const { id } = listed.body.tokens[0];
-
-		const revoke = (uid: string) =>
-			reply(
-				revokeRoute(
-					event({
-						method: 'DELETE',
-						path: `/api/me/tokens/${id}`,
-						params: { id },
-						headers: as(uid)
-					})
-				)
-			);
-		expect((await revoke('mallory')).status).toBe(404);
-		expect((await revoke('alice')).status).toBe(200);
-
-		const created = await reply(
-			postProjectRoute(
-				event({ method: 'POST', path: '/api/projects', body: { name: 'Anon' }, key: token })
-			)
+	it('stop working once the user disconnects agents, never falling back to anonymous', async () => {
+		const token = idToken('alice');
+		expect((await createProject(token)).status).toBe(201);
+		const out = await reply(
+			disconnectRoute(event({ method: 'DELETE', path: '/api/me/agents', headers: as('alice') }))
 		);
-		expect(created.status).toBe(401);
-		expect(created.body.error).toBe('invalid login token');
+		expect(out.status).toBe(200);
+		const after = await createProject(token);
+		expect(after.status).toBe(401);
+		expect(after.body.error).toBe('invalid login token');
 	});
 
-	it('cannot list or revoke tokens themselves', async () => {
-		const token = await login('alice');
-		const res = await reply(listRoute(event({ path: '/api/me/tokens', key: token })));
+	it('cannot disconnect agents themselves', async () => {
+		const res = await reply(
+			disconnectRoute(event({ method: 'DELETE', path: '/api/me/agents', key: idToken('alice') }))
+		);
 		expect(res.status).toBe(401);
+	});
+
+	it('leave Write keys and Session tokens alone', async () => {
+		const anonymous = await createProject();
+		expect(anonymous.body.owned).toBe(false);
+		expect(anonymous.body.writeKey).toMatch(/^bw_/);
 	});
 });

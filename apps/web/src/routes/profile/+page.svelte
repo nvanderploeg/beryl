@@ -11,17 +11,18 @@
 	let { data } = $props();
 
 	let error = $state('');
+	let disconnected = $state(false);
 	let pending = $state<string | null>(null);
 
 	onMount(() => theme.start());
 
-	async function revoke(id: string) {
-		pending = id;
+	async function disconnect() {
+		pending = 'agents';
 		error = '';
 		try {
-			const res = await fetch(`/api/me/tokens/${id}`, { method: 'DELETE' });
-			if (!res.ok) error = (await res.json().catch(() => null))?.error ?? 'Could not revoke';
-			await invalidateAll();
+			const res = await fetch('/api/me/agents', { method: 'DELETE' });
+			if (!res.ok) error = (await res.json().catch(() => null))?.error ?? 'Could not disconnect';
+			else disconnected = true;
 		} finally {
 			pending = null;
 		}
@@ -95,30 +96,17 @@
 		{/each}
 		<section class="agents" data-testid="agents">
 			<h2>Connected agents</h2>
-			{#if data.tokens.length === 0}
-				<p class="empty">
-					None. An agent asks you to approve a code at <a href={resolve('/device')}>/device</a>.
-				</p>
-			{:else}
-				<ul>
-					{#each data.tokens as token (token.id)}
-						<li>
-							<span>{token.label}</span>
-							<time datetime={token.lastUsedAt ?? token.createdAt}
-								>{token.lastUsedAt
-									? `used ${ago(token.lastUsedAt, Date.now())}`
-									: 'never used'}</time
-							>
-							<button
-								type="button"
-								disabled={pending === token.id}
-								data-testid="revoke"
-								onclick={() => revoke(token.id)}>Revoke</button
-							>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			<p class="empty">
+				Agents sign in by asking you to approve a code at <a href={resolve('/device')}>/device</a>.
+				Disconnecting stops every agent signed in as you; they ask again.
+			</p>
+			<button
+				type="button"
+				disabled={pending === 'agents'}
+				data-testid="disconnect"
+				onclick={disconnect}>Disconnect all agents</button
+			>
+			{#if disconnected}<p role="status">Disconnected.</p>{/if}
 		</section>
 	</main>
 	<footer><SiteFooter /></footer>

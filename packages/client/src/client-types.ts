@@ -65,8 +65,14 @@ export interface ResolveInput {
 	changed?: string[];
 }
 
+export type LoginState =
+	{ status: 'signed_in' } | { status: 'pending'; url: string; userCode: string };
+
 export interface BerylClient {
 	discover(): Promise<string | null>;
+	// Starts or continues a device login; `pending` carries the URL the person must approve.
+	login(): Promise<Result<LoginState>>;
+	logout(): Promise<Result<{ status: 'signed_out' }>>;
 	openTopic(input: OpenTopicInput): Promise<Result<OpenedTopic>>;
 	getTopic(input: { topicId: string }): Promise<Result<{ snapshot: Snapshot; url: string }>>;
 	putNodes(input: { topicId: string; nodes: NodeInput[] }): Promise<Result<{ nodes: Node[] }>>;

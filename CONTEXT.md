@@ -13,6 +13,9 @@ The signed-in user (a Firebase uid) a Project belongs to. An owned Project has n
 **Login**:
 A browser's proof of who is signed in: the Firebase session cookie `runestone_session`, shared with sagas and chronicle and verified on every request.
 
+**Device login**:
+How an agent signs in: it shows a code, a signed-in person approves it, and the agent trades the Firebase custom token it gets for ID tokens it sends as its bearer. The bearer stands for the person's uid.
+
 **Public**:
 A Topic flag. A private Topic of an owned Project is readable only by its Owner's login; anonymous Projects' Topics are always public.
 

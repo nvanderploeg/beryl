@@ -4,7 +4,6 @@ import { db } from '#lib/server/db/index.ts';
 import {
 	deviceCodes,
 	events,
-	loginTokens,
 	nodes,
 	notes,
 	pairings,
@@ -28,6 +27,5 @@ export async function resetDb(): Promise<void> {
 	await db.delete(sessions);
 	await db.delete(users);
 	await db.delete(deviceCodes);
-	await db.delete(loginTokens);
 	await db.delete(projects);
 }

@@ -76,6 +76,7 @@ function snapshot(nodes: Node[], fields: Partial<Snapshot['topic']> = {}, notes:
 			agent: null,
 			repo: null,
 			branch: null,
+			public: true,
 			createdAt: T,
 			updatedAt: T,
 			closedAt: null,

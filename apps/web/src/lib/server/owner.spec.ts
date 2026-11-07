@@ -41,7 +41,14 @@ beforeEach(async () => {
 			async verifySessionCookie(cookie) {
 				if (!cookie.startsWith('cookie-')) throw new Error('bad cookie');
 				return fakeUser(cookie.slice(7));
-			}
+			},
+			async verifyIdToken() {
+				throw new Error('unused');
+			},
+			async createCustomToken() {
+				throw new Error('unused');
+			},
+			async revokeRefreshTokens() {}
 		},
 		{ apiKey: 'k', authDomain: 'x.firebaseapp.com', projectId: 'x' }
 	);

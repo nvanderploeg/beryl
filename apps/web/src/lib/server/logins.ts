@@ -1,15 +1,13 @@
-import { randomBytes, randomInt, randomUUID } from 'node:crypto';
-import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
+import { randomBytes, randomInt } from 'node:crypto';
+import { and, eq, gt, isNull, lt } from 'drizzle-orm';
 import { ApiError } from '#lib/server/api.ts';
 import { db } from '#lib/server/db/index.ts';
-import { deviceCodes, loginTokens } from '#lib/server/db/schema.ts';
+import { deviceCodes } from '#lib/server/db/schema.ts';
 import { hashKey } from '#lib/server/hash.ts';
 
 export const DEVICE_TTL_MS = 10 * 60_000;
 export const DEVICE_INTERVAL_S = 3;
-export const LOGIN_PREFIX = 'bl_';
 const DEVICE_PREFIX = 'bd_';
-const USED_REFRESH_MS = 60_000;
 // No vowels or look-alikes, so a code read aloud or typed from a terminal survives.
 const USER_CODE_ALPHABET = 'BCDFGHJKLMNPQRSTVWXZ23456789';
 
@@ -85,8 +83,9 @@ export async function approveDeviceCode(
 	return row;
 }
 
-export type Exchange = { pending: true } | { token: string; uid: string };
+export type Exchange = { pending: true } | { uid: string };
 
+// Approval is consumed by the first redemption, which hands the uid back for a custom token.
 export async function exchangeDeviceCode(deviceCode: string, now = new Date()): Promise<Exchange> {
 	const codeHash = hashKey(deviceCode);
 	const [row] = await db.select().from(deviceCodes).where(eq(deviceCodes.codeHash, codeHash));
@@ -97,47 +96,7 @@ export async function exchangeDeviceCode(deviceCode: string, now = new Date()): 
 		.where(eq(deviceCodes.codeHash, codeHash))
 		.returning({ codeHash: deviceCodes.codeHash });
 	if (claimed.length !== 1) throw new ApiError(410, 'code expired');
-	const token = secret(LOGIN_PREFIX);
-	await db.insert(loginTokens).values({
-		id: randomUUID(),
-		tokenHash: hashKey(token),
-		uid: row.uid,
-		label: row.label,
-		createdAt: now
-	});
-	return { token, uid: row.uid };
-}
-
-export async function uidOfLoginToken(token: string, now = new Date()): Promise<string | null> {
-	const tokenHash = hashKey(token);
-	const [row] = await db.select().from(loginTokens).where(eq(loginTokens.tokenHash, tokenHash));
-	if (!row) return null;
-	if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > USED_REFRESH_MS) {
-		await db.update(loginTokens).set({ lastUsedAt: now }).where(eq(loginTokens.id, row.id));
-	}
-	return row.uid;
-}
-
-export async function listLoginTokens(uid: string) {
-	const rows = await db
-		.select()
-		.from(loginTokens)
-		.where(eq(loginTokens.uid, uid))
-		.orderBy(desc(loginTokens.createdAt), loginTokens.id);
-	return rows.map((row) => ({
-		id: row.id,
-		label: row.label,
-		createdAt: row.createdAt.toISOString(),
-		lastUsedAt: row.lastUsedAt?.toISOString() ?? null
-	}));
-}
-
-export async function revokeLoginToken(uid: string, id: string): Promise<void> {
-	const removed = await db
-		.delete(loginTokens)
-		.where(and(eq(loginTokens.id, id), eq(loginTokens.uid, uid)))
-		.returning({ id: loginTokens.id });
-	if (removed.length !== 1) throw new ApiError(404, 'token not found');
+	return { uid: row.uid };
 }
 
 export async function pruneDeviceCodes(now = new Date()): Promise<void> {

@@ -53,6 +53,10 @@ The Questions sidebar lists every Question the agent knows about; click one to f
 | `update_topic`  | title, destination, summary, the Current Question, open or closed            |
 | `pull_notes`    | take the notes waiting on the board                                          |
 | `resolve_notes` | close notes with a reply and the paths changed                               |
+| `login`         | sign in through a person's approval; later projects are private and owned    |
+| `logout`        | forget the login on this machine                                             |
+
+Signing in is optional. `login` returns a URL and code; the person approves while signed in at that beryl, then `login` is called again. Credentials (a Firebase refresh token) live in `logins.json` in the config dir, mode 0600. Owned projects are recorded in `projects.json` with the key `login`, which stands for a fresh Firebase ID token on every call. `DELETE /api/me/agents` (the Profile page's "Disconnect all agents") revokes it.
 
 ## CLI
 

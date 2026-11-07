@@ -18,6 +18,10 @@ export interface LoginUser {
 export interface Verifier {
 	createSessionCookie(idToken: string, ttlMs: number): Promise<string>;
 	verifySessionCookie(cookie: string): Promise<LoginUser>;
+	// Rejects a revoked token as well as a bad one.
+	verifyIdToken(idToken: string): Promise<LoginUser>;
+	createCustomToken(uid: string): Promise<string>;
+	revokeRefreshTokens(uid: string): Promise<void>;
 }
 
 export interface WebConfig {
@@ -81,7 +85,13 @@ const real: Verifier = {
 	async verifySessionCookie(cookie) {
 		const decoded = await firebaseAuth().verifySessionCookie(cookie);
 		return { uid: decoded.uid, email: decoded.email ?? null, name: decoded.name ?? null };
-	}
+	},
+	async verifyIdToken(idToken) {
+		const decoded = await firebaseAuth().verifyIdToken(idToken, true);
+		return { uid: decoded.uid, email: decoded.email ?? null, name: decoded.name ?? null };
+	},
+	createCustomToken: (uid) => firebaseAuth().createCustomToken(uid),
+	revokeRefreshTokens: (uid) => firebaseAuth().revokeRefreshTokens(uid)
 };
 
 function configured(): boolean {

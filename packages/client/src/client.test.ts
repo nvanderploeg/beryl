@@ -32,13 +32,21 @@ const TOPIC: Topic = {
 	agent: null,
 	repo: null,
 	branch: null,
+	public: true,
 	createdAt: T,
 	updatedAt: T,
 	closedAt: null
 };
 
 const SNAPSHOT: Snapshot = {
-	project: { id: 'proj-1', slug: 'repo', name: 'repo', createdAt: T, lastWriteAt: T },
+	project: {
+		id: 'proj-1',
+		slug: 'repo',
+		name: 'repo',
+		owned: false,
+		createdAt: T,
+		lastWriteAt: T
+	},
 	topic: TOPIC,
 	nodes: [],
 	notes: [],
@@ -886,7 +894,7 @@ describe('topic-scoped calls', () => {
 		expect(fake.requests[0].headers['content-type']).toBe('application/json');
 	});
 
-	it('getTopic reads the Snapshot without a key and returns the Share link', async () => {
+	it('getTopic reads the Snapshot with the project key, so private topics resolve, and returns the Share link', async () => {
 		seedHandle();
 		const fake = fakeFetch(ok(SNAPSHOT));
 
@@ -897,7 +905,7 @@ describe('topic-scoped calls', () => {
 				url: `${SERVER}/p/proj-1/t/retry-design`
 			}
 		});
-		expect(fake.requests[0].headers.authorization).toBeUndefined();
+		expect(fake.requests[0].headers.authorization).toBe('Bearer bw_1');
 	});
 
 	it('topicUrl gives the Share link, or the Private link when asked', async () => {
@@ -1345,5 +1353,126 @@ describe('repoIdentity and gitRefs', () => {
 		['ssh://git@host:22/owner/name.git', 'owner/name']
 	])('reads %s as %s', (remote, repo) => {
 		expect(repoFromRemote(remote)).toBe(repo);
+	});
+});
+
+describe('login', () => {
+	const FB_KEY = 'web-key';
+
+	// A beryl server with device login, and Firebase endpoints that issue short-lived ID tokens.
+	function loginServer(approved: () => boolean, expiresIn = '3600') {
+		let issued = 0;
+		const base = berylServer({
+			route: (req) => {
+				if (req.path === '/api/auth/device') {
+					return {
+						status: 201,
+						body: {
+							deviceCode: 'bd_1',
+							userCode: 'ABCD-2345',
+							verificationUrl: `${SERVER}/device?code=ABCD-2345`,
+							expiresAt: new Date(Date.now() + 600_000).toISOString(),
+							interval: 3
+						}
+					};
+				}
+				if (req.path === '/api/auth/device/token') {
+					return approved()
+						? { status: 200, body: { uid: 'alice', customToken: 'custom-1', apiKey: FB_KEY } }
+						: { status: 202, body: { pending: true } };
+				}
+				if (req.server === 'https://identitytoolkit.googleapis.com') {
+					issued += 1;
+					return {
+						status: 200,
+						body: { idToken: `h.alice.${issued}`, refreshToken: 'refresh-1', expiresIn }
+					};
+				}
+				if (req.server === 'https://securetoken.googleapis.com') {
+					issued += 1;
+					return {
+						status: 200,
+						body: {
+							id_token: `h.alice.${issued}`,
+							refresh_token: 'refresh-1',
+							expires_in: expiresIn
+						}
+					};
+				}
+				if (req.method === 'POST' && req.path === '/api/projects' && req.headers.authorization) {
+					return {
+						status: 201,
+						body: {
+							id: 'proj-9',
+							name: 'repo',
+							owned: true,
+							url: `${SERVER}/p/proj-9`
+						}
+					};
+				}
+				if (/^\/api\/projects\/proj-9\//.test(req.path)) {
+					if (!/^Bearer h\.alice\.\d+$/.test(req.headers.authorization ?? '')) {
+						return { status: 401, body: { error: 'sign in required' } };
+					}
+					return req.path.endsWith('/pairings')
+						? { status: 201, body: { code: 'bp_9', expiresAt: T } }
+						: {
+								status: 201,
+								body: {
+									topicId: 'topic-9',
+									url: `${SERVER}/p/proj-9/t/topic-9`,
+									topic: { ...TOPIC, id: 'topic-9', slug: 'topic-9', projectId: 'proj-9' },
+									nodes: []
+								}
+							};
+				}
+				return undefined;
+			}
+		});
+		return base;
+	}
+
+	it('reports the approval URL while pending, then stores Firebase credentials once approved', async () => {
+		let approved = false;
+		const fake = fakeFetch(loginServer(() => approved));
+		const client = makeClient(fake);
+
+		const pending = await client.login();
+		expect(pending).toEqual({
+			ok: true,
+			value: { status: 'pending', url: `${SERVER}/device?code=ABCD-2345`, userCode: 'ABCD-2345' }
+		});
+
+		approved = true;
+		expect(await client.login()).toEqual({ ok: true, value: { status: 'signed_in' } });
+		const stored = readFile('logins.json') as Record<string, Record<string, unknown>>;
+		expect(stored[SERVER]).toMatchObject({ refreshToken: 'refresh-1', apiKey: FB_KEY });
+		expect(stored[SERVER].pending).toBeUndefined();
+		expect(modeOf('logins.json')).toBe(0o600);
+	});
+
+	it('creates owned projects keyed by a fresh ID token and refreshes it when it lapses', async () => {
+		const fake = fakeFetch(loginServer(() => true, '30'));
+		const client = makeClient(fake);
+		await client.login();
+
+		const opened = await client.openTopic({ title: 'T', cwd: tempDir('beryl-repo-') });
+		expect(opened.ok).toBe(true);
+		const create = fake.requests.find((r) => r.method === 'POST' && r.path === '/api/projects')!;
+		expect(create.headers.authorization).toMatch(/^Bearer h\.alice\.\d+$/);
+		const stored = readFile('projects.json') as Record<
+			string,
+			Record<string, { writeKey: string }>
+		>;
+		expect(Object.values(stored[SERVER])[0].writeKey).toBe('login');
+		expect(fake.requests.some((r) => r.server === 'https://securetoken.googleapis.com')).toBe(true);
+	});
+
+	it('forgets the login on logout', async () => {
+		const fake = fakeFetch(loginServer(() => true));
+		const client = makeClient(fake);
+		await client.login();
+		expect(await client.logout()).toEqual({ ok: true, value: { status: 'signed_out' } });
+		expect(readFile('logins.json')).toEqual({});
 	});
 });

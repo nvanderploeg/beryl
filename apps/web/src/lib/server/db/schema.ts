@@ -80,23 +80,6 @@ export const deviceCodes = pgTable(
 	(table) => [uniqueIndex('device_codes_user_code_idx').on(table.userCode)]
 );
 
-// An agent's revocable login: the bearer it holds stands for `uid`. Only the hash is stored.
-export const loginTokens = pgTable(
-	'login_tokens',
-	{
-		id: varchar('id', { length: 36 }).primaryKey(),
-		tokenHash: char('token_hash', { length: 64 }).notNull(),
-		uid: varchar('uid', { length: 128 }).notNull(),
-		label: varchar('label', { length: 64 }).notNull(),
-		createdAt: now('created_at'),
-		lastUsedAt: instant('last_used_at')
-	},
-	(table) => [
-		uniqueIndex('login_tokens_hash_idx').on(table.tokenHash),
-		index('login_tokens_uid_idx').on(table.uid)
-	]
-);
-
 // Paths are case-sensitive and byte-ordered: give every path column `COLLATE "C"` by hand in its
 // migration SQL, which drizzle cannot express.
 export const topics = pgTable(

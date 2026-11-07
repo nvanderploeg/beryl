@@ -23,6 +23,7 @@ const SNAPSHOT: Snapshot = {
 		agent: null,
 		repo: null,
 		branch: null,
+		public: true,
 		createdAt: T,
 		updatedAt: T,
 		closedAt: null
