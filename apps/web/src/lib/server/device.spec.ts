@@ -9,7 +9,7 @@ import { POST as postTopicRoute } from '../../routes/api/projects/[id]/topics/+s
 import { GET as getTopicRoute } from '../../routes/api/topics/[id]/+server.ts';
 import { db } from '#lib/server/db/index.ts';
 import { deviceCodes } from '#lib/server/db/schema.ts';
-import { setVerifier } from '#lib/server/firebase.ts';
+import { AuthRejected, setVerifier } from '#lib/server/firebase.ts';
 import { exchangeDeviceCode, normalizeUserCode } from '#lib/server/logins.ts';
 import { resetDb } from '#lib/server/test/db.ts';
 import { event, type Body } from '#lib/server/test/http.ts';
@@ -29,7 +29,7 @@ beforeEach(async () => {
 			},
 			async verifyIdToken(idToken) {
 				const uid = idToken.split('.')[1];
-				if (revoked.has(uid)) throw new Error('revoked');
+				if (revoked.has(uid)) throw new AuthRejected('revoked');
 				return { uid, email: null, name: null };
 			},
 			async createCustomToken(uid) {

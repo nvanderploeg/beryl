@@ -1,13 +1,11 @@
 import type { RequestHandler } from './$types';
-import { ApiError, route } from '#lib/server/api.ts';
-import { verifier } from '#lib/server/firebase.ts';
+import { route } from '#lib/server/api.ts';
 import { requireCookie } from '#lib/server/login.ts';
+import { revokeEverywhere } from '#lib/server/revoke.ts';
 
-// Revokes every Firebase refresh token of the user: agents stop at their next request.
+// Agents stop at their next request.
 export const DELETE: RequestHandler = route(async ({ request }) => {
 	const user = await requireCookie(request);
-	const check = verifier();
-	if (!check) throw new ApiError(503, 'sign-in is not configured');
-	await check.revokeRefreshTokens(user.uid);
+	await revokeEverywhere(user.uid);
 	return Response.json({ ok: true });
 });

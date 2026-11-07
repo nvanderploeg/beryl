@@ -10,7 +10,7 @@ import { GET as streamRoute } from '../../routes/api/topics/[id]/stream/+server.
 import { db } from '#lib/server/db/index.ts';
 import { users } from '#lib/server/db/schema.ts';
 import { sessionCookie } from '#lib/server/login.ts';
-import { setVerifier, type LoginUser } from '#lib/server/firebase.ts';
+import { AuthRejected, setVerifier, type LoginUser } from '#lib/server/firebase.ts';
 import { listOwnedPages } from '#lib/server/store.ts';
 import { resetDb } from '#lib/server/test/db.ts';
 import { api, event, seedProject, seedTopic, type Body } from '#lib/server/test/http.ts';
@@ -35,11 +35,11 @@ beforeEach(async () => {
 	setVerifier(
 		{
 			async createSessionCookie(idToken) {
-				if (!idToken.startsWith('id-')) throw new Error('bad token');
+				if (!idToken.startsWith('id-')) throw new AuthRejected('bad token');
 				return `cookie-${idToken.slice(3)}`;
 			},
 			async verifySessionCookie(cookie) {
-				if (!cookie.startsWith('cookie-')) throw new Error('bad cookie');
+				if (!cookie.startsWith('cookie-')) throw new AuthRejected('bad cookie');
 				return fakeUser(cookie.slice(7));
 			},
 			async verifyIdToken() {

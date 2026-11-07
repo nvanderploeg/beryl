@@ -260,6 +260,15 @@ export async function listOwnedPages(
 	return pages.filter((page) => page !== undefined);
 }
 
+export async function privateTopicIds(ownerUid: string): Promise<string[]> {
+	const rows = await db
+		.select({ id: topics.id })
+		.from(topics)
+		.innerJoin(projects, eq(projects.id, topics.projectId))
+		.where(and(eq(projects.ownerUid, ownerUid), eq(topics.public, false)));
+	return rows.map((row) => row.id);
+}
+
 async function lastSeqOf(topicId: string): Promise<number> {
 	const [row] = await db
 		.select({ seq: max(events.seq) })

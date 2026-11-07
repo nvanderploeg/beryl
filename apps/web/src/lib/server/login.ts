@@ -1,6 +1,6 @@
 import { AUTH_COOKIE_DOMAIN } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
-import { verifier, type LoginUser } from '#lib/server/firebase.ts';
+import { AuthRejected, verifier, type LoginUser } from '#lib/server/firebase.ts';
 import { ensureUser } from '#lib/server/users.ts';
 import { log } from '#lib/server/log.ts';
 
@@ -17,15 +17,21 @@ function cookieValue(request: Request, name: string): string | undefined {
 	return undefined;
 }
 
-// A bad or expired cookie is signed out, not an error.
+function unavailable(error: unknown): ApiError {
+	log('login.unavailable', { error: error instanceof Error ? error.message : String(error) });
+	return new ApiError(503, 'sign-in is unavailable; retry shortly');
+}
+
+// A bad, expired or revoked cookie is signed out; a verifier outage is a 503.
 export async function verifyCookie(cookie: string | undefined): Promise<LoginUser | null> {
 	const check = verifier();
 	if (!cookie || !check) return null;
 	let user: LoginUser;
 	try {
 		user = await check.verifySessionCookie(cookie);
-	} catch {
-		return null;
+	} catch (error) {
+		if (error instanceof AuthRejected) return null;
+		throw unavailable(error);
 	}
 	await ensureUser(user);
 	return user;
@@ -45,8 +51,9 @@ export async function loginUser(request: Request): Promise<LoginUser | null> {
 		let user: LoginUser;
 		try {
 			user = await check.verifyIdToken(key);
-		} catch {
-			throw new ApiError(401, 'invalid login token');
+		} catch (error) {
+			if (error instanceof AuthRejected) throw new ApiError(401, 'invalid login token');
+			throw unavailable(error);
 		}
 		await ensureUser(user);
 		return user;
@@ -79,7 +86,8 @@ export async function exchangeIdToken(idToken: string): Promise<string> {
 	try {
 		return await check.createSessionCookie(idToken, COOKIE_TTL_MS);
 	} catch (error) {
-		log('login.refused', { error: error instanceof Error ? error.message : String(error) });
+		if (!(error instanceof AuthRejected)) throw unavailable(error);
+		log('login.refused', { error: error.message });
 		throw new ApiError(401, 'invalid sign-in');
 	}
 }
