@@ -23,8 +23,10 @@ const now = (name: string) =>
 
 // `slug` is the friendly address of the row: unique across Projects, and across one Project's
 // Topics. NULL only until the boot backfill assigns one.
+export const TABLE_PREFIX = 'beryl_';
+
 export const projects = pgTable(
-	'projects',
+	'beryl_projects',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		slug: varchar('slug', { length: 48 }),
@@ -33,10 +35,10 @@ export const projects = pgTable(
 		createdAt: now('created_at'),
 		lastWriteAt: now('last_write_at')
 	},
-	(table) => [uniqueIndex('projects_slug_idx').on(table.slug)]
+	(table) => [uniqueIndex('beryl_projects_slug_idx').on(table.slug)]
 );
 
-export const pairings = pgTable('pairings', {
+export const pairings = pgTable('beryl_pairings', {
 	codeHash: char('code_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
@@ -44,7 +46,7 @@ export const pairings = pgTable('pairings', {
 	expiresAt: instant('expires_at').notNull()
 });
 
-export const sessions = pgTable('sessions', {
+export const sessions = pgTable('beryl_sessions', {
 	tokenHash: char('token_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
@@ -56,7 +58,7 @@ export const sessions = pgTable('sessions', {
 // Paths are case-sensitive and byte-ordered: give every path column `COLLATE "C"` by hand in its
 // migration SQL, which drizzle cannot express.
 export const topics = pgTable(
-	'topics',
+	'beryl_topics',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		projectId: varchar('project_id', { length: 36 })
@@ -76,13 +78,13 @@ export const topics = pgTable(
 		closedAt: instant('closed_at')
 	},
 	(table) => [
-		index('topics_project_updated_idx').on(table.projectId, table.updatedAt),
-		uniqueIndex('topics_project_slug_idx').on(table.projectId, table.slug)
+		index('beryl_topics_project_updated_idx').on(table.projectId, table.updatedAt),
+		uniqueIndex('beryl_topics_project_slug_idx').on(table.projectId, table.slug)
 	]
 );
 
 export const nodes = pgTable(
-	'nodes',
+	'beryl_nodes',
 	{
 		topicId: varchar('topic_id', { length: 36 })
 			.notNull()
@@ -110,12 +112,12 @@ export const nodes = pgTable(
 	},
 	(table) => [
 		primaryKey({ columns: [table.topicId, table.path] }),
-		index('nodes_topic_parent_idx').on(table.topicId, table.parentPath)
+		index('beryl_nodes_topic_parent_idx').on(table.topicId, table.parentPath)
 	]
 );
 
 export const notes = pgTable(
-	'notes',
+	'beryl_notes',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		topicId: varchar('topic_id', { length: 36 })
@@ -134,11 +136,11 @@ export const notes = pgTable(
 		createdAt: now('created_at'),
 		updatedAt: now('updated_at')
 	},
-	(table) => [index('notes_topic_created_idx').on(table.topicId, table.createdAt)]
+	(table) => [index('beryl_notes_topic_created_idx').on(table.topicId, table.createdAt)]
 );
 
 export const events = pgTable(
-	'events',
+	'beryl_events',
 	{
 		seq: bigserial('seq', { mode: 'number' }).primaryKey(),
 		topicId: varchar('topic_id', { length: 36 })
@@ -150,7 +152,7 @@ export const events = pgTable(
 		at: now('at')
 	},
 	(table) => [
-		index('events_topic_seq_idx').on(table.topicId, table.seq),
-		index('events_topic_path_seq_idx').on(table.topicId, table.path, table.seq)
+		index('beryl_events_topic_seq_idx').on(table.topicId, table.seq),
+		index('beryl_events_topic_path_seq_idx').on(table.topicId, table.path, table.seq)
 	]
 );

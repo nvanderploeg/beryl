@@ -26,7 +26,10 @@ export async function runMigrations(target: Pool): Promise<void> {
 	const lock = await target.connect();
 	try {
 		await lock.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK]);
-		await migrate(drizzle(target), { migrationsFolder: resolve('drizzle') });
+		await migrate(drizzle(target), {
+			migrationsFolder: resolve('drizzle'),
+			migrationsTable: 'beryl_migrations'
+		});
 	} finally {
 		await lock.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK]).catch(() => {});
 		lock.release();

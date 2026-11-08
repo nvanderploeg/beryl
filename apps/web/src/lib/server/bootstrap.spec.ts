@@ -24,9 +24,7 @@ describe('runMigrations', () => {
 
 	it('lets concurrent bootstraps on an empty database all succeed', async () => {
 		await Promise.all(Array.from({ length: 5 }, () => runMigrations(fresh)));
-		const { rows } = await fresh.query(
-			'SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations'
-		);
+		const { rows } = await fresh.query('SELECT count(*)::int AS n FROM drizzle.beryl_migrations');
 		expect(rows[0].n).toBe(1);
 	});
 });

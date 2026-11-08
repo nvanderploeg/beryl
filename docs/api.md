@@ -247,4 +247,4 @@ interface Pulled {
 
 ## Storage
 
-Postgres through drizzle, migrations in `apps/web/drizzle`, run at server start. Tables: `projects` (key hash, never keys), `pairings`, `sessions` (hashes, never secrets), `topics`, `nodes` (primary key `topic_id, path`; path columns `COLLATE "C"`: case-sensitive, byte-ordered), `notes`, `events` (bigserial `seq`). `edges`, `widgets`, `sources`, `agent`, `anchor` and `changed` are `json` columns (text kept as written, not `jsonb`).
+Postgres through drizzle, migrations in `apps/web/drizzle`, run at server start. Tables: `beryl_projects` (key hash, never keys), `beryl_pairings`, `beryl_sessions` (hashes, never secrets), `beryl_topics`, `beryl_nodes` (primary key `topic_id, path`; path columns `COLLATE "C"`: case-sensitive, byte-ordered), `beryl_notes`, `beryl_events` (bigserial `seq`). `edges`, `widgets`, `sources`, `agent`, `anchor` and `changed` are `json` columns (text kept as written, not `jsonb`).

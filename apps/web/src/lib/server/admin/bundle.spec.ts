@@ -135,7 +135,7 @@ async function emptyTail(): Promise<string> {
 }
 
 const nextSeq = async () =>
-	(await pool.query("SELECT nextval('events_seq_seq')::int AS n")).rows[0].n as number;
+	(await pool.query("SELECT nextval('beryl_events_seq_seq')::int AS n")).rows[0].n as number;
 
 const rejected = (work: Promise<unknown>, status: number, message: RegExp) =>
 	expect(work).rejects.toMatchObject({ status, message: expect.stringMatching(message) });
@@ -331,7 +331,7 @@ describe('import', () => {
 	it('leaves the event sequence where it is when it is already past the Bundle', async () => {
 		await seed();
 		const bundle = await exportTo('seq.zip');
-		await pool.query("SELECT setval('events_seq_seq', 1000000)");
+		await pool.query("SELECT setval('beryl_events_seq_seq', 1000000)");
 		await importBundle(bundle, { backupDir: dir });
 		expect(await nextSeq()).toBe(1000001);
 	});
@@ -473,7 +473,7 @@ describe('import', () => {
 			...m,
 			schema: '0002_project_topic_slugs'
 		}));
-		await pool.query('ALTER SEQUENCE events_seq_seq RESTART WITH 1');
+		await pool.query('ALTER SEQUENCE beryl_events_seq_seq RESTART WITH 1');
 		await importBundle(bundle, { backupDir: dir });
 		expect(await nextSeq()).toBe(43);
 
@@ -482,7 +482,7 @@ describe('import', () => {
 		expect(topic.body.lastSeq).toBe(42);
 		expect(topic.body.nodes[0]).toMatchObject({ path: 'Storage', gistStale: true });
 		const { rows } = await pool.query(
-			'SELECT EXTRACT(EPOCH FROM created_at)::float8 AS u, widgets::text AS w FROM nodes'
+			'SELECT EXTRACT(EPOCH FROM created_at)::float8 AS u, widgets::text AS w FROM beryl_nodes'
 		);
 		expect(rows[0].u).toBe(Date.UTC(2026, 2, 4, 5, 6, 7, 89) / 1000);
 		expect(rows[0].w).toBe(widgets);
@@ -702,7 +702,10 @@ describe('portal', () => {
 			const tuples = batch.map(
 				(row, r) => `(${row.map((_, c) => `$${r * row.length + c + 1}`).join(', ')})`
 			);
-			await pool.query(`INSERT INTO nodes (${columns}) VALUES ${tuples.join(', ')}`, batch.flat());
+			await pool.query(
+				`INSERT INTO beryl_nodes (${columns}) VALUES ${tuples.join(', ')}`,
+				batch.flat()
+			);
 		}
 
 		for (let i = 0; i < 15; i++) {
@@ -748,7 +751,7 @@ describe('portal', () => {
 			await restore();
 		}
 		const { rows } = await pool.query(
-			'SELECT EXTRACT(EPOCH FROM created_at)::int AS u FROM projects'
+			'SELECT EXTRACT(EPOCH FROM created_at)::int AS u FROM beryl_projects'
 		);
 		expect(rows[0].u).toBe(Date.UTC(2026, 0, 1, 12) / 1000);
 

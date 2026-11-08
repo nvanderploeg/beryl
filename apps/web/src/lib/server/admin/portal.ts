@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ApiError } from '#lib/server/api.ts';
+import { TABLE_PREFIX } from '#lib/server/db/schema.ts';
 import { pool } from '#lib/server/db/index.ts';
 import { journalTags, migrationsDir } from '#lib/server/admin/bundle.ts';
 import { log } from '#lib/server/log.ts';
@@ -21,12 +22,12 @@ export async function stats() {
 	);
 	const counts: Record<string, number> = {};
 	for (const table of COUNTED) {
-		const [row] = await rows<{ n: number }>(`SELECT COUNT(*) AS n FROM "${table}"`);
+		const [row] = await rows<{ n: number }>(`SELECT COUNT(*) AS n FROM "${TABLE_PREFIX}${table}"`);
 		counts[table] = Number(row.n);
 	}
 	const journal = JSON.parse(await readFile(join(migrationsDir(), 'meta/_journal.json'), 'utf8'));
 	const applied = new Set(
-		(await rows<{ created_at: string }>('SELECT created_at FROM drizzle.__drizzle_migrations')).map(
+		(await rows<{ created_at: string }>('SELECT created_at FROM drizzle.beryl_migrations')).map(
 			(row) => Number(row.created_at)
 		)
 	);
@@ -66,22 +67,24 @@ export async function listProjects() {
 		name: string;
 		created_at: Date;
 		last_write_at: Date;
-	}>('SELECT id, slug, name, created_at, last_write_at FROM projects ORDER BY last_write_at DESC');
+	}>(
+		'SELECT id, slug, name, created_at, last_write_at FROM beryl_projects ORDER BY last_write_at DESC'
+	);
 	const topicRows = await rows<TopicStat>(
 		`SELECT t.id, t.project_id, t.slug, t.title, t.status, t.updated_at,
 			COALESCE(n.c, 0) AS nodes, COALESCE(m.c, 0) AS notes, COALESCE(e.c, 0) AS events,
 			COALESCE(n.b, 0) + COALESCE(m.b, 0) + COALESCE(e.b, 0) AS bytes, e.last_at AS last_event_at
-		 FROM topics t
+		 FROM beryl_topics t
 		 LEFT JOIN (SELECT topic_id, COUNT(*) c,
 				SUM(octet_length(body) + octet_length(gist) + octet_length(title) + octet_length(recommendation)
 					+ octet_length(answer) + octet_length(widgets::text) + octet_length(edges::text)
 					+ octet_length(sources::text)) b
-			FROM nodes GROUP BY topic_id) n ON n.topic_id = t.id
+			FROM beryl_nodes GROUP BY topic_id) n ON n.topic_id = t.id
 		 LEFT JOIN (SELECT topic_id, COUNT(*) c,
 				SUM(octet_length("text") + octet_length(reply) + octet_length(anchor::text)) b
-			FROM notes GROUP BY topic_id) m ON m.topic_id = t.id
+			FROM beryl_notes GROUP BY topic_id) m ON m.topic_id = t.id
 		 LEFT JOIN (SELECT topic_id, COUNT(*) c, SUM(octet_length(payload::text)) b, MAX("at") last_at
-			FROM events GROUP BY topic_id) e ON e.topic_id = t.id
+			FROM beryl_events GROUP BY topic_id) e ON e.topic_id = t.id
 		 ORDER BY t.updated_at DESC`
 	);
 	const iso = (value: unknown) => (value ? new Date(value as Date).toISOString() : null);
@@ -123,23 +126,27 @@ function confirmed(
 }
 
 export async function deleteProject(id: string, confirm: Record<string, unknown>) {
-	const [project] = await rows<{ name: string }>('SELECT name FROM projects WHERE id = $1', [id]);
+	const [project] = await rows<{ name: string }>('SELECT name FROM beryl_projects WHERE id = $1', [
+		id
+	]);
 	if (!project) throw new ApiError(404, 'Project not found');
 	confirmed(confirm, { name: project.name, id }, 'Project name');
 	const topicIds = (
-		await rows<{ id: string }>('SELECT id FROM topics WHERE project_id = $1', [id])
+		await rows<{ id: string }>('SELECT id FROM beryl_topics WHERE project_id = $1', [id])
 	).map((row) => row.id);
-	await pool.query('DELETE FROM projects WHERE id = $1', [id]);
+	await pool.query('DELETE FROM beryl_projects WHERE id = $1', [id]);
 	endStreams(topicIds);
 	log('admin.delete_project', { id, topics: topicIds.length });
 	return { deleted: id, topics: topicIds.length };
 }
 
 export async function deleteTopic(id: string, confirm: Record<string, unknown>) {
-	const [topic] = await rows<{ title: string }>('SELECT title FROM topics WHERE id = $1', [id]);
+	const [topic] = await rows<{ title: string }>('SELECT title FROM beryl_topics WHERE id = $1', [
+		id
+	]);
 	if (!topic) throw new ApiError(404, 'Topic not found');
 	confirmed(confirm, { name: topic.title, id }, 'Topic title');
-	await pool.query('DELETE FROM topics WHERE id = $1', [id]);
+	await pool.query('DELETE FROM beryl_topics WHERE id = $1', [id]);
 	endStreams([id]);
 	log('admin.delete_topic', { id });
 	return { deleted: id };
