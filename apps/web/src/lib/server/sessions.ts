@@ -34,10 +34,13 @@ export async function redeemPairing(
 		.select()
 		.from(pairings)
 		.where(and(eq(pairings.codeHash, codeHash), gt(pairings.expiresAt, now)));
-	const [claim] = row
-		? await db.delete(pairings).where(eq(pairings.codeHash, codeHash))
-		: [{ affectedRows: 0 }];
-	if (!row || claim.affectedRows !== 1) throw new ApiError(403, 'invalid or used code');
+	const claimed = row
+		? await db
+				.delete(pairings)
+				.where(eq(pairings.codeHash, codeHash))
+				.returning({ codeHash: pairings.codeHash })
+		: [];
+	if (!row || claimed.length !== 1) throw new ApiError(403, 'invalid or used code');
 	const token = secret(SESSION_PREFIX);
 	const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
 	await db.insert(sessions).values({
@@ -66,7 +69,7 @@ export async function actOnSession(
 	now = new Date()
 ): Promise<void> {
 	const tokenHash = hashKey(token);
-	const [result] = await db
+	const renewed = await db
 		.update(sessions)
 		.set({ lastActionAt: now, expiresAt: new Date(now.getTime() + SESSION_TTL_MS) })
 		.where(
@@ -75,8 +78,9 @@ export async function actOnSession(
 				eq(sessions.projectId, projectId),
 				gt(sessions.expiresAt, now)
 			)
-		);
-	if (result.affectedRows === 1) return;
+		)
+		.returning({ tokenHash: sessions.tokenHash });
+	if (renewed.length === 1) return;
 	const row = await sessionRow(token);
 	if (row && row.expiresAt > now) throw new ApiError(403, 'invalid key');
 	throw new ApiError(401, 'session expired');

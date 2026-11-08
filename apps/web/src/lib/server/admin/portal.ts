@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { RowDataPacket } from 'mysql2/promise';
 import { ApiError } from '#lib/server/api.ts';
 import { pool } from '#lib/server/db/index.ts';
 import { journalTags, migrationsDir } from '#lib/server/admin/bundle.ts';
@@ -10,25 +9,25 @@ import pkg from '../../../../package.json' with { type: 'json' };
 
 const COUNTED = ['projects', 'topics', 'nodes', 'notes', 'events', 'sessions', 'pairings'];
 
-async function rows<T = RowDataPacket>(sql: string, values: unknown[] = []): Promise<T[]> {
-	const [result] = await pool.query(sql, values);
-	return result as T[];
+async function rows<T>(sql: string, values: unknown[] = []): Promise<T[]> {
+	return (await pool.query(sql, values)).rows as T[];
 }
 
 export async function stats() {
 	const [{ bytes, name }] = await rows<{ bytes: number; name: string }>(
-		`SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes, DATABASE() AS name
-		 FROM information_schema.tables WHERE table_schema = DATABASE()`
+		`SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0) AS bytes, current_database() AS name
+		 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		 WHERE n.nspname = current_schema() AND c.relkind = 'r'`
 	);
 	const counts: Record<string, number> = {};
 	for (const table of COUNTED) {
-		const [row] = await rows<{ n: number }>(`SELECT COUNT(*) AS n FROM \`${table}\``);
+		const [row] = await rows<{ n: number }>(`SELECT COUNT(*) AS n FROM "${table}"`);
 		counts[table] = Number(row.n);
 	}
 	const journal = JSON.parse(await readFile(join(migrationsDir(), 'meta/_journal.json'), 'utf8'));
 	const applied = new Set(
-		(await rows<{ created_at: string }>('SELECT created_at FROM __drizzle_migrations')).map((row) =>
-			Number(row.created_at)
+		(await rows<{ created_at: string }>('SELECT created_at FROM drizzle.__drizzle_migrations')).map(
+			(row) => Number(row.created_at)
 		)
 	);
 	return {
@@ -45,18 +44,18 @@ export async function stats() {
 	};
 }
 
-interface TopicStat extends RowDataPacket {
+interface TopicStat {
 	id: string;
 	project_id: string;
 	slug: string | null;
 	title: string;
 	status: string;
-	updated_at: string;
+	updated_at: Date;
 	nodes: number;
 	notes: number;
 	events: number;
 	bytes: number;
-	last_event_at: string | null;
+	last_event_at: Date | null;
 }
 
 // `bytes` is the payload the Topic's rows hold, not on-disk size.
@@ -65,26 +64,27 @@ export async function listProjects() {
 		id: string;
 		slug: string | null;
 		name: string;
-		created_at: string;
-		last_write_at: string;
+		created_at: Date;
+		last_write_at: Date;
 	}>('SELECT id, slug, name, created_at, last_write_at FROM projects ORDER BY last_write_at DESC');
 	const topicRows = await rows<TopicStat>(
 		`SELECT t.id, t.project_id, t.slug, t.title, t.status, t.updated_at,
 			COALESCE(n.c, 0) AS nodes, COALESCE(m.c, 0) AS notes, COALESCE(e.c, 0) AS events,
-			COALESCE(n.b, 0) + COALESCE(m.b, 0) + COALESCE(e.b, 0) AS bytes, e.last AS last_event_at
+			COALESCE(n.b, 0) + COALESCE(m.b, 0) + COALESCE(e.b, 0) AS bytes, e.last_at AS last_event_at
 		 FROM topics t
 		 LEFT JOIN (SELECT topic_id, COUNT(*) c,
-				SUM(LENGTH(body) + LENGTH(gist) + LENGTH(title) + LENGTH(recommendation) + LENGTH(answer)
-					+ LENGTH(CAST(widgets AS CHAR)) + LENGTH(CAST(edges AS CHAR)) + LENGTH(CAST(sources AS CHAR))) b
+				SUM(octet_length(body) + octet_length(gist) + octet_length(title) + octet_length(recommendation)
+					+ octet_length(answer) + octet_length(widgets::text) + octet_length(edges::text)
+					+ octet_length(sources::text)) b
 			FROM nodes GROUP BY topic_id) n ON n.topic_id = t.id
 		 LEFT JOIN (SELECT topic_id, COUNT(*) c,
-				SUM(LENGTH(text) + LENGTH(reply) + LENGTH(CAST(anchor AS CHAR))) b
+				SUM(octet_length("text") + octet_length(reply) + octet_length(anchor::text)) b
 			FROM notes GROUP BY topic_id) m ON m.topic_id = t.id
-		 LEFT JOIN (SELECT topic_id, COUNT(*) c, SUM(LENGTH(CAST(payload AS CHAR))) b, MAX(at) last
+		 LEFT JOIN (SELECT topic_id, COUNT(*) c, SUM(octet_length(payload::text)) b, MAX("at") last_at
 			FROM events GROUP BY topic_id) e ON e.topic_id = t.id
 		 ORDER BY t.updated_at DESC`
 	);
-	const iso = (value: unknown) => (value ? new Date(value as string).toISOString() : null);
+	const iso = (value: unknown) => (value ? new Date(value as Date).toISOString() : null);
 	return projectRows.map((project) => {
 		const topics = topicRows
 			.filter((topic) => topic.project_id === project.id)
@@ -123,23 +123,23 @@ function confirmed(
 }
 
 export async function deleteProject(id: string, confirm: Record<string, unknown>) {
-	const [project] = await rows<{ name: string }>('SELECT name FROM projects WHERE id = ?', [id]);
+	const [project] = await rows<{ name: string }>('SELECT name FROM projects WHERE id = $1', [id]);
 	if (!project) throw new ApiError(404, 'Project not found');
 	confirmed(confirm, { name: project.name, id }, 'Project name');
 	const topicIds = (
-		await rows<{ id: string }>('SELECT id FROM topics WHERE project_id = ?', [id])
+		await rows<{ id: string }>('SELECT id FROM topics WHERE project_id = $1', [id])
 	).map((row) => row.id);
-	await pool.query('DELETE FROM projects WHERE id = ?', [id]);
+	await pool.query('DELETE FROM projects WHERE id = $1', [id]);
 	endStreams(topicIds);
 	log('admin.delete_project', { id, topics: topicIds.length });
 	return { deleted: id, topics: topicIds.length };
 }
 
 export async function deleteTopic(id: string, confirm: Record<string, unknown>) {
-	const [topic] = await rows<{ title: string }>('SELECT title FROM topics WHERE id = ?', [id]);
+	const [topic] = await rows<{ title: string }>('SELECT title FROM topics WHERE id = $1', [id]);
 	if (!topic) throw new ApiError(404, 'Topic not found');
 	confirmed(confirm, { name: topic.title, id }, 'Topic title');
-	await pool.query('DELETE FROM topics WHERE id = ?', [id]);
+	await pool.query('DELETE FROM topics WHERE id = $1', [id]);
 	endStreams([id]);
 	log('admin.delete_topic', { id });
 	return { deleted: id };

@@ -1,28 +1,18 @@
 services:
   db:
-    image: mysql:8.4
+    image: postgres:16
     restart: unless-stopped
     ports:
-      - '${MYSQL_PORT:-3326}:3306'
+      - '${POSTGRES_PORT:-5446}:5432'
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: beryl
-      MYSQL_USER: beryl
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beryl}
+      POSTGRES_USER: beryl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-beryl}
+      POSTGRES_DB: beryl
     volumes:
-      - mysqldata:/var/lib/mysql
-      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test:
-        [
-          'CMD',
-          'mysqladmin',
-          'ping',
-          '-h',
-          'localhost',
-          '-uroot',
-          '-p${MYSQL_ROOT_PASSWORD:-rootpassword}'
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U beryl -d beryl']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -36,10 +26,10 @@ services:
     ports:
       - '${BERYL_PORT:-3270}:3000'
     environment:
-      DATABASE_URL: mysql://beryl:${MYSQL_PASSWORD:-beryl}@db:3306/beryl
+      DATABASE_URL: postgres://beryl:${POSTGRES_PASSWORD:-beryl}@db:5432/beryl
       ORIGIN: ${BERYL_ORIGIN:-http://localhost:3270}
       BODY_SIZE_LIMIT: ${BERYL_BODY_LIMIT:-8M}
       # Unset: the admin portal and /api/admin answer 404. At least 16 characters.
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
 volumes:
-  mysqldata:
+  pgdata:

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from '#lib/server/db/index.ts';
+import { db, pool } from '#lib/server/db/index.ts';
 import { pairings, sessions } from '#lib/server/db/schema.ts';
 import { hashKey } from '#lib/server/hash.ts';
 import {
@@ -82,8 +82,29 @@ describe('POST /api/pairings/redeem', () => {
 
 	it('lets only one of concurrent redemptions win', async () => {
 		const { code } = (await api.createPairing(project.id, project.writeKey)).body;
-		const results = await Promise.all(Array.from({ length: 6 }, () => api.redeem({ code })));
-		expect(results.filter((r) => r.status === 200)).toHaveLength(1);
+		const racers = 6;
+		// A row lock holds every racer's claim open until all have read the code and queued.
+		const holder = await pool.connect();
+		try {
+			await holder.query('BEGIN');
+			await holder.query('SELECT 1 FROM pairings WHERE code_hash = $1 FOR UPDATE', [hashKey(code)]);
+			const redemptions = Array.from({ length: racers }, () => api.redeem({ code }));
+			for (let i = 0; ; i++) {
+				const { rows } = await pool.query(
+					`SELECT count(*)::int AS n FROM pg_stat_activity
+					 WHERE wait_event_type = 'Lock' AND query ILIKE 'delete from "pairings"%'`
+				);
+				if (rows[0].n === racers) break;
+				if (i > 200) throw new Error('redemptions never queued on the claim');
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+			await holder.query('COMMIT');
+			const results = await Promise.all(redemptions);
+			expect(results.filter((r) => r.status === 200)).toHaveLength(1);
+			expect(results.filter((r) => r.status === 403)).toHaveLength(racers - 1);
+		} finally {
+			holder.release();
+		}
 	});
 
 	it('refuses an expired code', async () => {
