@@ -24,6 +24,7 @@ const MIGRATION_LOCK = 7_262_001;
 // Hold the lock across the whole migrate: concurrent migrators fail.
 export async function runMigrations(target: Pool): Promise<void> {
 	const lock = await target.connect();
+	lock.on('error', () => {});
 	try {
 		await lock.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK]);
 		await migrate(drizzle(target), {

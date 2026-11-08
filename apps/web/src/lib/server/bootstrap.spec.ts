@@ -15,6 +15,7 @@ describe('runMigrations', () => {
 		await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
 		await admin.query(`CREATE DATABASE ${name}`);
 		fresh = new pg.Pool({ connectionString: url.toString(), max: 10 });
+		fresh.on('error', () => {});
 	});
 	afterAll(async () => {
 		await fresh.end();
