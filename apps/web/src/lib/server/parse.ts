@@ -232,6 +232,24 @@ function flag(body: Body, key: string): boolean | undefined {
 	return value;
 }
 
+export type OwnerTarget = { uid: string } | { email: string };
+
+const UID = /^[A-Za-z0-9:._-]{1,128}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+$/;
+
+export function parseOwnerTarget(body: Body): OwnerTarget {
+	const { uid, email } = body;
+	if ((uid === undefined) === (email === undefined)) return bad('give exactly one of uid or email');
+	if (uid !== undefined) {
+		if (typeof uid !== 'string' || !UID.test(uid)) return bad('uid must be a Firebase uid');
+		return { uid };
+	}
+	if (typeof email !== 'string' || email.length > 320 || !EMAIL.test(email.trim())) {
+		return bad('email must be an email address');
+	}
+	return { email: email.trim() };
+}
+
 export interface TopicPatch {
 	title?: string;
 	destination?: string;

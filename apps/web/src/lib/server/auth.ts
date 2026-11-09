@@ -38,8 +38,8 @@ function optionalBearer(request: Request): string | undefined {
 	return /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1];
 }
 
-// An owned Project answers only to its owner's login (a Session still carries Notes); an
-// anonymous one answers to its Write key.
+// A Project answers to its Write key, when it has one, and to its owner's login (a Session
+// still carries Notes).
 async function checkKey(request: Request, project: ProjectRow, kind: KeyKind): Promise<void> {
 	const key = optionalBearer(request);
 	if (kind === 'note' && key?.startsWith(SESSION_PREFIX)) {
@@ -47,6 +47,7 @@ async function checkKey(request: Request, project: ProjectRow, kind: KeyKind): P
 		return;
 	}
 	if (project.ownerUid !== null) {
+		if (key && isWriteKey(key, project)) return;
 		const user = await loginUser(request);
 		if (user?.uid === project.ownerUid) return;
 		if (!user && !key) throw new ApiError(401, 'sign in required');
@@ -64,6 +65,22 @@ export async function authorizeProject(
 	const project = await getProjectRow(projectId);
 	if (!project) throw new ApiError(404, 'project not found');
 	await checkKey(request, project, kind);
+	return project;
+}
+
+export async function isOwnerLogin(request: Request, project: ProjectRow): Promise<boolean> {
+	if (project.ownerUid === null) return false;
+	return (await loginUser(request))?.uid === project.ownerUid;
+}
+
+// Only the owner's login, never the Write key.
+export async function authorizeOwner(request: Request, projectId: string): Promise<ProjectRow> {
+	const project = await getProjectRow(projectId);
+	if (!project) throw new ApiError(404, 'project not found');
+	if (project.ownerUid === null) throw new ApiError(403, 'project has no owner');
+	const user = await loginUser(request);
+	if (!user) throw new ApiError(401, 'sign in required');
+	if (user.uid !== project.ownerUid) throw new ApiError(403, 'owner only');
 	return project;
 }
 

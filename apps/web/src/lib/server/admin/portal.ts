@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ApiError } from '#lib/server/api.ts';
+import type { OwnerTarget } from '#lib/server/parse.ts';
 import { TABLE_PREFIX } from '#lib/server/db/schema.ts';
 import { pool } from '#lib/server/db/index.ts';
 import { journalTags, migrationsDir } from '#lib/server/admin/bundle.ts';
@@ -67,8 +68,14 @@ export async function listProjects() {
 		name: string;
 		created_at: Date;
 		last_write_at: Date;
+		owner_uid: string | null;
+		owner_email: string | null;
+		has_key: boolean;
 	}>(
-		'SELECT id, slug, name, created_at, last_write_at FROM beryl_projects ORDER BY last_write_at DESC'
+		`SELECT p.id, p.slug, p.name, p.created_at, p.last_write_at, p.owner_uid, u.email AS owner_email,
+			p.write_key_hash IS NOT NULL AS has_key
+		 FROM beryl_projects p LEFT JOIN beryl_users u ON u.uid = p.owner_uid
+		 ORDER BY p.last_write_at DESC`
 	);
 	const topicRows = await rows<TopicStat>(
 		`SELECT t.id, t.project_id, t.slug, t.title, t.status, t.updated_at,
@@ -108,6 +115,9 @@ export async function listProjects() {
 			name: project.name,
 			createdAt: iso(project.created_at),
 			lastActivityAt: iso(project.last_write_at),
+			ownerUid: project.owner_uid,
+			ownerEmail: project.owner_email,
+			hasWriteKey: project.has_key,
 			bytes: topics.reduce((sum, topic) => sum + topic.bytes, 0),
 			topics
 		};
@@ -138,6 +148,38 @@ export async function deleteProject(id: string, confirm: Record<string, unknown>
 	endStreams(topicIds);
 	log('admin.delete_project', { id, topics: topicIds.length });
 	return { deleted: id, topics: topicIds.length };
+}
+
+async function resolveOwner(target: OwnerTarget): Promise<string> {
+	if ('uid' in target) return target.uid;
+	const found = await rows<{ uid: string }>(
+		'SELECT uid FROM beryl_users WHERE lower(email) = lower($1) ORDER BY uid',
+		[target.email]
+	);
+	if (found.length === 0) {
+		throw new ApiError(404, `no user with email ${target.email}; they must sign in to beryl first`);
+	}
+	if (found.length > 1) throw new ApiError(409, 'several users share that email; give the uid');
+	return found[0].uid;
+}
+
+export async function assignOwner(id: string, target: OwnerTarget) {
+	const [project] = await rows<{ owner_uid: string | null }>(
+		'SELECT owner_uid FROM beryl_projects WHERE id = $1',
+		[id]
+	);
+	if (!project) throw new ApiError(404, 'Project not found');
+	const uid = await resolveOwner(target);
+	await pool.query('UPDATE beryl_projects SET owner_uid = $2 WHERE id = $1', [id, uid]);
+	const hidden = (
+		await rows<{ id: string }>(
+			'SELECT id FROM beryl_topics WHERE project_id = $1 AND public = false',
+			[id]
+		)
+	).map((row) => row.id);
+	if (project.owner_uid !== uid) endStreams(hidden);
+	log('admin.assign_owner', { id, from: project.owner_uid, to: uid });
+	return { id, ownerUid: uid, previousOwnerUid: project.owner_uid };
 }
 
 export async function deleteTopic(id: string, confirm: Record<string, unknown>) {

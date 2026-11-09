@@ -8,7 +8,7 @@ A live, zoomable view of a grilling agent's model of a design. The agent writes 
 One repo's beryl space: its Topics and a Write key. Its UUID is also its URL (`/p/<id>`).
 
 **Owner**:
-The signed-in user (a Firebase uid) a Project belongs to. An owned Project has no Write key and no anonymous reach: its Owner writes with their login, and mints Pairing codes with it. A Project with no Owner is anonymous.
+The signed-in user (a Firebase uid) a Project belongs to. The Owner writes with their login, and mints Pairing codes with it. A Project created while signed in has no Write key; an Admin can also assign or reassign an Owner, and a Project that was anonymous keeps its Write key until the Owner rotates or clears it. A Project with no Owner is anonymous.
 
 **Login**:
 A browser's proof of who is signed in: the Firebase session cookie `runestone_session`, shared with sagas and chronicle and verified on every request.
@@ -17,10 +17,10 @@ A browser's proof of who is signed in: the Firebase session cookie `runestone_se
 How an agent signs in: it shows a code, a signed-in person approves it, and the agent trades the Firebase custom token it gets for ID tokens it sends as its bearer. The bearer stands for the person's uid.
 
 **Public**:
-A Topic flag. A private Topic of an owned Project is readable only by its Owner's login; anonymous Projects' Topics are always public.
+A Topic flag. A private Topic of an owned Project is readable and writable only by its Owner's login, never by a Write key; anonymous Projects' Topics are always public.
 
 **Write key**:
-The secret that writes the model of an anonymous Project. Returned once at Project creation, kept on the agent's machine; the server stores only its sha256.
+The secret that writes the model of a Project. Returned once at creation of an anonymous Project, kept on the agent's machine; the server stores only its sha256. On an owned Project it reaches public Topics only, and only the Owner's login rotates or clears it.
 
 **Pairing code**:
 A single-use secret the agent mints with the Write key. It travels in the Private link's URL fragment and is redeemed for a Session within five minutes.

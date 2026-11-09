@@ -14,6 +14,7 @@
 	let importPhrase = $state('');
 	let pending = $state<{ kind: 'projects' | 'topics'; id: string; label: string } | null>(null);
 	let typed = $state('');
+	let owners = $state<Record<string, string>>({});
 
 	$effect(() => {
 		if (data.authed) csrf = data.csrf;
@@ -76,6 +77,20 @@
 		if (response.ok) {
 			pending = null;
 			typed = '';
+			await invalidateAll();
+		}
+	}
+
+	async function assign(id: string, name: string) {
+		const who = (owners[id] ?? '').trim();
+		const response = await call(`/api/admin/projects/${id}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(who.includes('@') ? { email: who } : { uid: who })
+		});
+		await say(response, `${who} now owns ${name}.`);
+		if (response.ok) {
+			owners[id] = '';
 			await invalidateAll();
 		}
 	}
@@ -194,6 +209,32 @@
 							}}>Delete</button
 						>
 					</div>
+					<form
+						class="mt-2 flex items-center gap-2 text-sm"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void assign(project.id, project.name);
+						}}
+					>
+						<span class="text-(--muted)">
+							Owner: {project.ownerEmail ?? project.ownerUid ?? 'none'}{project.ownerUid &&
+							project.hasWriteKey
+								? ' (Write key active)'
+								: ''}
+						</span>
+						<input
+							bind:value={owners[project.id]}
+							aria-label="Owner email or uid for {project.name}"
+							placeholder="email or uid"
+							class="min-w-0 flex-1 rounded border border-(--line) bg-(--surface) p-1"
+						/>
+						<button
+							disabled={busy || !(owners[project.id] ?? '').trim()}
+							class="rounded border border-(--line) px-3 py-1 disabled:opacity-50"
+						>
+							{project.ownerUid ? 'Reassign' : 'Assign'}
+						</button>
+					</form>
 					<ul class="mt-2 space-y-1 text-sm">
 						{#each project.topics as topic (topic.id)}
 							<li class="flex justify-between gap-4">

@@ -19,16 +19,17 @@ Set `ADMIN_TOKEN` (at least 16 characters; `openssl rand -hex 24`). Unset, `/adm
 
 All JSON unless noted. 401 without credentials, 403 on a CSRF failure.
 
-| Method | Path                                           | Does                                                                                                             |
-| ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/admin/login`                             | `{token}`; sets the cookie, returns `{ok, csrf}`                                                                 |
-| POST   | `/api/admin/logout`                            | clears the cookie                                                                                                |
-| GET    | `/api/admin/stats`                             | `{service, appVersion, build, database:{name,bytes}, counts, schema, migrations:[{tag,applied}]}`                |
-| GET    | `/api/admin/projects`                          | Projects with their Topics: node, note and event counts, `bytes` (payload held, not disk size), `lastActivityAt` |
-| DELETE | `/api/admin/projects/:id`                      | body `{confirm: <exact Project name>, confirmId: <the id>}`; cascades                                            |
-| DELETE | `/api/admin/topics/:id`                        | body `{confirm: <exact Topic title>, confirmId: <the id>}`                                                       |
-| GET    | `/api/admin/export`                            | streams a Bundle (`application/zip`)                                                                             |
-| POST   | `/api/admin/import?confirm=replace-everything` | body is the zip; replaces everything. A Bundle with no Projects is refused unless `&allowEmpty=1`                |
+| Method | Path                                           | Does                                                                                                                                                      |
+| ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/admin/login`                             | `{token}`; sets the cookie, returns `{ok, csrf}`                                                                                                          |
+| POST   | `/api/admin/logout`                            | clears the cookie                                                                                                                                         |
+| GET    | `/api/admin/stats`                             | `{service, appVersion, build, database:{name,bytes}, counts, schema, migrations:[{tag,applied}]}`                                                         |
+| GET    | `/api/admin/projects`                          | Projects with their Topics: node, note and event counts, `bytes` (payload held, not disk size), `lastActivityAt`, `ownerUid`, `ownerEmail`, `hasWriteKey` |
+| DELETE | `/api/admin/projects/:id`                      | body `{confirm: <exact Project name>, confirmId: <the id>}`; cascades                                                                                     |
+| DELETE | `/api/admin/topics/:id`                        | body `{confirm: <exact Topic title>, confirmId: <the id>}`                                                                                                |
+| PATCH  | `/api/admin/projects/:id`                      | body `{email}` or `{uid}`: sets the Owner (anonymous or already owned). Returns `{id, ownerUid, previousOwnerUid}`                                        |
+| GET    | `/api/admin/export`                            | streams a Bundle (`application/zip`)                                                                                                                      |
+| POST   | `/api/admin/import?confirm=replace-everything` | body is the zip; replaces everything. A Bundle with no Projects is refused unless `&allowEmpty=1`                                                         |
 
 ```sh
 curl -H "Authorization: Bearer $ADMIN_TOKEN" -o beryl.zip https://old.example.com/api/admin/export

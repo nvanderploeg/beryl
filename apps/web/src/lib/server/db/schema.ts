@@ -23,7 +23,7 @@ const now = (name: string) =>
 
 // `slug` is the friendly address of the row: unique across Projects, and across one Project's
 // Topics. NULL only until the boot backfill assigns one. `ownerUid` is a Firebase uid; an owned
-// Project has no Write key (`writeKeyHash` NULL) and an anonymous one has no owner.
+// Project has a Write key only if it was anonymous before an Admin assigned its owner.
 export const TABLE_PREFIX = 'beryl_';
 
 export const projects = pgTable(

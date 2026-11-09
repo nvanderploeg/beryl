@@ -188,6 +188,10 @@ export async function renameProject(id: string, name: string): Promise<Project> 
 	return toProject(row);
 }
 
+export async function setWriteKeyHash(id: string, hash: string | null): Promise<void> {
+	await db.update(projects).set({ writeKeyHash: hash }).where(eq(projects.id, id));
+}
+
 function emptyCounts(): Counts {
 	return { questions: 0, assumptions: 0, fog: 0, risks: 0, settled: 0, total: 0 };
 }
