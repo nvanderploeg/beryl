@@ -38,7 +38,13 @@ const as = (uid: string) => ({ cookie: `runestone_session=cookie-${uid}` });
 async function reply(response: Response | Promise<Response>) {
 	const res = await response;
 	const text = await res.text();
-	return { status: res.status, body: (text ? JSON.parse(text) : {}) as Body };
+	let body: Body = {};
+	try {
+		body = text ? (JSON.parse(text) as Body) : {};
+	} catch {
+		body = { text };
+	}
+	return { status: res.status, body };
 }
 
 const assign = (id: string, body: unknown, admin = true) =>
@@ -127,7 +133,7 @@ describe('admin assigns an Owner', () => {
 	it('keeps private Topics away from the Write key', async () => {
 		const project = await seedProject();
 		await assign(project.id, { uid: 'alice' });
-		const publicTopic = (await seedTopic(project)).topicId;
+		const publicTopic = (await seedTopic(project, { public: true })).topicId;
 
 		const refusedPrivate = await api.createTopic(
 			project.id,
