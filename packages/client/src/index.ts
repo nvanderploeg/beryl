@@ -148,6 +148,33 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		return reply.ok && reply.body.enabled ? reply.body.config : undefined;
 	}
 
+	// Forget a login the server or Firebase will never accept again, unless another process has replaced it.
+	async function dropLogin(refreshToken: string): Promise<void> {
+		cachedIds.clear();
+		if ((await store.readLogin())?.refreshToken === refreshToken) await store.clearLogin();
+	}
+
+	// 'rejected' means Firebase refused the refresh token itself; null is any other failure.
+	async function refreshIdToken(apiKey: string, refreshToken: string) {
+		try {
+			const res = await fetchFn(
+				`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(apiKey)}`,
+				{
+					method: 'POST',
+					headers: { 'content-type': 'application/x-www-form-urlencoded' },
+					body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }),
+					signal: AbortSignal.timeout(requestTimeoutMs)
+				}
+			);
+			if (res.status === 400 || res.status === 401) return 'rejected' as const;
+			return res.ok
+				? ((await res.json()) as { id_token: string; refresh_token: string; expires_in: string })
+				: null;
+		} catch {
+			return null;
+		}
+	}
+
 	async function freshIdToken(server: string): Promise<string | undefined> {
 		const login = await store.readLogin();
 		if (!login) return undefined;
@@ -159,12 +186,17 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			return cached.idToken;
 		}
 		const config = await webConfig(server);
-		if (!config || config.projectId !== login.projectId) return undefined;
-		const got = await postJson<{ id_token: string; refresh_token: string; expires_in: string }>(
-			`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(config.apiKey)}`,
-			{ grant_type: 'refresh_token', refresh_token: login.refreshToken },
-			true
-		);
+		if (!config) return undefined;
+		if (config.projectId !== login.projectId) {
+			await dropLogin(login.refreshToken);
+			return undefined;
+		}
+		const refreshed = await refreshIdToken(config.apiKey, login.refreshToken);
+		if (refreshed === 'rejected') {
+			await dropLogin(login.refreshToken);
+			return undefined;
+		}
+		const got = refreshed;
 		if (!got) return undefined;
 		if (got.refresh_token !== login.refreshToken) {
 			const current = await store.readLogin();
@@ -216,19 +248,16 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 		name: string
 	): Promise<{ ok: true; entry: ProjectEntry } | Failure> {
 		const signedIn = Boolean(await store.readLogin());
-		const reply = await call<{
-			id: string;
-			name?: string;
-			writeKey?: string;
-			url?: string;
-		}>(server, '/api/projects', {
-			method: 'POST',
-			key: signedIn ? LOGIN_KEY : undefined,
-			body: { name }
-		});
+		type Created = { id: string; name?: string; writeKey?: string; url?: string };
+		const create = (key?: string) =>
+			call<Created>(server, '/api/projects', { method: 'POST', key, body: { name } });
+		let reply = await create(signedIn ? LOGIN_KEY : undefined);
+		const lapsed = signedIn && !reply.ok && !(await store.readLogin());
+		if (lapsed) reply = await create();
 		if (!reply.ok) return reply;
+		const stillSignedIn = signedIn && !lapsed;
 		const { id, writeKey, url } = reply.body;
-		const key = writeKey ?? (signedIn ? LOGIN_KEY : undefined);
+		const key = writeKey ?? (stillSignedIn ? LOGIN_KEY : undefined);
 		if (!key) return { ok: false, warning: 'beryl returned no key for the new project' };
 		return {
 			ok: true,
@@ -348,7 +377,10 @@ export function createClient(options: ClientOptions = {}): BerylClient {
 			guard<LoginState>(async () => {
 				const server = await discovery.discover();
 				if (!server) return unreachable;
-				if (await store.readLogin()) return { ok: true, value: { status: 'signed_in' as const } };
+				if (await store.readLogin()) {
+					await freshIdToken(server);
+					if (await store.readLogin()) return { ok: true, value: { status: 'signed_in' as const } };
+				}
 				let pending = await store.readPending(server);
 				if (!pending || Date.parse(pending.expiresAt) <= Date.now()) {
 					const started = await call<{

@@ -27,7 +27,15 @@ const firebase = () =>
 
 // Same-origin paths only, so a crafted `next` cannot bounce a signed-in person elsewhere.
 export function safeNext(raw: string | null): string {
-	return raw && raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\') ? raw : '/';
+	if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/';
+	// Browsers drop tab and newline inside a URL, turning `/\t/host` into `//host`.
+	if ([...raw].some((c) => c <= '\u001f' || c === '\u007f')) return '/';
+	try {
+		const base = 'http://safe.invalid';
+		return new URL(raw, base).origin === base ? raw : '/';
+	} catch {
+		return '/';
+	}
 }
 
 async function establish(user: User): Promise<void> {

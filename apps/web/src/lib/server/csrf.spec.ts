@@ -35,8 +35,14 @@ describe('crossSiteCookieWrite', () => {
 		expect(call('POST', cookie)).toBe(true);
 	});
 
+	it('checks a cookie write whose Bearer is not an ID token, since the cookie authenticates it', () => {
+		expect(call('POST', { authorization: 'Bearer x', ...cookie })).toBe(true);
+		expect(call('POST', { authorization: 'Bearer bw_abc', ...cookie })).toBe(true);
+		expect(call('POST', { authorization: 'Basic abc', ...cookie })).toBe(true);
+	});
+
 	it('leaves bearer and cookie-less requests alone', () => {
-		expect(call('POST', { authorization: 'Bearer x', ...cookie })).toBe(false);
+		expect(call('POST', { authorization: 'Bearer h.p.s', ...cookie })).toBe(false);
 		expect(call('POST', { 'sec-fetch-site': 'cross-site' })).toBe(false);
 	});
 });

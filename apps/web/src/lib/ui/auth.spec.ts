@@ -12,4 +12,19 @@ describe('safeNext', () => {
 			expect(safeNext(raw)).toBe('/');
 		}
 	});
+
+	it('rejects control characters that browsers strip into a protocol-relative URL', () => {
+		for (const raw of ['/\t/evil.test', '/\n/evil.test', '/\r/evil.test', '/\u0000/evil.test']) {
+			expect(safeNext(raw)).toBe('/');
+		}
+	});
+
+	it('rejects a percent-encoded tab once decoded from the query string', () => {
+		const next = new URLSearchParams('next=/%09/evil.test').get('next');
+		expect(safeNext(next)).toBe('/');
+	});
+
+	it('keeps paths that merely contain encoded characters', () => {
+		expect(safeNext('/a%2F%2Fb')).toBe('/a%2F%2Fb');
+	});
 });

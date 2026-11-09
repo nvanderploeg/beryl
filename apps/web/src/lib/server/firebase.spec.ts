@@ -104,4 +104,49 @@ describe('withRevocationCache', () => {
 		reject = false;
 		await expect(check.verifyIdToken('a')).resolves.toMatchObject({ uid: 'u' });
 	});
+
+	it('does not cache a verify that was in flight when its uid was revoked', async () => {
+		const { calls, inner } = counting();
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => (release = resolve));
+		inner.verifyIdToken = async () => {
+			calls.id++;
+			await gate;
+			return { uid: 'u', email: null, name: null };
+		};
+		const check = withRevocationCache(inner, () => NOW);
+		const inFlight = check.verifyIdToken('a');
+		await check.revokeRefreshTokens('u');
+		release();
+		await inFlight;
+		await check.verifyIdToken('a');
+		expect(calls.id).toBe(2);
+	});
+
+	it('still caches a verify of another uid that raced a revoke', async () => {
+		const { calls, inner } = counting();
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => (release = resolve));
+		inner.verifyIdToken = async () => {
+			calls.id++;
+			await gate;
+			return { uid: 'other', email: null, name: null };
+		};
+		const check = withRevocationCache(inner, () => NOW);
+		const inFlight = check.verifyIdToken('a');
+		await check.revokeRefreshTokens('u');
+		release();
+		await inFlight;
+		await check.verifyIdToken('a');
+		expect(calls.id).toBe(1);
+	});
+
+	it('caches a verify that starts after the revoke finished', async () => {
+		const { calls, inner } = counting();
+		const check = withRevocationCache(inner, () => NOW);
+		await check.revokeRefreshTokens('u');
+		await check.verifyIdToken('a');
+		await check.verifyIdToken('a');
+		expect(calls.id).toBe(1);
+	});
 });

@@ -85,13 +85,18 @@ export const REVOCATION_CACHE_MS = 5000;
 // Remembers successful checks briefly; a revocation made through this server clears them.
 export function withRevocationCache(inner: Verifier, now: () => number = Date.now): Verifier {
 	const seen = new Map<string, { user: LoginUser; until: number }>();
+	// A verify that started before a revoke of its uid must not cache its result.
+	let tick = 0;
+	const revokedAt = new Map<string, number>();
 	const remember =
 		(check: (credential: string) => Promise<LoginUser>, kind: string) =>
 		async (credential: string) => {
 			const key = `${kind}:${credential}`;
 			const hit = seen.get(key);
 			if (hit && hit.until > now()) return hit.user;
+			const started = tick;
 			const user = await check(credential);
+			if ((revokedAt.get(user.uid) ?? -1) > started) return user;
 			if (seen.size >= 1000) seen.clear();
 			seen.set(key, { user, until: now() + REVOCATION_CACHE_MS });
 			return user;
@@ -101,7 +106,9 @@ export function withRevocationCache(inner: Verifier, now: () => number = Date.no
 		verifySessionCookie: remember((c) => inner.verifySessionCookie(c), 'cookie'),
 		verifyIdToken: remember((t) => inner.verifyIdToken(t), 'id'),
 		async revokeRefreshTokens(uid) {
+			revokedAt.set(uid, ++tick);
 			await inner.revokeRefreshTokens(uid);
+			revokedAt.set(uid, ++tick);
 			seen.clear();
 		}
 	};

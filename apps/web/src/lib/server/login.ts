@@ -1,6 +1,7 @@
 import { AUTH_COOKIE_DOMAIN } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { AuthRejected, verifier, type LoginUser } from '#lib/server/firebase.ts';
+import { bearerOf, isIdToken } from '#lib/server/bearer.ts';
 import { ensureUser } from '#lib/server/users.ts';
 import { log } from '#lib/server/log.ts';
 
@@ -39,12 +40,9 @@ export async function verifyCookie(cookie: string | undefined): Promise<LoginUse
 
 export const cookieUser = (request: Request) => verifyCookie(cookieValue(request, COOKIE));
 
-// Bearers that are neither a Write key nor a Session token are Firebase ID tokens.
-const isIdToken = (key: string) => !/^b[a-z]_/.test(key) && key.split('.').length === 3;
-
 // An agent's Bearer is a Firebase ID token, verified (and revocation-checked) per request.
 export async function loginUser(request: Request): Promise<LoginUser | null> {
-	const key = /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1];
+	const key = bearerOf(request);
 	if (key && isIdToken(key)) {
 		const check = verifier();
 		if (!check) throw new ApiError(503, 'sign-in is not configured');

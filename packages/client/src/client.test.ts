@@ -1507,6 +1507,73 @@ describe('login', () => {
 		expect(fake.requests.some((r) => r.server === 'https://securetoken.googleapis.com')).toBe(true);
 	});
 
+	const writeLogin = (projectId = 'runestone-d3a35') => {
+		fs.mkdirSync(path.dirname(loginFile), { recursive: true });
+		fs.writeFileSync(
+			loginFile,
+			JSON.stringify({ refreshToken: 'refresh-1', uid: 'alice', projectId })
+		);
+	};
+
+	it('starts a device flow when the stored refresh token is revoked', async () => {
+		writeLogin();
+		const base = loginServer(() => false);
+		const fake = fakeFetch((req) =>
+			req.server === 'https://securetoken.googleapis.com'
+				? { status: 400, body: { error: { message: 'TOKEN_EXPIRED' } } }
+				: base(req)
+		);
+		const client = makeClient(fake);
+
+		expect(await client.login()).toMatchObject({ ok: true, value: { status: 'pending' } });
+		expect(fs.existsSync(loginFile)).toBe(false);
+	});
+
+	it('keeps the login when the refresh fails for a transient reason', async () => {
+		writeLogin();
+		const base = loginServer(() => false);
+		const fake = fakeFetch((req) =>
+			req.server === 'https://securetoken.googleapis.com' ? { status: 503, body: {} } : base(req)
+		);
+		const client = makeClient(fake);
+
+		expect(await client.login()).toEqual({ ok: true, value: { status: 'signed_in' } });
+		expect(fs.existsSync(loginFile)).toBe(true);
+	});
+
+	it('drops a login made for another Firebase project', async () => {
+		writeLogin('some-other-project');
+		const client = makeClient(fakeFetch(loginServer(() => false)));
+
+		expect(await client.login()).toMatchObject({ ok: true, value: { status: 'pending' } });
+		expect(fs.existsSync(loginFile)).toBe(false);
+	});
+
+	it('creates the project anonymously when the stored login has lapsed', async () => {
+		writeLogin();
+		const base = loginServer(() => false);
+		const fake = fakeFetch((req) => {
+			if (req.server === 'https://securetoken.googleapis.com') return { status: 400, body: {} };
+			if (req.method === 'POST' && req.path === '/api/projects' && !req.headers.authorization) {
+				return {
+					status: 201,
+					body: { id: 'proj-1', name: 'repo', writeKey: 'bw_1', url: `${SERVER}/p/proj-1` }
+				};
+			}
+			return base(req);
+		});
+		const client = makeClient(fake);
+
+		const opened = await client.openTopic({ title: 'T', cwd: tempDir('beryl-repo-') });
+		const stored = readFile('projects.json') as Record<
+			string,
+			Record<string, { writeKey: string }>
+		>;
+		expect(Object.values(stored[SERVER])[0].writeKey).toBe('bw_1');
+		expect(fs.existsSync(loginFile)).toBe(false);
+		expect(opened).toBeDefined();
+	});
+
 	it('forgets the login on logout', async () => {
 		const fake = fakeFetch(loginServer(() => true));
 		const client = makeClient(fake);

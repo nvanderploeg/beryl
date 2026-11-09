@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { and, eq, gt, isNull, lt } from 'drizzle-orm';
 import { ApiError } from '#lib/server/api.ts';
+import { isUniqueViolationOn } from '#lib/server/db/errors.ts';
 import { db } from '#lib/server/db/index.ts';
 import { deviceCodes } from '#lib/server/db/schema.ts';
 import { hashKey } from '#lib/server/hash.ts';
@@ -10,6 +11,7 @@ export const DEVICE_TTL_MS = 10 * 60_000;
 export const DEVICE_INTERVAL_S = 3;
 const DEVICE_PREFIX = 'bd_';
 // No vowels or look-alikes, so a code read aloud or typed from a terminal survives.
+const USER_CODE_INDEX = 'beryl_device_codes_user_code_idx';
 const USER_CODE_ALPHABET = 'BCDFGHJKLMNPQRSTVWXZ23456789';
 
 const lookups = createRateLimiter(10, 60_000);
@@ -71,7 +73,7 @@ export async function createDeviceCode(
 			await pruneDeviceCodes(now);
 			return { deviceCode, userCode, expiresAt };
 		} catch (error) {
-			if (attempt >= 5) throw error;
+			if (attempt >= 5 || !isUniqueViolationOn(error, USER_CODE_INDEX)) throw error;
 		}
 	}
 }
