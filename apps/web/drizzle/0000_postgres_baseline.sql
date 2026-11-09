@@ -1,4 +1,4 @@
-CREATE TABLE "events" (
+CREATE TABLE "beryl_events" (
 	"seq" bigserial PRIMARY KEY NOT NULL,
 	"topic_id" varchar(36) NOT NULL,
 	"path" varchar(512) COLLATE "C",
@@ -7,7 +7,7 @@ CREATE TABLE "events" (
 	"at" timestamp (3) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "nodes" (
+CREATE TABLE "beryl_nodes" (
 	"topic_id" varchar(36) NOT NULL,
 	"path" varchar(512) COLLATE "C" NOT NULL,
 	"parent_path" varchar(512) COLLATE "C",
@@ -29,10 +29,10 @@ CREATE TABLE "nodes" (
 	"created_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3) with time zone DEFAULT now() NOT NULL,
 	"status_since" timestamp (3) with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "nodes_topic_id_path_pk" PRIMARY KEY("topic_id","path")
+	CONSTRAINT "beryl_nodes_topic_id_path_pk" PRIMARY KEY("topic_id","path")
 );
 --> statement-breakpoint
-CREATE TABLE "notes" (
+CREATE TABLE "beryl_notes" (
 	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"topic_id" varchar(36) NOT NULL,
 	"anchor" json NOT NULL,
@@ -49,13 +49,13 @@ CREATE TABLE "notes" (
 	"updated_at" timestamp (3) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "pairings" (
+CREATE TABLE "beryl_pairings" (
 	"code_hash" char(64) PRIMARY KEY NOT NULL,
 	"project_id" varchar(36) NOT NULL,
 	"expires_at" timestamp (3) with time zone NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "projects" (
+CREATE TABLE "beryl_projects" (
 	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"slug" varchar(48),
 	"name" varchar(200) NOT NULL,
@@ -64,14 +64,14 @@ CREATE TABLE "projects" (
 	"last_write_at" timestamp (3) with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "sessions" (
+CREATE TABLE "beryl_sessions" (
 	"token_hash" char(64) PRIMARY KEY NOT NULL,
 	"project_id" varchar(36) NOT NULL,
 	"last_action_at" timestamp (3) with time zone NOT NULL,
 	"expires_at" timestamp (3) with time zone NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "topics" (
+CREATE TABLE "beryl_topics" (
 	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"project_id" varchar(36) NOT NULL,
 	"slug" varchar(48),
@@ -88,16 +88,16 @@ CREATE TABLE "topics" (
 	"closed_at" timestamp (3) with time zone
 );
 --> statement-breakpoint
-ALTER TABLE "events" ADD CONSTRAINT "events_topic_id_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "nodes" ADD CONSTRAINT "nodes_topic_id_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "notes" ADD CONSTRAINT "notes_topic_id_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pairings" ADD CONSTRAINT "pairings_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "topics" ADD CONSTRAINT "topics_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "events_topic_seq_idx" ON "events" USING btree ("topic_id","seq");--> statement-breakpoint
-CREATE INDEX "events_topic_path_seq_idx" ON "events" USING btree ("topic_id","path","seq");--> statement-breakpoint
-CREATE INDEX "nodes_topic_parent_idx" ON "nodes" USING btree ("topic_id","parent_path");--> statement-breakpoint
-CREATE INDEX "notes_topic_created_idx" ON "notes" USING btree ("topic_id","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "projects_slug_idx" ON "projects" USING btree ("slug");--> statement-breakpoint
-CREATE INDEX "topics_project_updated_idx" ON "topics" USING btree ("project_id","updated_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "topics_project_slug_idx" ON "topics" USING btree ("project_id","slug");
+ALTER TABLE "beryl_events" ADD CONSTRAINT "beryl_events_topic_id_beryl_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."beryl_topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "beryl_nodes" ADD CONSTRAINT "beryl_nodes_topic_id_beryl_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."beryl_topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "beryl_notes" ADD CONSTRAINT "beryl_notes_topic_id_beryl_topics_id_fk" FOREIGN KEY ("topic_id") REFERENCES "public"."beryl_topics"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "beryl_pairings" ADD CONSTRAINT "beryl_pairings_project_id_beryl_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."beryl_projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "beryl_sessions" ADD CONSTRAINT "beryl_sessions_project_id_beryl_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."beryl_projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "beryl_topics" ADD CONSTRAINT "beryl_topics_project_id_beryl_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."beryl_projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "beryl_events_topic_seq_idx" ON "beryl_events" USING btree ("topic_id","seq");--> statement-breakpoint
+CREATE INDEX "beryl_events_topic_path_seq_idx" ON "beryl_events" USING btree ("topic_id","path","seq");--> statement-breakpoint
+CREATE INDEX "beryl_nodes_topic_parent_idx" ON "beryl_nodes" USING btree ("topic_id","parent_path");--> statement-breakpoint
+CREATE INDEX "beryl_notes_topic_created_idx" ON "beryl_notes" USING btree ("topic_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "beryl_projects_slug_idx" ON "beryl_projects" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "beryl_topics_project_updated_idx" ON "beryl_topics" USING btree ("project_id","updated_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "beryl_topics_project_slug_idx" ON "beryl_topics" USING btree ("project_id","slug");

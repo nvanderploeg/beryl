@@ -4,8 +4,8 @@
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.device_codes": {
-      "name": "device_codes",
+    "public.beryl_device_codes": {
+      "name": "beryl_device_codes",
       "schema": "",
       "columns": {
         "code_hash": {
@@ -40,8 +40,8 @@
         }
       },
       "indexes": {
-        "device_codes_user_code_idx": {
-          "name": "device_codes_user_code_idx",
+        "beryl_device_codes_user_code_idx": {
+          "name": "beryl_device_codes_user_code_idx",
           "columns": [
             {
               "expression": "user_code",
@@ -63,8 +63,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.events": {
-      "name": "events",
+    "public.beryl_events": {
+      "name": "beryl_events",
       "schema": "",
       "columns": {
         "seq": {
@@ -106,8 +106,8 @@
         }
       },
       "indexes": {
-        "events_topic_seq_idx": {
-          "name": "events_topic_seq_idx",
+        "beryl_events_topic_seq_idx": {
+          "name": "beryl_events_topic_seq_idx",
           "columns": [
             {
               "expression": "topic_id",
@@ -127,8 +127,8 @@
           "method": "btree",
           "with": {}
         },
-        "events_topic_path_seq_idx": {
-          "name": "events_topic_path_seq_idx",
+        "beryl_events_topic_path_seq_idx": {
+          "name": "beryl_events_topic_path_seq_idx",
           "columns": [
             {
               "expression": "topic_id",
@@ -156,10 +156,10 @@
         }
       },
       "foreignKeys": {
-        "events_topic_id_topics_id_fk": {
-          "name": "events_topic_id_topics_id_fk",
-          "tableFrom": "events",
-          "tableTo": "topics",
+        "beryl_events_topic_id_beryl_topics_id_fk": {
+          "name": "beryl_events_topic_id_beryl_topics_id_fk",
+          "tableFrom": "beryl_events",
+          "tableTo": "beryl_topics",
           "columnsFrom": [
             "topic_id"
           ],
@@ -176,8 +176,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.nodes": {
-      "name": "nodes",
+    "public.beryl_nodes": {
+      "name": "beryl_nodes",
       "schema": "",
       "columns": {
         "topic_id": {
@@ -312,8 +312,8 @@
         }
       },
       "indexes": {
-        "nodes_topic_parent_idx": {
-          "name": "nodes_topic_parent_idx",
+        "beryl_nodes_topic_parent_idx": {
+          "name": "beryl_nodes_topic_parent_idx",
           "columns": [
             {
               "expression": "topic_id",
@@ -335,10 +335,10 @@
         }
       },
       "foreignKeys": {
-        "nodes_topic_id_topics_id_fk": {
-          "name": "nodes_topic_id_topics_id_fk",
-          "tableFrom": "nodes",
-          "tableTo": "topics",
+        "beryl_nodes_topic_id_beryl_topics_id_fk": {
+          "name": "beryl_nodes_topic_id_beryl_topics_id_fk",
+          "tableFrom": "beryl_nodes",
+          "tableTo": "beryl_topics",
           "columnsFrom": [
             "topic_id"
           ],
@@ -350,8 +350,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "nodes_topic_id_path_pk": {
-          "name": "nodes_topic_id_path_pk",
+        "beryl_nodes_topic_id_path_pk": {
+          "name": "beryl_nodes_topic_id_path_pk",
           "columns": [
             "topic_id",
             "path"
@@ -363,8 +363,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.notes": {
-      "name": "notes",
+    "public.beryl_notes": {
+      "name": "beryl_notes",
       "schema": "",
       "columns": {
         "id": {
@@ -455,8 +455,8 @@
         }
       },
       "indexes": {
-        "notes_topic_created_idx": {
-          "name": "notes_topic_created_idx",
+        "beryl_notes_topic_created_idx": {
+          "name": "beryl_notes_topic_created_idx",
           "columns": [
             {
               "expression": "topic_id",
@@ -478,10 +478,10 @@
         }
       },
       "foreignKeys": {
-        "notes_topic_id_topics_id_fk": {
-          "name": "notes_topic_id_topics_id_fk",
-          "tableFrom": "notes",
-          "tableTo": "topics",
+        "beryl_notes_topic_id_beryl_topics_id_fk": {
+          "name": "beryl_notes_topic_id_beryl_topics_id_fk",
+          "tableFrom": "beryl_notes",
+          "tableTo": "beryl_topics",
           "columnsFrom": [
             "topic_id"
           ],
@@ -498,8 +498,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.pairings": {
-      "name": "pairings",
+    "public.beryl_pairings": {
+      "name": "beryl_pairings",
       "schema": "",
       "columns": {
         "code_hash": {
@@ -523,10 +523,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "pairings_project_id_projects_id_fk": {
-          "name": "pairings_project_id_projects_id_fk",
-          "tableFrom": "pairings",
-          "tableTo": "projects",
+        "beryl_pairings_project_id_beryl_projects_id_fk": {
+          "name": "beryl_pairings_project_id_beryl_projects_id_fk",
+          "tableFrom": "beryl_pairings",
+          "tableTo": "beryl_projects",
           "columnsFrom": [
             "project_id"
           ],
@@ -543,8 +543,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.projects": {
-      "name": "projects",
+    "public.beryl_projects": {
+      "name": "beryl_projects",
       "schema": "",
       "columns": {
         "id": {
@@ -593,8 +593,8 @@
         }
       },
       "indexes": {
-        "projects_slug_idx": {
-          "name": "projects_slug_idx",
+        "beryl_projects_slug_idx": {
+          "name": "beryl_projects_slug_idx",
           "columns": [
             {
               "expression": "slug",
@@ -608,8 +608,8 @@
           "method": "btree",
           "with": {}
         },
-        "projects_owner_idx": {
-          "name": "projects_owner_idx",
+        "beryl_projects_owner_idx": {
+          "name": "beryl_projects_owner_idx",
           "columns": [
             {
               "expression": "owner_uid",
@@ -631,8 +631,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.sessions": {
-      "name": "sessions",
+    "public.beryl_sessions": {
+      "name": "beryl_sessions",
       "schema": "",
       "columns": {
         "token_hash": {
@@ -662,10 +662,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "sessions_project_id_projects_id_fk": {
-          "name": "sessions_project_id_projects_id_fk",
-          "tableFrom": "sessions",
-          "tableTo": "projects",
+        "beryl_sessions_project_id_beryl_projects_id_fk": {
+          "name": "beryl_sessions_project_id_beryl_projects_id_fk",
+          "tableFrom": "beryl_sessions",
+          "tableTo": "beryl_projects",
           "columnsFrom": [
             "project_id"
           ],
@@ -682,8 +682,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.topics": {
-      "name": "topics",
+    "public.beryl_topics": {
+      "name": "beryl_topics",
       "schema": "",
       "columns": {
         "id": {
@@ -781,8 +781,8 @@
         }
       },
       "indexes": {
-        "topics_project_updated_idx": {
-          "name": "topics_project_updated_idx",
+        "beryl_topics_project_updated_idx": {
+          "name": "beryl_topics_project_updated_idx",
           "columns": [
             {
               "expression": "project_id",
@@ -802,8 +802,8 @@
           "method": "btree",
           "with": {}
         },
-        "topics_project_slug_idx": {
-          "name": "topics_project_slug_idx",
+        "beryl_topics_project_slug_idx": {
+          "name": "beryl_topics_project_slug_idx",
           "columns": [
             {
               "expression": "project_id",
@@ -825,10 +825,10 @@
         }
       },
       "foreignKeys": {
-        "topics_project_id_projects_id_fk": {
-          "name": "topics_project_id_projects_id_fk",
-          "tableFrom": "topics",
-          "tableTo": "projects",
+        "beryl_topics_project_id_beryl_projects_id_fk": {
+          "name": "beryl_topics_project_id_beryl_projects_id_fk",
+          "tableFrom": "beryl_topics",
+          "tableTo": "beryl_projects",
           "columnsFrom": [
             "project_id"
           ],
@@ -845,8 +845,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.users": {
-      "name": "users",
+    "public.beryl_users": {
+      "name": "beryl_users",
       "schema": "",
       "columns": {
         "uid": {

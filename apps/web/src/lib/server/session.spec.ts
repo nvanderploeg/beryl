@@ -87,12 +87,14 @@ describe('POST /api/pairings/redeem', () => {
 		const holder = await pool.connect();
 		try {
 			await holder.query('BEGIN');
-			await holder.query('SELECT 1 FROM pairings WHERE code_hash = $1 FOR UPDATE', [hashKey(code)]);
+			await holder.query('SELECT 1 FROM beryl_pairings WHERE code_hash = $1 FOR UPDATE', [
+				hashKey(code)
+			]);
 			const redemptions = Array.from({ length: racers }, () => api.redeem({ code }));
 			for (let i = 0; ; i++) {
 				const { rows } = await pool.query(
 					`SELECT count(*)::int AS n FROM pg_stat_activity
-					 WHERE wait_event_type = 'Lock' AND query ILIKE 'delete from "pairings"%'`
+					 WHERE wait_event_type = 'Lock' AND query ILIKE 'delete from "beryl_pairings"%'`
 				);
 				if (rows[0].n === racers) break;
 				if (i > 200) throw new Error('redemptions never queued on the claim');

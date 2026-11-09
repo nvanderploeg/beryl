@@ -12,7 +12,7 @@ import { ADMIN_BACKUP_DIR, ADMIN_MAX_UNPACKED_MB } from '$app/env/private';
 import { ApiError } from '#lib/server/api.ts';
 import { pool } from '#lib/server/db/index.ts';
 import { isNulInText } from '#lib/server/db/errors.ts';
-import { events, nodes, notes, projects, topics } from '#lib/server/db/schema.ts';
+import { events, nodes, notes, projects, topics, TABLE_PREFIX } from '#lib/server/db/schema.ts';
 import { log } from '#lib/server/log.ts';
 import { endStreams } from '#lib/server/stream.ts';
 import { backfillSlugs } from '#lib/server/store.ts';
@@ -102,9 +102,13 @@ async function* dumpDatabase(conn: PoolClient): AsyncGenerator<Buffer> {
 		const numeric = columns.map((column) => column.columnType === 'PgBigSerial53');
 		yield Buffer.from(`${JSON.stringify({ table: name, columns: names })}\n`);
 		const cursor = conn.query(
-			new Cursor(`SELECT ${columns.map(dumpExpression).join(', ')} FROM ${quote(name)}`, [], {
-				rowMode: 'array'
-			})
+			new Cursor(
+				`SELECT ${columns.map(dumpExpression).join(', ')} FROM ${quote(TABLE_PREFIX + name)}`,
+				[],
+				{
+					rowMode: 'array'
+				}
+			)
 		);
 		let pending = '';
 		try {
@@ -384,7 +388,7 @@ export async function importBundle(
 		try {
 			await conn.query('BEGIN');
 			await conn.query("SET LOCAL TIME ZONE 'UTC'");
-			for (const name of WIPE_ORDER) await conn.query(`DELETE FROM ${quote(name)}`);
+			for (const name of WIPE_ORDER) await conn.query(`DELETE FROM ${quote(TABLE_PREFIX + name)}`);
 
 			let table: ReturnType<typeof openTable> | undefined;
 			const flush = async () => {
@@ -396,7 +400,7 @@ export async function importBundle(
 				);
 				try {
 					await conn.query(
-						`INSERT INTO ${quote(target.name)} (${target.columns.map(quote).join(', ')}) VALUES ${tuples.join(', ')}`,
+						`INSERT INTO ${quote(TABLE_PREFIX + target.name)} (${target.columns.map(quote).join(', ')}) VALUES ${tuples.join(', ')}`,
 						target.pending.flat()
 					);
 				} catch (error) {
@@ -436,12 +440,12 @@ export async function importBundle(
 			}
 			// The sequence only moves forward: a lower value would reissue seqs clients have seen.
 			const { rows: named } = await conn.query(
-				`SELECT pg_get_serial_sequence('events', 'seq') AS name`
+				`SELECT pg_get_serial_sequence('beryl_events', 'seq') AS name`
 			);
 			const sequence = named[0].name as string;
 			await conn.query(
 				`SELECT setval($1, GREATEST(
-					COALESCE((SELECT MAX(seq) FROM events), 0) + 1,
+					COALESCE((SELECT MAX(seq) FROM beryl_events), 0) + 1,
 					(SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END FROM ${sequence})
 				), false)`,
 				[sequence]

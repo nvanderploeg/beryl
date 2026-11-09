@@ -24,8 +24,10 @@ const now = (name: string) =>
 // `slug` is the friendly address of the row: unique across Projects, and across one Project's
 // Topics. NULL only until the boot backfill assigns one. `ownerUid` is a Firebase uid; an owned
 // Project has no Write key (`writeKeyHash` NULL) and an anonymous one has no owner.
+export const TABLE_PREFIX = 'beryl_';
+
 export const projects = pgTable(
-	'projects',
+	'beryl_projects',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		slug: varchar('slug', { length: 48 }),
@@ -36,12 +38,12 @@ export const projects = pgTable(
 		lastWriteAt: now('last_write_at')
 	},
 	(table) => [
-		uniqueIndex('projects_slug_idx').on(table.slug),
-		index('projects_owner_idx').on(table.ownerUid)
+		uniqueIndex('beryl_projects_slug_idx').on(table.slug),
+		index('beryl_projects_owner_idx').on(table.ownerUid)
 	]
 );
 
-export const pairings = pgTable('pairings', {
+export const pairings = pgTable('beryl_pairings', {
 	codeHash: char('code_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
@@ -49,7 +51,7 @@ export const pairings = pgTable('pairings', {
 	expiresAt: instant('expires_at').notNull()
 });
 
-export const sessions = pgTable('sessions', {
+export const sessions = pgTable('beryl_sessions', {
 	tokenHash: char('token_hash', { length: 64 }).primaryKey(),
 	projectId: varchar('project_id', { length: 36 })
 		.notNull()
@@ -59,7 +61,7 @@ export const sessions = pgTable('sessions', {
 });
 
 // This app's record of a Firebase user, created on the first verified request.
-export const users = pgTable('users', {
+export const users = pgTable('beryl_users', {
 	uid: varchar('uid', { length: 128 }).primaryKey(),
 	email: varchar('email', { length: 320 }),
 	name: varchar('name', { length: 200 }),
@@ -69,7 +71,7 @@ export const users = pgTable('users', {
 // A pending device login: the agent holds `deviceCode`, the person approves `userCode` while
 // signed in, which sets `uid`. Redeeming the device code deletes the row.
 export const deviceCodes = pgTable(
-	'device_codes',
+	'beryl_device_codes',
 	{
 		codeHash: char('code_hash', { length: 64 }).primaryKey(),
 		userCode: varchar('user_code', { length: 16 }).notNull(),
@@ -80,13 +82,13 @@ export const deviceCodes = pgTable(
 		createdAt: now('created_at'),
 		expiresAt: instant('expires_at').notNull()
 	},
-	(table) => [uniqueIndex('device_codes_user_code_idx').on(table.userCode)]
+	(table) => [uniqueIndex('beryl_device_codes_user_code_idx').on(table.userCode)]
 );
 
 // Paths are case-sensitive and byte-ordered: give every path column `COLLATE "C"` by hand in its
 // migration SQL, which drizzle cannot express.
 export const topics = pgTable(
-	'topics',
+	'beryl_topics',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		projectId: varchar('project_id', { length: 36 })
@@ -107,13 +109,13 @@ export const topics = pgTable(
 		closedAt: instant('closed_at')
 	},
 	(table) => [
-		index('topics_project_updated_idx').on(table.projectId, table.updatedAt),
-		uniqueIndex('topics_project_slug_idx').on(table.projectId, table.slug)
+		index('beryl_topics_project_updated_idx').on(table.projectId, table.updatedAt),
+		uniqueIndex('beryl_topics_project_slug_idx').on(table.projectId, table.slug)
 	]
 );
 
 export const nodes = pgTable(
-	'nodes',
+	'beryl_nodes',
 	{
 		topicId: varchar('topic_id', { length: 36 })
 			.notNull()
@@ -141,12 +143,12 @@ export const nodes = pgTable(
 	},
 	(table) => [
 		primaryKey({ columns: [table.topicId, table.path] }),
-		index('nodes_topic_parent_idx').on(table.topicId, table.parentPath)
+		index('beryl_nodes_topic_parent_idx').on(table.topicId, table.parentPath)
 	]
 );
 
 export const notes = pgTable(
-	'notes',
+	'beryl_notes',
 	{
 		id: varchar('id', { length: 36 }).primaryKey(),
 		topicId: varchar('topic_id', { length: 36 })
@@ -165,11 +167,11 @@ export const notes = pgTable(
 		createdAt: now('created_at'),
 		updatedAt: now('updated_at')
 	},
-	(table) => [index('notes_topic_created_idx').on(table.topicId, table.createdAt)]
+	(table) => [index('beryl_notes_topic_created_idx').on(table.topicId, table.createdAt)]
 );
 
 export const events = pgTable(
-	'events',
+	'beryl_events',
 	{
 		seq: bigserial('seq', { mode: 'number' }).primaryKey(),
 		topicId: varchar('topic_id', { length: 36 })
@@ -181,7 +183,7 @@ export const events = pgTable(
 		at: now('at')
 	},
 	(table) => [
-		index('events_topic_seq_idx').on(table.topicId, table.seq),
-		index('events_topic_path_seq_idx').on(table.topicId, table.path, table.seq)
+		index('beryl_events_topic_seq_idx').on(table.topicId, table.seq),
+		index('beryl_events_topic_path_seq_idx').on(table.topicId, table.path, table.seq)
 	]
 );
