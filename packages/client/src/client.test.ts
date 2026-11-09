@@ -269,7 +269,7 @@ afterEach(() => {
 
 describe('exported constants', () => {
 	it('probes the local server, then the hosted one', () => {
-		expect(DEFAULT_CANDIDATES).toEqual(['http://localhost:3270', 'https://beryl.nanzero.com']);
+		expect(DEFAULT_CANDIDATES).toEqual(['http://localhost:3270', 'https://beryl.merc.camp']);
 	});
 
 	it('uses the exact unreachable warning text', () => {

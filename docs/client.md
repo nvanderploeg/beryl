@@ -5,7 +5,7 @@ Builds on `docs/api.md`. Nothing here may throw into an agent's work: every fail
 ## `@beryl/client` (`packages/client/src/index.ts`)
 
 ```ts
-export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://beryl.nanzero.com'];
+export const DEFAULT_CANDIDATES = ['http://localhost:3270', 'https://beryl.merc.camp'];
 export const UNREACHABLE_WARNING = 'beryl unreachable — continuing without the board';
 
 export interface ClientOptions {
