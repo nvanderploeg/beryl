@@ -248,7 +248,7 @@ Anything else, unparseable input, a missing `session_id` or any failure → no o
 
 ## Runestone login file
 
-One login serves every Runestone tool on a machine: the beryl and chronicle clients read and write the same file, so signing in through either serves both (and command-center).
+One login serves every Runestone tool on a machine: the beryl and chronicle clients read and write the same file, so signing in through either serves both.
 
 - Path: `$XDG_CONFIG_HOME/runestone/login.json`, default `~/.config/runestone/login.json`. File mode 0600, directory 0700.
 - Content: `{ "refreshToken": string, "uid": string, "email"?: string, "projectId": string }`. `refreshToken` is the Firebase refresh token; `projectId` is the Firebase project it belongs to. A login for a project other than the server's is not used there.
